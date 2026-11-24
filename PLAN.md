@@ -1,4 +1,4 @@
-# catenae — plan (draft 7)
+# catenae — plan (draft 8)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -59,10 +59,12 @@ open to change. **proposed** is new in this draft or not yet reviewed.
 | D20 | The naming and formatting rules are the Tap rules, enforced by `.clang-format` and `.clang-tidy` in CI; the files are owned here, with no drift check against TapHouse. | settled |
 | D21 | No exceptions and no RTTI, ever. Every build is `-fno-exceptions -fno-rtti`; no `throw`, `try`, `dynamic_cast` or `typeid` appears; there is no second configuration. Whatever can fail does so through a returned `status` or `result<T>`, and only outside the audio path (section 3.3). | settled |
 | D22 | No heap. The library never calls `new`, `malloc` or an allocating standard container, at construction or afterwards. Every buffer is a member whose size is a template argument, or storage the caller supplies as a span. | proposed (follows from D23; it replaces the Tap rule "allocate at construction") |
-| D23 | catenae is written to MISRA C++:2023 and developed so that it can be used in an ASIL B item (section 8). What is claimed formally, and when, is open (section 12). | settled as a direction ("we should consider"); the posture in section 8 is proposed |
+| D23 | catenae is written with MISRA C++:2023 and ASIL B in mind, as a precaution: there is no requirement today, one may come, and there is no checker. So the constraints that are expensive to retrofit are designed in now (section 8), and nothing is claimed: no compliance statement, no compliance matrix, no safety case. | settled |
 | D24 | `float` is the default sample type and `double` is the golden model. An unsuffixed name is the `float` stage (`gain<2>`); `_f64`, `_q15` and `_q31` name the others. Every profile's numbers are stated against the `double` one, which never changes for speed. | settled (the naming is proposed) |
 | D25 | A frame of transform coefficients is, per channel, N/2 + 1 bins of `complex<S>` (real then imaginary, adjacent), DC to Nyquist, all stored; channels follow one another whole (section 5.2). | proposed |
 | D26 | Build systems: CMake first; waf supported and built in CI from C0; a Zephyr module when a consumer needs it. One amalgamated source file exists for anything else. | settled as to which; the timing is proposed |
+| D27 | Preconditions come in two tiers (section 3.3). A *boundary* check, made once per call where the caller's data enters the library, is on in every build. An *audit* check, inside the library's own loops or on what the host is responsible for, is on in debug builds only. One generated configuration header sets the level for the whole image, and a link-time guard refuses an image that mixes levels. | proposed |
+| D28 | FFT back ends (section 7.1): catenae's own engines are the default on every target and the only ones in this repository. CMSIS-DSP and Apple's vDSP are opt-in, chosen when the library is built, and never vendored: the consumer's own copy is used. | proposed |
 
 ## 2. Charter
 
@@ -125,9 +127,25 @@ ill-typed member.
   `result<T>` (a value or a `status`; no heap, C++17). A stage is constructed from a design
   and cannot fail. A design can equally be a `constexpr` table in ROM, in which case no
   designer is linked at all.
-- **A violated precondition** calls one `[[noreturn]]` handler that the integrator supplies
-  at link time (the default traps). Whether preconditions are checked in release builds is
-  one library-wide build option, not a per-file macro.
+- **Preconditions, in two tiers (D27).**
+  - A *boundary* check guards what the caller hands in: a span too short for
+    `outputs_for(n)` frames, a length that is not a whole number of frames, `reset()` on a
+    running junction. It is made once per call, costs a few compares per block, and is on
+    in every build, because in a release build an unchecked one is a write past a buffer.
+    Its cost is in the instruction-count ratchet like any other.
+  - An *audit* check guards what the library itself or the host is responsible for: an
+    index inside a kernel's loop, a state invariant, the host's flush-to-zero setting. It is
+    on in debug builds and compiled out otherwise: the battery and its coverage are what
+    prove these, and a check per sample would cost more than the filter and stop the
+    compiler vectorizing.
+  - A failed check calls one `[[noreturn]]` handler that the integrator supplies at link
+    time (the default traps). It receives a small enumerated code, not a file name and a
+    message, so checks add no strings to ROM.
+  - Checks are inline functions, not macros. The level is one generated header,
+    `catenae/config.h`, the same for every file of an image; each object file refers to a
+    symbol named for its level and the compiled library defines only its own, so an image
+    that mixes levels fails to link instead of misbehaving (the one-definition hazard the
+    Tap libraries document for their per-file macros).
 
 ## 4. The chain
 
@@ -242,6 +260,33 @@ What this buys:
    These are predictions: each component that could go either way gets a size probe in both
    forms on the embedded targets, and the table above is corrected where a probe disagrees.
 
+### 7.1 FFT back ends (D28)
+
+| Back end | Sample types | Where | How it arrives |
+|---|---|---|---|
+| catenae's own floating engine (DspTap's srdif engine, ported) | `float`, `double` | everywhere; the default | source in this repository |
+| catenae's own fixed-point engine (DspTap's, ported) | Q15, Q31 | everywhere; the default | source in this repository |
+| CMSIS-DSP | `float` first (Helium on the Cortex-M55, Neon on Cortex-A) | Arm, opt-in | the consumer's copy: an existing CMake target or a path given at configure time. CI fetches one pinned release by hash. |
+| vDSP (Accelerate) | `float` first | Apple, opt-in | the system framework; nothing to bring in |
+
+- **Own engines are the reference.** They are the only FFT code in the repository, the only
+  ones inside D21 to D23, and the ones whose output bits are pinned. An accelerated back end
+  re-presents the same contract (D25's frame, the sign, the scale) within a stated tolerance
+  of the `double` engine, proven by a parity battery on the leg that has the hardware.
+- **Not vendored, because an embedded consumer nearly always has CMSIS-DSP already**, pinned
+  by its silicon vendor's SDK. A second copy inside catenae would define the same symbols
+  and either fail to link or, worse, link the wrong one. So catenae compiles its thin
+  adapter against the copy it is pointed at, states the versions it is tested with, and
+  under Zephyr uses Zephyr's CMSIS-DSP module.
+- **One back end per library build**, selected by `CATENAE_FFT_BACKEND` (`own`, `cmsis`,
+  `vdsp`). The adapter converts the back end's native packing to D25's frame (CMSIS-DSP
+  packs the Nyquist bin beside DC; vDSP is split complex).
+- **Honest limits.** A back end's code is not catenae's: vDSP allocates when a setup is
+  created, which is a recorded exception to D22 on Apple hosts only; and each back end
+  serves its own range of transform lengths, stated as contract numbers.
+- **Not planned:** FFTW (GPL); a Hexagon HVX back end until a consumer needs one, where it
+  would link the vendor's library from the consumer's SDK in the same way.
+
 **Build systems (D26).** The library is always built from source in the consumer's build,
 with the consumer's target flags, and never shipped prebuilt.
 
@@ -276,16 +321,17 @@ there. What catenae can do is be built so that this is possible and cheap. The p
 
 **In CI from C0:** statement and branch coverage of the compiled core and of each
 instantiation the battery makes; the static analysis that is free (`clang-tidy`'s checks,
-compiler warnings as errors), with the gap to a real MISRA checker stated.
+compiler warnings as errors). These approximate a MISRA checker; they are not one.
 
-**Not claimed until decided (section 12):** MISRA compliance, which needs a qualified
-checker for the 2023 edition and a guideline-by-guideline compliance matrix; and anything
-with "ASIL B" in its name, which needs a safety plan, a safety manual for integrators and
-an assessment.
+**Deferred until a requirement arrives:** a MISRA checker for the 2023 edition, the
+guideline-by-guideline compliance matrix, a safety plan, a safety manual for integrators and
+an assessment. The deviation log is kept from the start anyway, as a plain list of the
+places where the code knowingly does what a strict reading would forbid, because it is
+cheap to write as the code is written and expensive to reconstruct.
 
 A caution on this section: the MISRA document is licensed and was not available while this
 plan was drafted. No rule is quoted or numbered here, and the list of likely deviations is
-from memory. The first task of C0 is to check this section against the text.
+from memory. It should be checked against the text when a copy is to hand.
 
 ## 9. What the code is proposed to look like
 
@@ -419,13 +465,66 @@ auto metering = mix<2, 1>{k_mono_mix} | tap<1, rms_meter>{};
 fed_by(link, metering).process(mono_out);             // pulls what the chain needs, runs it
 ```
 
+### 9.6 Where the memory is, without a heap (D22)
+
+Three patterns cover every case.
+
+**Storage inside the object, sized by template arguments.** The object's size is known to
+the compiler, so it can be static, and its RAM is a number in the map file.
+
+```cpp
+template <typename S, std::size_t Ch, std::size_t MaxFrames>
+class basic_delay {
+    // ...
+    std::array<S, MaxFrames * Ch> m_line{};   // was: std::vector<S> m_line(max_frames * channels)
+    std::size_t                   m_write = 0;
+};
+
+static catenae::delay<2, 480> s_align;                    // 10 ms of stereo float at 48 kHz, in .bss
+static_assert(sizeof(s_align) <= 3840 + 2 * sizeof(std::size_t));
+```
+
+**Constant data stays in ROM and is viewed, not copied.**
+
+```cpp
+constexpr std::array<float, 63> k_taps = { /* generated, bit-pinned */ };   // .rodata
+
+catenae::fir<63, 2> lowpass(k_taps);   // holds a span over k_taps: no RAM copy of the taps;
+                                       // its only RAM is the history, std::array<float, 62 * 2>
+```
+
+**Storage the caller supplies, where a size is only known at run time.** The compiled core
+never owns memory; it is handed a workspace and says how much it needs.
+
+```cpp
+// Compiled FFT: the length is a run-time number, the workspace is the caller's.
+static std::array<float, catenae::fft_workspace_size<float>(1024)> s_workspace;   // constexpr size
+const auto plan = catenae::fft_plan<float>::make(1024, s_workspace);              // result<...>:
+                                                                                  // status::workspace_too_small
+
+// A header stage does this for its user: stft<512, 128, 1> has the right array as a member.
+```
+
+A chain follows the first pattern: its scratch is a member array, so `sizeof(overdrive)` is
+the chain's whole memory, known at compile time, and a size probe records it.
+
+What D22 costs, stated plainly:
+
+- A size chosen at run time (taps read from a file) needs a maximum chosen at compile time
+  or a caller's workspace.
+- Objects are as large as their buffers. They belong in static storage or in a
+  caller-owned arena, not on a small thread's stack.
+- A template argument per size means an instantiation per size. The rule that keeps ROM
+  flat: the storage is in the template, the arithmetic is in a kernel that takes spans, so
+  `delay<2, 480>` and `delay<2, 960>` share their code.
+
 ## 10. Milestones
 
 Each ends with its battery green on every CI leg and its numbers recorded.
 
 | | Milestone | Contents |
 |---|---|---|
-| C0 | Skeleton | Repository layout, license, `NOTICE.md`, style files. The CMake build and the waf build, both in CI: hosted at `-std=c++17`, 20 and 23, always `-fno-exceptions -fno-rtti`; the Cortex-M and Hexagon QEMU legs. `span`, `status` / `result`, the precondition handler, `sample_traits`, the ports, `stage_traits`, `junction_traits`, the contract documents with requirement identifiers. The static library with its first compiled unit, the amalgamation, a size probe per embedded target, coverage. Section 8 checked against the MISRA text; the deviation log opened. The compile-fail battery: one test per architectural rule (mismatched ports at a joint in each of the ways a port can differ; a junction inside a chain), each asserting on its message. |
+| C0 | Skeleton | Repository layout, license, `NOTICE.md`, style files. The CMake build and the waf build, both in CI: hosted at `-std=c++17`, 20 and 23, always `-fno-exceptions -fno-rtti`; the Cortex-M and Hexagon QEMU legs. `span`, `status` / `result`, the precondition handler, `sample_traits`, the ports, `stage_traits`, `junction_traits`, the contract documents with requirement identifiers. The static library with its first compiled unit, the amalgamation, a size probe per embedded target, coverage. The deviation log opened. The two precondition tiers, the handler and the link-time level guard. The compile-fail battery: one test per architectural rule (mismatched ports at a joint in each of the ways a port can differ; a junction inside a chain), each asserting on its message. |
 | C1 | The chain on trivial stages | `chain`, `gain`, `map`, integer `delay`, `interleave` / `deinterleave`, the sample converters. `handoff`, with `feeding` and `fed_by`. The instruction-count harness and the layout benchmark, carried from the spike. This proves D6, D7, D9, D10, D19, D21 and D22 on the simplest instances. |
 | C2 | The edges | `unpack` / `pack` (16, 24-packed, 24-in-32, 32; either byte order), TPDF dither, the mix matrix. |
 | C3 | Filters | The biquad block kernel, the biquad family and the Butterworth with their designs, a direct-form FIR, `up2` / `down2` and the L/M stages. The overdrive chain of 9.3 as a tested example. |
@@ -494,33 +593,26 @@ Butterworth's layout again on the block kernel.
 
 ## 12. Open questions
 
-Gating C0:
+Decided on 2026-11-24: D23 is a precaution with nothing claimed and no checker; cobra needs
+nothing from the plan.
 
-1. **What is claimed, and with what tools (D23).** Is the aim a formal MISRA C++:2023
-   compliance statement and an ASIL B safety element out of context, or code that is
-   written to both without the paperwork? And which MISRA checker for the 2023 edition is
-   available? CI can only gate on a checker it can run.
-2. **"waf/cobra".** The plan supports waf with a `wscript`. If cobra is a layer over waf
-   with conventions of its own, what does it need from a library?
-3. **Preconditions.** A link-time handler with checks on or off for the whole build
-   (section 3.3), or always checked? In a safety context "compiled out in release" is itself
-   a decision to record.
+Gating C0: nothing, if D22, D27 and D28 are accepted.
 
 Gating C1:
 
-4. **The planar signature.** A span per channel, or one span with the channels end to end?
-5. **Run-time channel counts.** In the charter at all? The spike says to serve them through
+1. **The planar signature.** A span per channel, or one span with the channels end to end?
+2. **Run-time channel counts.** In the charter at all? The spike says to serve them through
    planar stages, where a run-time count costs under 2 %. D22 means a maximum count would
    still be a template argument.
-6. **Run-time parameters.** Under section 3.3 a parameter change is a new design applied to
+3. **Run-time parameters.** Under section 3.3 a parameter change is a new design applied to
    a running stage. Is applying one part of the stage contract (when it takes effect,
    whether it is smoothed), or each stage's own matter?
 
 Gating later milestones:
 
-7. **A fixed-point spectrum's exponent.** In the frame (a header value per channel) or
+4. **A fixed-point spectrum's exponent.** In the frame (a header value per channel) or
    beside it?
-8. **Analyzer results across threads.** Through a `handoff`, or each analyzer's own rule?
-9. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass?
-10. **The FFT.** Carry the srdif engine with its fixed-point profiles whole, or only the
-    floating engine first?
+5. **Analyzer results across threads.** Through a `handoff`, or each analyzer's own rule?
+6. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass?
+7. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
+   fixed-point one with C6?

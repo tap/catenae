@@ -1,4 +1,4 @@
-# catenae — plan (draft 15)
+# catenae — plan (draft 16)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -57,7 +57,7 @@ open to change. **proposed** is new in this draft or not yet reviewed.
 | D18 | The stage contract is fixed-ratio: every stage's ratio is a compile-time L/M and `outputs_for` is exact. | accepted |
 | D19 | A *junction* is a first-class concept beside the stage, with its own contract (section 6), for the place where two threads or two clocks meet. The asynchronous converter is a junction. A chain never contains one. | accepted |
 | D20 | The naming and formatting rules are the Tap rules, enforced by `.clang-format` and `.clang-tidy` in CI; the files are owned here, with no drift check against TapHouse. | settled |
-| D21 | No exceptions and no RTTI, ever. Every build is `-fno-exceptions -fno-rtti`; no `throw`, `try`, `dynamic_cast` or `typeid` appears; there is no second configuration. Whatever can fail does so through a returned `status` or `result<T>`, and only outside the audio path (section 3.3). | settled |
+| D21 | No exceptions and no RTTI, ever. Every build is `-fno-exceptions -fno-rtti`; no `throw`, `try`, `dynamic_cast` or `typeid` appears; there is no second configuration. Whatever can fail does so through a returned `status` or `expected<T, status>`, and only outside the audio path (section 3.3). | settled |
 | D22 | No heap. The library never calls `new`, `malloc` or an allocating standard container, at construction or afterwards. Every buffer is a member whose size is a template argument, or storage the caller supplies as a span. | proposed (follows from D23; it replaces the Tap rule "allocate at construction") |
 | D23 | catenae is written with MISRA C++:2023 and ASIL B in mind, as a precaution: there is no requirement today, one may come, and there is no checker. So the constraints that are expensive to retrofit are designed in now (section 8), and nothing is claimed: no compliance statement, no compliance matrix, no safety case. | settled |
 | D24 | `float` is the default sample type and `double` is the golden model. An unsuffixed name is the `float` stage (`gain<2>`); `_f64`, `_q15` and `_q31` name the others. Every profile's numbers are stated against the `double` one, which never changes for speed. | settled (the naming is proposed) |
@@ -186,14 +186,15 @@ ill-typed member.
   never errors. What they require of the caller is a precondition.
 - **Design is where failure lives.** Anything computed from run-time numbers (a cutoff, a
   set of taps) is a *design*: a small value type produced by `T::make(args)`, which returns
-  `result<T>`: the value or a `status`, held by value like `std::optional` (no pointer, no
-  heap, C++17). It is read through `has_value()`, `value()` and `status()`; it has no
-  `operator*` or `operator bool`, so nothing about it looks like a pointer. `value()` on an
-  empty result is a violated precondition (the handler), never undefined behaviour. `result`
-  and `status` are `[[nodiscard]]`, so an ignored failure is a warning and, under D31, an
-  error. A stage is constructed from a design
-  and cannot fail. A design can equally be a `constexpr` table in ROM, in which case no
-  designer is linked at all.
+  `expected<T, status>`: the value or the reason there is none, held by value (no pointer,
+  no heap). `catenae::expected` is written here because the standard library only has it
+  from C++23, and it follows `std::expected`'s interface as `catenae::span` follows
+  `std::span`'s: `has_value()`, `operator bool`, `operator*`, `operator->`, `value()`,
+  `error()`, `value_or()`. So it reads as the standard type does and can be replaced by it
+  one day. Two differences, both forced by D21: `value()` on an empty one cannot throw, so
+  it is a violated precondition (the handler), and so is `operator*`, which the standard
+  leaves undefined. `expected` and `status` are `[[nodiscard]]`, so an ignored failure is a
+  warning and, under D31, an error.
 
 **Where checks happen (D27).**
 
@@ -556,14 +557,13 @@ one, because the standard algorithms are not `constexpr` before C++20.
 The design can fail and runs in `double`; the stage cannot fail and runs in its sample type.
 
 ```cpp
-// At start-up, outside the audio path. A result is a value, like std::optional with a reason
-// for being empty: no pointer, no heap. It is spelled out, not `auto`, and read by name.
-const catenae::result<catenae::butterworth_design<4>> designed =
-    catenae::butterworth_design<4>::make(0.1);
-if (!designed.has_value()) {
-    return designed.status();                                    // status::cutoff_out_of_range
+// At start-up, outside the audio path. `designed` is a value, not a pointer:
+// catenae::expected<butterworth_design<4>, status>, with std::expected's interface.
+const auto designed = catenae::butterworth_design<4>::make(0.1);
+if (!designed) {
+    return designed.error();                                     // status::cutoff_out_of_range
 }
-catenae::butterworth<4, 2> lowpass(designed.value());            // order 4, stereo, float; noexcept
+catenae::butterworth<4, 2> lowpass(*designed);                   // order 4, stereo, float; noexcept
 
 // Or with no designer in the image: the same value type as a table in ROM.
 constexpr catenae::butterworth_design<4> k_lowpass_design = { /* generated, bit-pinned */ };
@@ -677,7 +677,7 @@ never owns memory; it is handed a workspace and says how much it needs.
 ```cpp
 // Compiled FFT: the length is a run-time number, the workspace is the caller's.
 static std::array<float, catenae::fft_workspace_size<float>(1024)> s_workspace;   // constexpr size
-const auto plan = catenae::fft_plan<float>::make(1024, s_workspace);              // result<...>:
+const auto plan = catenae::fft_plan<float>::make(1024, s_workspace);              // expected<...>:
                                                                                   // status::workspace_too_small
 
 // A header stage does this for its user: stft<512, 128, 1> has the right array as a member.
@@ -702,7 +702,7 @@ Each ends with its battery green on every CI leg and its numbers recorded.
 
 | | Milestone | Contents |
 |---|---|---|
-| C0 | Skeleton | Repository layout, license, `NOTICE.md`, style files. The CMake build and the waf build, both in CI: hosted at `-std=c++17`, 20 and 23, always `-fno-exceptions -fno-rtti`; the Cortex-M and Hexagon QEMU legs. `span`, `status` / `result`, the precondition handler, `sample_traits`, the ports, `stage_traits`, `junction_traits`, the contract documents with requirement identifiers. The static library with its first compiled unit, the amalgamation, a size probe per embedded target, coverage. The deviation log opened. The two precondition tiers, the handler and the link-time level guard. The compile-fail battery: one test per architectural rule (mismatched ports at a joint in each of the ways a port can differ; a junction inside a chain), each asserting on its message. |
+| C0 | Skeleton | Repository layout, license, `NOTICE.md`, style files. The CMake build and the waf build, both in CI: hosted at `-std=c++17`, 20 and 23, always `-fno-exceptions -fno-rtti`; the Cortex-M and Hexagon QEMU legs. `span`, `status` / `expected`, the precondition handler, `sample_traits`, the ports, `stage_traits`, `junction_traits`, the contract documents with requirement identifiers. The static library with its first compiled unit, the amalgamation, a size probe per embedded target, coverage. The deviation log opened. The two precondition tiers, the handler and the link-time level guard. The compile-fail battery: one test per architectural rule (mismatched ports at a joint in each of the ways a port can differ; a junction inside a chain), each asserting on its message. |
 | C1 | The chain on trivial stages | `chain` with its checked `process` (dynamic and fixed extent) and its compile-time joint proofs, `gain`, `map`, integer `delay`, `interleave` / `deinterleave`, the sample converters. `handoff`, with `feeding` and `fed_by`. The instruction-count harness and the layout benchmark, carried from the spike. This proves D6, D7, D9, D10, D19, D21 and D22 on the simplest instances. |
 | C2 | The edges | `unpack` / `pack` (16, 24-packed, 24-in-32, 32; either byte order), TPDF dither, the mix matrix. |
 | C3 | Filters | The biquad block kernel, the biquad family and the Butterworth with their designs, a direct-form FIR, `up2` / `down2` and the L/M stages. The overdrive chain of 9.3 as a tested example. |
@@ -745,8 +745,8 @@ graph LR
 | Workstream | Needs | Can start |
 |---|---|---|
 | Harness (instruction counts, layout benchmark, size probes, coverage, the QEMU legs) | C0's build | With C1, and it runs beside everything after |
-| FFT engines in the compiled core | C0's storage and `result` patterns | With C1: nothing in it depends on the chain |
-| Kernels and designs (FIR dot products, the biquad cascade, Kaiser, Nyquist, Butterworth) | C0's `sample_traits` and `result` | With C1: a kernel takes spans and knows nothing of stages |
+| FFT engines in the compiled core | C0's storage and `expected` patterns | With C1: nothing in it depends on the chain |
+| Kernels and designs (FIR dot products, the biquad cascade, Kaiser, Nyquist, Butterworth) | C0's `sample_traits` and `expected` | With C1: a kernel takes spans and knows nothing of stages |
 | Edges (C2) | C1 | After C1, beside filters and analysis |
 | Filter stages (C3) | C1 and the kernels | After C1 |
 | Analysis (C5: `analyzer`, `tap`, meters, direct correlation) | C1 | After C1; needs no filter and no FFT |

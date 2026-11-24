@@ -8,6 +8,7 @@ to measure them. The stages are toys and nothing here is a contract.
 | `sketch.h` | The vocabulary, five toy stages, the chain, `steady<>`, a `handoff` and `fed_by` |
 | `demo.cpp` | Both decisions at work on a host |
 | `embedded.cpp`, `embedded_design.cpp`, `measure.sh` | The chains in audio callbacks on a Cortex-M33: where their memory lands and what each file calls |
+| `mailbox_stress.cpp` | Two threads through a `mailbox`: build with `-pthread -fsanitize=thread` |
 | `trace.cpp`, `figure.py`, `steady.svg` | What a bursting region and its `steady<>` form do call by call, and the figure drawn from that output: `./trace \| python3 figure.py > steady.svg` |
 
 It compiles without a warning under GCC 13 and Clang 18 at C++17, 20 and 23 with
@@ -21,8 +22,8 @@ g++ -std=c++17 -O2 -fno-exceptions -fno-rtti demo.cpp -o demo && ./demo
 
 What to read in `sketch.h`, in order: `map` and `times` (a fixed gain is only a `map`),
 `gain` (a level that ramps when it is changed), `lowpass_design` and `lowpass` (a parameter
-that can be wrong, so it is designed apart from the stage), `chain`, then `steady` and
-`fed_by`.
+that can be wrong, so it is designed apart from the stage), `chain`, `steady` and `fed_by`,
+then `mailbox` (how a change reaches the audio thread from another one).
 
 Measured on 2026-11-24 (arm-none-eabi-g++ 13.2, Cortex-M33, `-Os`).
 

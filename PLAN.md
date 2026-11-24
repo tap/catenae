@@ -1,4 +1,4 @@
-# catenae — plan (draft 29)
+# catenae — plan (draft 30)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -81,6 +81,8 @@ open.
 | D40 | Headers use include guards in the style of the C++ Core Guidelines (SF.8), not `#pragma once`: `#ifndef CATENAE_<PATH>_<FILE>_H`, `#define`, and a closing `#endif // CATENAE_<PATH>_<FILE>_H`, the name spelled from the header's path under the include root so that it is unique. A check in the tidy job from C0a derives the expected name from the path and fails on a mismatch, a missing guard or a `#pragma once`. | settled |
 | D41 | The guide is written for one reader: an experienced software engineer who has not worked on embedded hardware, and it is their tutorial (section 11.4). The reference, not the guide, is where an embedded engineer who already knows why looks things up. | proposed (the maintainer's suggestion, 2026-11-24; this draft recommends it) |
 | D42 | The channel count is a compile-time number in both layouts. A planar port is `Ch` spans, one per channel, passed as an array of `Ch` of them; one span with the channels end to end is not offered, because it cannot be cut into blocks. Run-time channel counts are outside the library. A caller who learns the count at run time has two idioms, neither of which needs anything new: choose among the configurations it instantiated (mono, stereo, 5.1), or, for planar audio, run one mono configuration over as many states as there are channels (D34 makes a state per channel the natural form; the spike measured a run-time count there at under 2 %). | settled |
+| D43 | `parallel<ChainA, ChainB>` is part of C1's chain work: it runs two chains on two groups of one port's channels and aligns their latencies, so a dry path beside a wet one is a type and not the caller's bookkeeping. Their ratios must match (asserted). It is what a side chain would later be built from; a stage with two audio inputs stays out of the charter. | settled |
+| D44 | A value crosses between threads through a `mailbox<T>` (section 6.2): one poster, one taker, the newest value wins, neither side ever waits, no lock. A new configuration reaches the thread that runs a chain this way, applied by that thread at the top of a call, and a reading leaves it the same way. It is a primitive of its own beside the junction, which carries a stream; "when a change takes effect" is therefore "at the next call after it is collected", and whether it is smoothed is the stage's matter (`gain` ramps; a filter's redesign is a step). | proposed; `docs/sketches/config-state/` has it compiled and run under the thread sanitizer |
 
 ### 1.1 Decisions the audit asks for
 
@@ -116,7 +118,7 @@ first (its stages are already chain stages), then `bridge` (one fixed-ratio conv
 - Stages with two audio inputs (side-chain compressors, convolution against a live signal).
   Two signals meet only as channels of one wider port: `mix` and cross-correlation take
   them that way. Running different chains on groups of channels (a dry path beside a wet
-  one) is the caller's code until a `parallel` combinator is decided (section 13).
+  one) is `parallel<ChainA, ChainB>` (D43).
 - A run-time graph: no dynamic routing, no plug-in host, no patch format.
 - Pitch shifters and other processes with their own framing and latency model.
 - Elastic processes inside one clock domain (time-stretch, varispeed).
@@ -433,8 +435,44 @@ An analyzer is read through `analyzer_traits<T>`, as a stage is through its trai
 
 `tap<Analyzer>` is the stage that holds one and passes its input through, 1:1, in place,
 with no latency. A stage inside a chain is reached by its index, `chain.stage<I>()`, which
-is how an analyzer's results are read on the chain's own thread. How results, or a new
-configuration, cross to another thread is open (section 13).
+is how an analyzer's results are read on the chain's own thread. Results, and new
+configurations, cross to another thread through a mailbox.
+
+### 6.2 Mailboxes (D44)
+
+A junction carries a stream between two call sites. A mailbox carries one value.
+
+| Member | Meaning |
+|---|---|
+| `post(value)` | Called by exactly one thread. Never waits. A value that was never collected is replaced by the newer one. |
+| `take(apply)` | Called by exactly one other thread. If a value has arrived since the last take, calls `apply(value)` and returns true. Never waits. |
+| `T` | Trivially copyable (asserted): a design, a level, a meter's reading. |
+
+It is three slots and one atomic byte: each side owns a slot and swaps it with the middle
+one, so a value is never read while it is being written, and the object is valid when all
+zero. The pattern at a block boundary:
+
+```cpp
+static mailbox<lowpass_design<float>> s_new_design;
+static mailbox<float>                 s_new_level;
+
+// Control thread: design (this can fail), then post. It never touches the chain.
+const auto wider = lowpass_design<float>::make(0.2);
+if (wider) {
+    s_new_design.post(*wider);
+}
+s_new_level.post(0.9f);
+
+// Audio thread, at the top of its callback: collect, apply, process.
+s_new_design.take([](const lowpass_design<float>& d) noexcept { s_strip.stage<0>().set_design(d); });
+s_new_level.take([](const float& level) noexcept { s_strip.stage<1>().set_level(level); });
+static_cast<void>(s_strip.process(s_strip_state, in, out));
+```
+
+In the sketch, two threads put two million 64-byte values through one with none torn and
+none out of order, clean under the thread sanitizer; on the Cortex-M33 the two mailboxes
+above are 76 and 16 bytes of `.bss`. The same one-thread-per-side assumption of use as a
+junction applies, and the same verification (section 7.2).
 
 ## 7. Headers, the compiled core and the build
 
@@ -729,7 +767,7 @@ class gain {
 Two rules follow from the split. A state's reset value is all zeros, so anything with another
 starting value belongs in the configuration (a dither's seed) or behind a flag like
 `started`. And a setter is not synchronised: it is called on the thread that runs the chain,
-between calls (section 13, question 1, for the other case).
+between calls; from another thread it goes through a mailbox (section 6.2).
 
 **Algorithms or loops.** A stage that maps each sample on its own (gain, `map`, `convert`,
 a fill of silence) is written with a standard algorithm, as above: there is no index to
@@ -963,7 +1001,7 @@ Each ends with its battery green on every CI leg and its numbers recorded.
 |---|---|---|
 | C0a | Ground | Repository layout, `NOTICE.md`, style files (no license file: D33). The CMake build and the waf build, both in CI: hosted GCC, Clang, MSVC and Apple at `-std=c++17`, 20 and 23, always `-fno-exceptions -fno-rtti`; the Cortex-M and Hexagon QEMU legs; the sanitizer legs; the warning sets, `clang-tidy` and the naming script. The harness: the instruction-count ratchet, the size probes (`.text`, `.rodata`, `.data` and `.bss` apart, and the start-up stack), coverage. The amalgamation. A smoke test of the documentation tools on one header and one page, before their conventions are fixed. No library code beyond a first compiled unit. |
 | C0b | Contracts | After section 1.1 is decided. `span`, `status` / `expected`, the checks and the handler, `catenae/config.h` with its inline namespace and the link-fail test, `sample_traits` and the `fixed<>` tags, the ports, `stage_traits` (with `is_stage` and `joint`), `junction_traits`, `analyzer_traits`. The contract documents with requirement identifiers, the assumptions-of-use register, the deviation log. The compile-fail battery for what exists here: a missing or ill-typed contract member, an ignored `expected`. |
-| C1 | The chain on trivial stages | `chain` with its checked `process` (dynamic and fixed extent), `flush`, its compile-time joint proofs and their compile-fail tests (one per way two ports can differ; a junction in a chain). `gain`, `map`, integer `delay`, `interleave` / `deinterleave`, `convert` among `float`, `q15` and `q31`. `steady`. `handoff`, with `feeding` and `fed_by` and its holdover, under the thread sanitizer and on arm64 hardware. The layout benchmark. The example chain's `.data`, `.bss` and start-up stack as pinned numbers. This proves D6, D7, D9, D10, D19, D21, D22, D27 and section 1.1 on the simplest instances. |
+| C1 | The chain on trivial stages | `chain` with its checked `process` (dynamic and fixed extent), `flush`, its compile-time joint proofs and their compile-fail tests (one per way two ports can differ; a junction in a chain). `gain`, `map`, integer `delay`, `interleave` / `deinterleave`, `convert` among `float`, `q15` and `q31`. `steady`, `parallel`. `mailbox`. `handoff`, with `feeding` and `fed_by` and its holdover, under the thread sanitizer and on arm64 hardware. The layout benchmark. The example chain's `.data`, `.bss` and start-up stack as pinned numbers. This proves D6, D7, D9, D10, D19, D21, D22, D27 and section 1.1 on the simplest instances. |
 | CF | Fit (D16) | Throwaway skeletons, with no quality bar on the signal processing, written against C0b's and C1's headers: one `rational` chain with its pull and its flush, one `bridge` stage with its table design, and the `async` junction. Beside them, a table of every public member of SampleRateTap's three engines and where it lands here or why it is dropped, and the shape of the C ABI decided. Passing CF is what "shown that they fit" means. What it forces on the contracts is changed here, before C2 to C6 build on them. |
 | C2 | The edges | `unpack` / `pack` (16, 24-packed, 24-in-32, 32; either byte order), TPDF dither, the mix matrix. |
 | C3 | Filters | The biquad block kernel, the biquad family and the Butterworth with their designs, a direct-form FIR, `up2` / `down2` and the L/M stage machine with one pinned design (profiles and named chains are C7's), `oversample`. The overdrive chain of 9.3 as a tested example. The Butterworth's layout measured again. |
@@ -1243,30 +1281,16 @@ Butterworth's layout again on the block kernel.
 Decided on 2026-11-24: D23 is a precaution with nothing claimed and no checker; cobra needs
 nothing from the plan; the license waits for the code (D33).
 
-Decided on 2026-11-24 and now D42: the planar signature and compile-time channel counts.
+Decided on 2026-11-24: the planar signature and compile-time channel counts (D42), and
+`parallel` in C1 (D43).
 
 Gating C0b, because each defines a contract header:
 
-1. **Changing a running chain, and reading from one.** With D34 a parameter is part of the
-   configuration, so a stage's configuration has the accessor and the setter (`level()`,
-   `set_level()`), a chain reaches a stage by position (`chain.stage<I>()`), and a
-   configuration that changes at run time is an ordinary small object where a fixed one is a
-   constant: 8 bytes of `.data` for the overdrive chain against 6,184 of `.bss` for its
-   state (the sketch measures it). That is the same-thread form, and it is a step, not a
-   ramp. What remains open: How does it reach the thread that runs the chain, and how do an
-   analyzer's results leave it? One small primitive would serve both (a single-slot mailbox
-   of a trivially copyable value, applied or read at a block boundary). Is it a kind of
-   junction or a thing of its own, and is "when it takes effect, whether it is smoothed"
-   part of the stage contract? (Finding 61; this replaces the earlier questions on run-time
-   parameters and on analyzer results across threads.)
-2. **Groups of channels.** Is `parallel<ChainA, ChainB>`, which runs two chains on two
-   groups of one port's channels with their latencies aligned, part of C1's chain work? It
-   is what a dry path beside a wet one, and later a side chain, would be built from
-   (finding 62).
+1. **D44**, the mailbox.
 
 Gating CF:
 
-3. **The C ABI's shape.** SampleRateTap's C ABIs choose chain, profile, format and channel
+2. **The C ABI's shape.** SampleRateTap's C ABIs choose chain, profile, format and channel
    count at run time behind a heap-allocated handle, which D13, D21 and D22 forbid.
    Recommended: a manifest, fixed when the library is built, of named instantiations, each
    exported under its name with storage the caller supplies (finding 38). It also decides
@@ -1274,11 +1298,11 @@ Gating CF:
 
 Gating later milestones:
 
-4. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass? D36's
+3. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass? D36's
    alternative would pull it forward.
-5. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
+4. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
    fixed-point one with C6?
-6. **Documentation tooling.** mdBook for the guide and Doxygen for the reference, as
+5. **Documentation tooling.** mdBook for the guide and Doxygen for the reference, as
    proposed, or Doxygen alone with Markdown pages (one tool, a plainer guide)? Is a print
    edition of the guide wanted, as SampleRateTap has? And should some notebooks arrive
    before the C ABI at C6, through a small command-line tool that writes data for them?
@@ -1299,7 +1323,7 @@ are that file's.
 | One level per image | 15, 28, 41, 57 | Section 3.3: an explicit option, an inline namespace, no default handler |
 | The stage and chain contracts | 6, 42, 43, 45, 54, 56, 63 | Sections 3.2, 3.3 and 4; D42 |
 | Junctions | 22, 50 | Section 6: `report()`, the sanitizer and hardware legs, staging |
-| Missing contracts | 7, 38, 61, 62 | `flush` in section 4; analyzers in 6.1; questions 1, 2 and 3 |
+| Missing contracts | 7, 38, 61, 62 | `flush` in section 4; analyzers in 6.1; D43, D44 and question 2 |
 | Back ends | 4, 14, 32, 53 | Sections 5.2 and 7.1 |
 | Warnings and tools | 30, 31, 46, 47, 59 | Section 7.2; D2, D30 |
 | The safety posture | 18, 19, 20, 21, 51, 52 | Section 8 |

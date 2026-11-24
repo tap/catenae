@@ -105,6 +105,34 @@ int main() {
     }
     std::printf("\n");
 
+    // ---- the same changes from another thread: through mailboxes --------------------------
+    // The control thread never touches the chain. It posts; the audio thread collects at the top
+    // of a call. (One thread plays both parts here; mailbox_stress.cpp uses two.)
+    static mailbox<lowpass_design<float>> s_new_design;
+    static mailbox<float>                 s_new_level;
+    static mailbox<float>                 s_meter; // and the other way: a reading for the user interface
+
+    // Control thread:
+    const auto wider = lowpass_design<float>::make(0.2);
+    if (wider) {
+        s_new_design.post(*wider);
+    }
+    s_new_level.post(0.9f);
+    s_new_level.post(1.0f); // posted before the audio thread looked: the newest wins
+
+    // Audio thread, at the top of its callback:
+    const bool retuned_now = s_new_design.take([](const lowpass_design<float>& d) noexcept { s_strip.stage<0>().set_design(d); });
+    const bool level_now   = s_new_level.take([](const float& level) noexcept { s_strip.stage<1>().set_level(level); });
+    const bool no_more     = s_new_level.take([](const float& /*unused*/) noexcept {});
+    static_cast<void>(s_strip.process(s_strip_state, dc, strip_out));
+    s_meter.post(strip_out[126]); // ... and at the bottom, a reading for whoever is watching
+
+    // Control thread again:
+    float shown = 0.0f;
+    s_meter.take([&shown](const float& value) noexcept { shown = value; });
+    std::printf("mail   design collected: %d; level collected: %d (now %.1f); nothing more waiting: %d; meter shows %.3f\n",
+                retuned_now, level_now, static_cast<double>(s_strip.stage<1>().level()), !no_more, static_cast<double>(shown));
+
     // D35: the bare region bursts.
     static state_of<decltype(region)> s_region;
     std::array<float, 64>             mono{};

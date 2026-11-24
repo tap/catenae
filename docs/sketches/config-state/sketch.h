@@ -743,6 +743,64 @@ namespace catenae {
         std::atomic<std::uint32_t>       m_tail{0};
     };
 
+    // ---- crossing threads without a lock: a mailbox ------------------------------------------
+
+    /// One value, handed from one thread to one other. The newest value wins; an older one that
+    /// was never collected is dropped. Neither side ever waits. It is how a new configuration
+    /// reaches the thread that runs a chain, and how a reading leaves it.
+    ///
+    /// Three slots: the poster's, the taker's, and one in the middle. A post writes the poster's
+    /// slot and swaps it with the middle one; a take swaps the taker's with the middle one when
+    /// that holds something new. Each side only ever touches its own slot, so a value is never
+    /// read while it is being written. Valid when all zero.
+    template <typename T>
+    class mailbox {
+        static_assert(std::is_trivially_copyable_v<T>, "catenae: a mailbox carries a trivially copyable value");
+
+      public:
+        /// The posting thread (exactly one). Never waits.
+        void post(const T& value) noexcept {
+            m_slots[m_poster].value = value;
+            const std::uint8_t was = m_middle.exchange(static_cast<std::uint8_t>(to_middle(m_poster) | k_fresh),
+                                                       std::memory_order_acq_rel);
+            m_poster = from_middle(was);
+        }
+
+        /// The taking thread (exactly one). If a value has arrived since the last take, calls
+        /// apply(value) and returns true. Never waits.
+        template <typename Apply>
+        bool take(Apply&& apply) noexcept {
+            if ((m_middle.load(std::memory_order_acquire) & k_fresh) == 0) {
+                return false;
+            }
+            const std::uint8_t mine = static_cast<std::uint8_t>((m_taker + 2U) % 3U); // the taker's slot
+            const std::uint8_t was  = m_middle.exchange(to_middle(mine), std::memory_order_acq_rel);
+            const std::uint8_t now  = from_middle(was);
+            m_taker                 = static_cast<std::uint8_t>((now + 1U) % 3U);
+            apply(static_cast<const T&>(m_slots[now].value));
+            return true;
+        }
+
+      private:
+        // Stored so that zero is the starting arrangement: poster in slot 0, middle 1, taker 2.
+        static constexpr std::uint8_t k_fresh = 4;
+        static constexpr std::uint8_t to_middle(std::uint8_t slot) noexcept {
+            return static_cast<std::uint8_t>((slot + 2U) % 3U);
+        }
+        static constexpr std::uint8_t from_middle(std::uint8_t stored) noexcept {
+            return static_cast<std::uint8_t>(((stored & 3U) + 1U) % 3U);
+        }
+        union slot {
+            unsigned char unused;
+            T             value;
+        };
+
+        std::array<slot, 3>       m_slots{};
+        std::atomic<std::uint8_t> m_middle{0};
+        std::uint8_t              m_poster = 0; // touched by the posting thread only
+        std::uint8_t              m_taker  = 0; // touched by the taking thread only
+    };
+
     /// What the pull side remembers: the chain's state, the frames in transit, and the
     /// holdover that lets it deliver exactly the frames asked for. Valid when all zero.
     template <typename Chain>

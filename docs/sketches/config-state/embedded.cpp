@@ -42,3 +42,19 @@ void set_level(float level) noexcept {
 void set_design(const lowpass_design<float>& design) noexcept {
     s_strip.stage<0>().set_design(design);
 }
+
+// The same strip driven from another thread or an interrupt: nothing but posts on that side.
+static mailbox<lowpass_design<float>> s_new_design;
+static mailbox<float>                 s_new_level;
+
+void post_level(float level) noexcept {
+    s_new_level.post(level);
+}
+void post_design(const lowpass_design<float>& design) noexcept {
+    s_new_design.post(design);
+}
+void strip_callback_with_mail(const std::array<float, 64 * 2>& in, std::array<float, 64 * 2>& out) noexcept {
+    s_new_design.take([](const lowpass_design<float>& d) noexcept { s_strip.stage<0>().set_design(d); });
+    s_new_level.take([](const float& level) noexcept { s_strip.stage<1>().set_level(level); });
+    static_cast<void>(s_strip.process(s_strip_state, in, out));
+}

@@ -1,4 +1,4 @@
-# catenae — plan (draft 4)
+# catenae — plan (draft 5)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -45,12 +45,13 @@ starts from the wider contract instead, in C++17, with no compatibility debt.
 | D11 | Read-only analysis (meters, correlation, pitch) is a sibling `analyzer` concept; `tap<Analyzer>` is the stage that puts one in a chain, passing the audio through. Its results are read beside the chain, never passed down it. | proposed |
 | D12 | The Tap libraries' engineering discipline carries over whole: contracts as numbers pinned by tests; double the golden model, float the embedded profile, Q15/Q31 opt-in per stage; geometry fixed at construction, processing `noexcept` and allocation-free; published literature only; honest limits stated and pinned; exceptions and RTTI optional. | proposed |
 | D13 | A chain is written by the caller as a type. Nothing is looked up from a rate pair or built from a run-time description. | proposed (SampleRateTap's D12) |
-| D14 | catenae is not part of the TapHouse family. Its namespace is `catenae::`, its style files are its own (started from a copy, free to diverge, no drift check against TapHouse), and its banner is `Copyright 2026 Timothy Place and the catenae contributors`. | settled (the namespace, the style's starting point and the banner are this draft's reading of it) |
+| D14 | catenae is not part of the TapHouse family. Its namespace is `catenae::`, and its banner is `Copyright 2026 Timothy Place and the catenae contributors`. | settled (the namespace and the banner are this draft's reading of it) |
 | D15 | catenae and SampleRateTap coexist for good. `tap::dsp::chain` stays SampleRateTap's composition point; catenae's stage contract owes `sync_stage` nothing and may differ wherever that is better. Neither library depends on the other. | settled |
 | D16 | Once the architecture is settled and stable, catenae duplicates all of SampleRateTap's functionality: the synchronous L/M stages and chains (`rational`), the 44.1 ↔ 48 kHz converter (`bridge`) and the asynchronous converter (`async`). They are re-implemented here on catenae's contract, not wrapped and not linked (D3, D15). The architecture is therefore designed so that they fit, and is not called stable until it is shown that they do. | settled |
 | D17 | A port carries a *signal kind*: time-domain audio or frames of transform coefficients. The chain checks it at every joint, so analysis, coefficient-domain stages and synthesis form a typed region in a chain (a Gabor or short-time Fourier analysis, a spectral gain, the synthesis), as planar does (D7), and a time-domain stage after an analysis does not compile. | proposed |
 | D18 | The stage contract is fixed-ratio: every stage's ratio is a compile-time L/M, and `outputs_for` is exact. Nothing in it is reserved for a ratio that moves. | proposed |
 | D19 | A *junction* is a first-class concept beside the stage, with its own contract (section 6): two ports and two entry points, `push` and `pull`, for the place where two threads or two clocks meet. The asynchronous converter is a junction, not a stage. A chain never contains a junction; the caller writes one between two chains. | proposed |
+| D20 | The naming and formatting rules are the Tap rules (the standard library's conventions: snake_case types and functions, `k_` constants, `m_` members, PascalCase template parameters only), enforced by `.clang-format` and `.clang-tidy` in CI. The files are copied in once and owned here: no drift check against TapHouse (D14). The reasons: carried code ports with only the changes C++17 forces, fixes move between catenae and the Tap libraries nearly verbatim for as long as they coexist (D15), and the surface is standard-library-shaped (`catenae::span`, `stage_traits<T>`). | settled |
 
 ## 2. Charter
 
@@ -236,29 +237,25 @@ to SampleRateTap (D15), strict C++17 (D2), and that catenae will in time duplica
 SampleRateTap (D16), which also settles that rate-changing stages are in. Draft 4 answers
 draft 3's question about a variable ratio with D18 and D19 (proposed): no, and a junction.
 
-Gating C0:
-
-1. **House rules.** D14 leaves the style open. This draft starts from the Tap naming and
-   layout rules (snake_case types and functions, `m_` members, the same `.clang-format`
-   and `.clang-tidy`), owned here. Say if catenae should look different.
+Gating C0: nothing. The style is settled (D20).
 
 Gating C1:
 
-2. **The planar signature.** A pointer per channel (`const S* const*`), or one base pointer
+1. **The planar signature.** A pointer per channel (`const S* const*`), or one base pointer
    with a stride? The first matches every plug-in API; the second keeps one buffer.
-3. **Run-time channel counts.** Are they in the charter at all? If so, the spike says to
+2. **Run-time channel counts.** Are they in the charter at all? If so, the spike says to
    serve them through planar stages, where a run-time count costs under 2 %.
-4. **Run-time parameters.** Part of the stage contract from the start (when a change takes
+3. **Run-time parameters.** Part of the stage contract from the start (when a change takes
    effect, whether it is smoothed), or left to each stage as `set_cutoff()` is today?
 
 Gating later milestones:
 
-5. **A frame of coefficients.** How a transform-domain port lays out its data: bins as
+4. **A frame of coefficients.** How a transform-domain port lays out its data: bins as
    channels of a complex sample type, or a frame type of its own? Decided before C5; the
    port's four constants are meant to hold either.
-6. **Analyzer results across threads.** An analyzer read from a non-audio thread crosses
+5. **Analyzer results across threads.** An analyzer read from a non-audio thread crosses
    the boundary a junction is for. Does `tap` hand results over through a `handoff`, or
    does each analyzer state its own rule?
-7. **Fixed point.** Q15/Q31 from each stage's first version, or as a C6 pass?
-8. **The FFT.** Carry the srdif engine and its fixed-point profiles whole, or only the
+6. **Fixed point.** Q15/Q31 from each stage's first version, or as a C6 pass?
+7. **The FFT.** Carry the srdif engine and its fixed-point profiles whole, or only the
    floating engine the FFT FIR needs?

@@ -1,4 +1,4 @@
-# catenae — plan (draft 2)
+# catenae — plan (draft 3)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -45,6 +45,7 @@ starts from the wider contract instead, in C++17, with no compatibility debt.
 | D13 | A chain is written by the caller as a type. Nothing is looked up from a rate pair or built from a run-time description. | proposed (SampleRateTap's D12) |
 | D14 | catenae is not part of the TapHouse family. Its namespace is `catenae::`, its style files are its own (started from a copy, free to diverge, no drift check against TapHouse), and its banner is `Copyright 2026 Timothy Place and the catenae contributors`. | settled (the namespace, the style's starting point and the banner are this draft's reading of it) |
 | D15 | catenae and SampleRateTap coexist for good. `tap::dsp::chain` stays SampleRateTap's composition point; catenae's stage contract owes `sync_stage` nothing and may differ wherever that is better. Neither library depends on the other. | settled |
+| D16 | Once the architecture is settled and stable, catenae duplicates all of SampleRateTap's functionality: the synchronous L/M stages and chains (`rational`), the 44.1 ↔ 48 kHz converter (`bridge`) and the asynchronous converter (`async`). They are re-implemented here on catenae's contract, not wrapped and not linked (D3, D15). The architecture is therefore designed so that they fit, and is not called stable until it is shown that they do. | settled |
 
 ## 2. Charter
 
@@ -52,9 +53,13 @@ starts from the wider contract instead, in C++17, with no compatibility debt.
 stages by a compile-time ratio L/M, format and layout converters, the chain, analyzers and
 their tap, and the measurement harness that tells us which layout each stage wants.
 
+**In, after the architecture is stable (D16):** everything SampleRateTap does. Its three
+engines arrive in the order of their distance from the stage contract: `rational` first (its
+stages are already chain stages), then `bridge` (one fixed-ratio converter), then `async`
+(the only one whose ratio is not a compile-time number).
+
 **Out, at least until 1.0:**
 
-- Asynchronous rate conversion and clock recovery (SampleRateTap's `async`).
 - Stages with two audio inputs (side-chain compressors, convolution against a live signal).
 - A run-time graph: no dynamic routing, no plug-in host, no patch format.
 - Pitch shifters and other processes with their own framing and latency model.
@@ -70,11 +75,12 @@ constexpr members and member types, read through `stage_traits<T>`.
 | `input_sample`, `output_sample` | The arithmetic types on each side (`double`, `float`, `int16_t` Q15, `int32_t` Q31; `std::byte`-packed for a wire stage). |
 | `k_channels_in`, `k_channels_out` | Frame widths. |
 | `k_layout_in`, `k_layout_out` | `layout::interleaved` or `layout::planar`. |
-| `k_up`, `k_down` | The rate ratio, reduced. |
+| `k_ratio_kind` | `ratio_kind::fixed` or `ratio_kind::variable`. Every stage before C8 is fixed; the constant exists from C0 so that the asynchronous converter (D16) has a place in the contract. |
+| `k_up`, `k_down` | The rate ratio, reduced (a fixed-ratio stage; a variable one states its nominal ratio and its range instead). |
 | `k_in_place` | Whether `process` may read and write one buffer. |
 | `k_exact_latency` | Whether the stage delays every frequency alike. |
 | `process(in, n, out)` | n input frames in; returns frames written; `noexcept`, no allocation. |
-| `outputs_for(n)`, `frames_needed(k)` | Exact, from the current position. |
+| `outputs_for(n)`, `frames_needed(k)` | Exact, from the current position (fixed ratio). A variable-ratio stage can only bound them: section 8, question 2. |
 | `reset()` | Back to the constructed state. |
 | `latency()` | `{nominal, deviation}` in output frames; deviation 0 when exact. Plus `group_delay(f)`. |
 | `tail_frames()`, `flush_residue()` | Zero input frames after which the output is silence within the residue (0 for FIR; a stated bound for a floating-point recursion). |
@@ -114,7 +120,13 @@ Each ends with its battery green on every CI leg and its numbers recorded.
 | C3 | Filters | The biquad block kernel, the biquad family and the Butterworth, a direct-form FIR, the FIR decimators and L/M stages. |
 | C4 | Blocks | The FFT, the overlap-save FFT FIR, `planar_section`. |
 | C5 | Analysis | `analyzer`, `tap`, peak/RMS meters, auto- and cross-correlation. |
-| C6 | Profiles and freeze | Q15/Q31 for the stages that take them, accelerated back ends (vDSP, CMSIS-DSP, HVX) behind the golden contract, the C ABI and executed notebooks, the 1.0 contract freeze. |
+| C6 | Profiles | Q15/Q31 for the stages that take them, accelerated back ends (vDSP, CMSIS-DSP, HVX) behind the golden contract, the C ABI and executed notebooks. |
+| C7 | The synchronous converters (D16) | `rational`'s stages, named chains and profiles; `bridge`. Each engine's battery is carried with it, and its output is compared against SampleRateTap's as an independent reference. |
+| C8 | The asynchronous converter (D16) | `async`, on the variable-ratio side of the contract. |
+| C9 | Freeze | The 1.0 contract freeze, once C7 and C8 have shown the architecture holds all of it. |
+
+C7 and C8 do not start until the maintainer calls the architecture stable. What C0 to C2
+owe them is narrower: a contract that does not rule them out (the next section's question 2).
 
 ## 7. What is carried in, and what moved
 
@@ -130,7 +142,10 @@ style files, as a starting point (D14).
 From the spike branch only, not on DspTap's `main`: `fft_fir.h` and the layout benchmark.
 
 From SampleRateTap: the L/M stage machine (`rational`'s `basic_stage`) as the model for
-rate-changing stages, and its ratchet and ceilings scripts. Not its engines.
+rate-changing stages at C3, and its ratchet and ceilings scripts. Its engines come later and
+whole (D16, C7 and C8), with their plans' settled decisions read first: the rule that the
+caller declares clock topology by choosing a type and nothing routes by rate, the profile
+vocabulary, the cross-validation's independence.
 
 The port is mostly mechanical: concepts become traits and `static_assert`s, `std::span`
 becomes `catenae::span`, `std::numbers` and `std::bit_cast` get local equivalents. The
@@ -158,29 +173,34 @@ layout must be measured again on the block kernel, which C3 does as a matter of 
 ## 8. Open questions
 
 Decided on 2026-11-24 and moved to section 1: catenae's identity (D14), its relationship
-to SampleRateTap (D15) and strict C++17 (D2).
+to SampleRateTap (D15), strict C++17 (D2), and that catenae will in time duplicate all of
+SampleRateTap (D16), which also settles that rate-changing stages are in.
 
 Gating C0:
 
 1. **House rules.** D14 leaves the style open. This draft starts from the Tap naming and
    layout rules (snake_case types and functions, `m_` members, the same `.clang-format`
    and `.clang-tidy`), owned here. Say if catenae should look different.
+2. **Room for a variable ratio.** D16 brings in the asynchronous converter, whose ratio
+   moves at run time, so `outputs_for` and `frames_needed` cannot be exact for it and a
+   chain holding it cannot size its scratch from `n * k_up / k_down + 2`. This draft
+   reserves the place now (`k_ratio_kind`, a bound in place of an exact count) and builds
+   nothing on it until C8. The alternative is to keep the contract fixed-ratio and give the
+   asynchronous converter an interface of its own outside the chain, as SampleRateTap does
+   today (`tap::dsp::chain` composes synchronous stages only; a caller joins `async` to a
+   synchronous converter in its own code). Which one decides what "stable" has to prove.
 
 Gating C1:
 
-2. **The planar signature.** A pointer per channel (`const S* const*`), or one base pointer
+3. **The planar signature.** A pointer per channel (`const S* const*`), or one base pointer
    with a stride? The first matches every plug-in API; the second keeps one buffer.
-3. **Run-time channel counts.** Are they in the charter at all? If so, the spike says to
+4. **Run-time channel counts.** Are they in the charter at all? If so, the spike says to
    serve them through planar stages, where a run-time count costs under 2 %.
-4. **Run-time parameters.** Part of the stage contract from the start (when a change takes
+5. **Run-time parameters.** Part of the stage contract from the start (when a change takes
    effect, whether it is smoothed), or left to each stage as `set_cutoff()` is today?
 
 Gating later milestones:
 
-5. **Rate-changing stages.** In at C3 as drafted, or is catenae 1:1 only? Since the two
-   libraries coexist (D15), a caller who needs a high-quality converter has SampleRateTap;
-   the question is whether catenae also carries simple L/M stages (decimate by 2 before an
-   analyzer, oversample around a nonlinearity) so that such a chain needs one library.
 6. **Fixed point.** Q15/Q31 from each stage's first version, or as a C6 pass?
 7. **The FFT.** Carry the srdif engine and its fixed-point profiles whole, or only the
    floating engine the FFT FIR needs?

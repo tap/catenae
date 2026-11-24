@@ -7,7 +7,8 @@ to measure them. The stages are toys and nothing here is a contract.
 |---|---|
 | `sketch.h` | The vocabulary, five toy stages, the chain, `steady<>`, a `handoff` and `fed_by` |
 | `demo.cpp` | Both decisions at work on a host |
-| `embedded.cpp`, `measure.sh` | The overdrive chain in an audio callback on a Cortex-M33, and where its memory lands |
+| `embedded.cpp`, `embedded_design.cpp`, `measure.sh` | The chains in audio callbacks on a Cortex-M33: where their memory lands and what each file calls |
+| `trace.cpp`, `figure.py`, `steady.svg` | What a bursting region and its `steady<>` form do call by call, and the figure drawn from that output: `./trace \| python3 figure.py > steady.svg` |
 
 It compiles without a warning under GCC 13 and Clang 18 at C++17, 20 and 23 with
 `-fno-exceptions -fno-rtti -Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion

@@ -1,4 +1,4 @@
-# catenae — plan (draft 11)
+# catenae — plan (draft 12)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -337,7 +337,7 @@ What this buys:
 |---|---|---|---|
 | catenae's own floating engine (DspTap's srdif engine, ported) | `float`, `double` | everywhere; the default | source in this repository |
 | catenae's own fixed-point engine (DspTap's, ported) | Q15, Q31 | everywhere; the default | source in this repository |
-| CMSIS-DSP | `float` first (Helium on the Cortex-M55, Neon on Cortex-A) | Arm, opt-in | the consumer's copy: an existing CMake target or a path given at configure time. CI fetches one pinned release by hash. |
+| CMSIS-DSP | `float`, Q15 and Q31, which it provides alike (Helium on the Cortex-M55, Neon on Cortex-A); the `float` adapter first, the fixed-point ones with C6 | Arm, opt-in | the consumer's copy: an existing CMake target or a path given at configure time. CI fetches one pinned release by hash. |
 | vDSP (Accelerate) | `float` first | Apple, opt-in | the system framework; nothing to bring in |
 
 - **Own engines are the reference.** They are the only FFT code in the repository, the only
@@ -352,6 +352,15 @@ What this buys:
 - **One back end per library build**, selected by `CATENAE_FFT_BACKEND` (`own`, `cmsis`,
   `vdsp`). The adapter converts the back end's native packing to D25's frame (CMSIS-DSP
   packs the Nyquist bin beside DC; vDSP is split complex).
+- **CMSIS-DSP's fixed-point transforms scale differently from catenae's own.** They shift
+  down as they go, by an amount fixed by the length, so their output is in a Q format that
+  depends on the length, and they have no block-floating mode. That fits D29: the format
+  is a compile-time number the spectrum's type can carry. What has to be settled when the
+  adapters are written is whether the contract's format for a length is CMSIS-DSP's or
+  catenae's own engine's (the adapter shifts where they differ), and the floor each is
+  held to against the `double` engine, since a fixed down-scaling costs low-order bits
+  that block floating keeps. This paragraph is from memory of CMSIS-DSP's documentation
+  and is checked against it then.
 - **Honest limits.** A back end's code is not catenae's: vDSP allocates when a setup is
   created, which is a recorded exception to D22 on Apple hosts only; and each back end
   serves its own range of transform lengths, stated as contract numbers.

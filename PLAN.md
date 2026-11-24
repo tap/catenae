@@ -1,4 +1,4 @@
-# catenae — plan (draft 12)
+# catenae — plan (draft 13)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -349,9 +349,29 @@ What this buys:
   and either fail to link or, worse, link the wrong one. So catenae compiles its thin
   adapter against the copy it is pointed at, states the versions it is tested with, and
   under Zephyr uses Zephyr's CMSIS-DSP module.
-- **One back end per library build**, selected by `CATENAE_FFT_BACKEND` (`own`, `cmsis`,
-  `vdsp`). The adapter converts the back end's native packing to D25's frame (CMSIS-DSP
-  packs the Nyquist bin beside DC; vDSP is split complex).
+- **One back end per sample type, chosen when the library is built.** Four options, each a
+  choice from a validated list, all defaulting to `own`:
+
+  | Option | Choices |
+  |---|---|
+  | `CATENAE_FFT_F32` | `own`, `cmsis`, `vdsp`, `none` |
+  | `CATENAE_FFT_F64` | `own`, `vdsp`, `none` |
+  | `CATENAE_FFT_Q15` | `own`, `cmsis`, `none` |
+  | `CATENAE_FFT_Q31` | `own`, `cmsis`, `none` |
+
+  An option per type, rather than one list of pairs such as `cmsis-f32;own-q15`, because
+  every type then has exactly one back end by construction (a list can name two for a type
+  or none), CMake validates and offers each choice, and the same four options map one to
+  one onto waf options and Zephyr Kconfig choices. `none` leaves that type's FFT out of the
+  build, so an image carries no transform it does not use, and a stage that needs it fails
+  to compile with a message naming the option. The choices are written into
+  `catenae/config.h`, under the same link-time guard as the check level (section 3.3).
+- **No silent fallback.** A back end serves its own range of lengths. A stage whose length
+  is a template argument outside that range fails to compile; a run-time length outside it
+  is a `status` from `make()`. Falling back to `own` would change the output bits without
+  the caller knowing.
+- **The adapter converts** the back end's native packing to D25's frame (CMSIS-DSP packs
+  the Nyquist bin beside DC; vDSP is split complex).
 - **CMSIS-DSP's fixed-point transforms scale differently from catenae's own.** They shift
   down as they go, by an amount fixed by the length, so their output is in a Q format that
   depends on the length, and they have no block-floating mode. That fits D29: the format

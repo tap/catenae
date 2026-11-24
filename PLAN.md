@@ -1,4 +1,4 @@
-# catenae — plan (draft 23)
+# catenae — plan (draft 24)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -79,19 +79,20 @@ open.
 | D32 | Documentation is four kinds of document with one job each (README, guide, reference, record), plus executed notebooks and generated measurement tables, under rules that keep it short: one home per fact, a fixed contract card per stage, headers that describe only the present, and length budgets enforced in CI (section 11). | proposed |
 | D33 | The license is not chosen. It is decided after the coding is complete, and until then the repository carries no license file and no SPDX line. Files carry the copyright banner of D14 only. `NOTICE.md` still records where every carried file came from and the license it was under there (DspTap and SampleRateTap are MIT), so that whatever is chosen can honour it. | settled |
 | D40 | Headers use include guards in the style of the C++ Core Guidelines (SF.8), not `#pragma once`: `#ifndef CATENAE_<PATH>_<FILE>_H`, `#define`, and a closing `#endif // CATENAE_<PATH>_<FILE>_H`, the name spelled from the header's path under the include root so that it is unique. A check in the tidy job from C0a derives the expected name from the path and fails on a mismatch, a missing guard or a `#pragma once`. | settled |
+| D41 | The guide is written for one reader: an experienced software engineer who has not worked on embedded hardware, and it is their tutorial (section 11.4). The reference, not the guide, is where an embedded engineer who already knows why looks things up. | proposed (the maintainer's suggestion, 2026-11-24; this draft recommends it) |
 
 ### 1.1 Decisions the audit asks for
 
 Each row is a problem the audit confirmed, the options, and this draft's recommendation.
-D36 and D39 were accepted on 2026-11-24. The rest are **proposed**. D34, D35 and D37 change
-the contract headers, so they are settled before C0b (section 10). D34 and D35 are written
-out as compiled code in `docs/sketches/config-state/`, with the measurement of where the
+D34, D36 and D39 were accepted on 2026-11-24. The rest are **proposed**. D35 and D37 change
+the contract headers, so they are settled before C0b (section 10). D34, D35 and D37 are
+written out as compiled code in `docs/sketches/config-state/`, with the measurement of where the
 memory lands: for the overdrive chain on a Cortex-M33, no flash for its data, 6,184 bytes of
 `.bss`, no start-up code, and a 64-byte stack frame in the audio callback.
 
 | # | The problem | Recommendation | Other options |
 |---|---|---|---|
-| D34 | **Where a chain's memory lands.** An object with one non-zero member (a gain, a coefficient, a pointer to taps) is initialised data: its scratch and histories, nearly all zeros, are stored in flash as well as RAM (8,180 bytes measured for the overdrive chain of 9.3). The alternative is construction at start-up, with a 12 to 20 KB stack frame, which `a \| b \| c` over objects that carry their histories makes worse. (Findings 8, 10, 17, 36.) | **Split configuration from state.** A stage's *configuration* is a small constant value (its design, a view of its taps): `constexpr`, in ROM. Its *state* (histories, scratch) is a separate type that is valid when all zero, so it lives in `.bss` and costs no flash and no start-up code. `a \| b \| c` composes configurations, which are a few bytes each; `state_of<Chain>` is the memory. One configuration can serve many states (voices), and a run-time parameter change becomes "swap the configuration", which also answers how a new design reaches a running chain. | (a) Keep one object and accept flash equal to its size for every chain with a non-zero member. (b) One object, built in place at start-up from designs, with the start-up stack and ordering that implies. |
+| D34 (accepted) | **Where a chain's memory lands.** An object with one non-zero member (a gain, a coefficient, a pointer to taps) is initialised data: its scratch and histories, nearly all zeros, are stored in flash as well as RAM (8,180 bytes measured for the overdrive chain of 9.3). The alternative is construction at start-up, with a 12 to 20 KB stack frame, which `a \| b \| c` over objects that carry their histories makes worse. (Findings 8, 10, 17, 36.) | **Split configuration from state.** A stage's *configuration* is a small constant value (its design, a view of its taps): `constexpr`, in ROM. Its *state* (histories, scratch) is a separate type that is valid when all zero, so it lives in `.bss` and costs no flash and no start-up code. `a \| b \| c` composes configurations, which are a few bytes each; `state_of<Chain>` is the memory. One configuration can serve many states (voices), and a run-time parameter change becomes "swap the configuration", which also answers how a new design reaches a running chain. | (a) Keep one object and accept flash equal to its size for every chain with a non-zero member. (b) One object, built in place at start-up from designs, with the start-up stack and ordering that implies. |
 | D35 | **A 1:1 ratio is not n frames out for n in.** `stft \| ... \| istft` with a hop of 128, fed 64 frames, returns 0 then 128; a by-3 down then up returns 66, 63, 63. The fixed-extent entry cannot compile for such a chain, a callback that must return n for n cannot use it, and `fed_by` overshoots: a chain by 16 asked for 100 frames writes 112. SampleRateTap's `pull(out, k)` stops at exactly k; the stage contract has no such form. (Findings 23, 33, 37.) | **State it, and provide the two adapters.** (1) A stage publishes `is_frame_synchronous` (`outputs_for(n)` is always n L/M); the fixed-extent entry and an n-for-n callback require it. (2) `steady<Chain>` wraps a bursting chain with a member FIFO and presents a frame-synchronous stage with its true, larger latency (511 frames for the 512/128 region, not 384); it is how a spectral region meets an audio callback. (3) `fed_by` owns a holdover array of the chain's worst overshoot, a `constexpr` number from the traits, and so delivers exactly k: that is where SampleRateTap's `pull` lands. `frames_needed(k)` is defined as the smallest n with `outputs_for(n) >= k`. | Add an output-bounded `run` to every stage (it may leave input unconsumed), and redo the chain's scratch proof for banked outputs. More general; it complicates every stage for the sake of two adapters. |
 | D36 (accepted) | **The float default runs in software double on two targets.** The carried FIR arithmetic accumulates a `float` filter in `double`, on purpose and with explicit casts no warning sees. On the Cortex-M4F and M33 (single-precision FPUs) every FIR, `up2` / `down2`, L/M stage and converter would do a software-double multiply-add per tap; DspTap's own header records about 19 times Q15's instruction count on the M33. That contradicts D24 and the purpose section 7.2 gives for the double-promotion warning. (Findings 1, 26.) | **The `float` profile accumulates in `float`.** It is the profile for cores with a single-precision FPU, so it must not leave it. Its noise floor is measured and stated per stage (lower than the carried one; `_f64` stays the golden model and the choice for a host). C7's comparison with SampleRateTap is then to a tolerance for `float` and bit for bit only where the arithmetic is unchanged (`double`, Q15, Q31). A link-stage gate enforces it: a `float`-profile image on those cores may not reference a software-double routine. | Keep `double` accumulation as carried, record it as an exception, and tell M4F and M33 users to use fixed point, which pulls the fixed-point profiles forward from C6. |
 | D37 | **A design is more than "a small value".** (1) A design's validity depends on the sample format: a cutoff that is stable in `double` can lose a pole in `float`, and the tail is computed from the rounded coefficients. A format-free design cannot give the infallible constructor section 3.3 promises. (2) `bridge` and `async` design tables of 12 to 164 KB from run-time arguments, using up to 328 KB of `double` scratch; such a table cannot be returned by value, and its tap count sizes the stage's storage. (3) `latency()` as one report recomputes a 1,025-point group-delay scan that DspTap split out for its cost (28 M instructions on the M33). (Findings 5, 11, 12, 13, 35, 55.) | **Designs carry their format, hold their numbers, and come in two kinds.** `butterworth_design<S, N>`: `make()` validates for that `S` and stores coefficients already in the kernel's coefficient type, with the tail and the latency numbers computed once. So a stage built from a ROM design links no `double` and no `libm`, and `latency()` returns stored numbers; `group_delay(f)` is a design-time free function, not a stage member. *Small* designs are returned by value. *Table* designs are generated ROM tables with a bit pin, or are built by `make(spec, table, workspace)` into storage the caller supplies, with `constexpr` size functions. Where a profile fixes a tap count that sizes storage, the profile is a template argument. A design is a class with a `constexpr` constructor, not an open aggregate, so only `make()` and the table generator can produce one. | Keep format-free designs and let the stage constructor validate and fail, which gives up "a stage cannot fail". |
@@ -666,53 +667,69 @@ from memory. It should be checked against the text when a copy is to hand.
 
 ## 9. What the code is proposed to look like
 
-Sketches. Their purpose is to make the contracts concrete enough to argue with. The audit
-compiled them on GCC 13 and 14 and Clang 18, at C++17, 20 and 23, under the strict warnings,
-with the changes now folded in below. They still show one object per stage and per chain;
-if D34 is accepted, each becomes a constant configuration and a separate state, and this
-section is rewritten then.
+Sketches. Their purpose is to make the contracts concrete enough to argue with. 9.1 to 9.3
+are in the configuration-and-state form of D34 and are excerpts of
+`docs/sketches/config-state/`, which compiles without a warning on GCC 13 and Clang 18 at
+C++17, 20 and 23 and runs. 9.4 to 9.6 are from before D34: the audit compiled them with
+small changes, they still show one object per stage, and they are rewritten when D35 and
+D37 are decided.
 
-### 9.1 A stateless stage: gain
+### 9.1 A stage: its configuration, its state, and a parameter that changes
+
+A stage is a *configuration*: a small value. What it remembers between calls is a nested
+`state` that is valid when every byte of it is zero. A fixed gain needs no class at all:
 
 ```cpp
-namespace catenae {
+struct times {
+    float factor;
+    constexpr float operator()(float x) const noexcept { return x * factor; }
+};
 
-    /// out = in * g on every channel. The floating form; Q15 and Q31 go through sample_traits.
-    template <typename S, std::size_t Ch>
-    class basic_gain {
-      public:
-        using input_port  = port<S, Ch>;   // interleaved audio unless a port says otherwise
-        using output_port = port<S, Ch>;
-        static constexpr ratio rate_ratio{1, 1};
-        static constexpr bool  is_in_place      = true;
-        static constexpr bool  has_exact_latency = true;
+constexpr auto trim = chain(map<2, times>{times{0.5f}});   // a fixed gain is map<> with a multiplication
+```
 
-        explicit constexpr basic_gain(S g) noexcept
-            : m_gain(g) {}
+A gain worth a class is one whose level changes without a click. The level and the ramp
+length are configuration; where the ramp has got to is state.
 
-        // Trusted: the chain has already proven the spans' sizes (section 3.3).
-        std::size_t run(span<const S> in, span<S> out) noexcept {
-            const S g = m_gain;
-            std::transform(in.begin(), in.end(), out.begin(), [g](S x) noexcept { return x * g; });
-            return in.size() / Ch;
-        }
+```cpp
+template <std::size_t Ch>
+class gain {
+  public:
+    using input_port  = port<float, Ch>;
+    using output_port = port<float, Ch>;
+    static constexpr ratio rate_ratio{1, 1};
+    static constexpr bool  is_frame_synchronous = true;
 
-        static constexpr std::size_t    outputs_for(std::size_t n) noexcept { return n; }
-        static constexpr std::size_t    frames_needed(std::size_t k) noexcept { return k; }
-        static constexpr std::size_t    max_outputs_for(std::size_t n) noexcept { return n; }
-        static constexpr latency_report latency() noexcept { return {0.0, 0.0}; }
-        static constexpr std::size_t    tail_frames() noexcept { return 0; }
-        void                            reset() noexcept {}
-
-      private:
-        S m_gain;
+    struct state {
+        float         current;    // the level being applied now
+        float         goal;       // the level the ramp is heading for
+        float         step;       // per frame, while a ramp runs
+        std::uint32_t remaining;  // frames of ramp left
+        std::uint32_t started;    // 0 until the first call, which starts at the level with no fade-in
     };
 
-    template <std::size_t Ch> using gain     = basic_gain<float, Ch>;  // float is the default (D24)
-    template <std::size_t Ch> using gain_f64 = basic_gain<double, Ch>; // the golden model
+    constexpr gain(float level, std::uint32_t ramp_frames) noexcept;
 
-} // namespace catenae
+    constexpr float level() const noexcept { return m_level; }
+    constexpr void  set_level(float level) noexcept { m_level = level; }   // a ramp, from the next run()
+
+    // Trusted: the chain has already proven the spans' sizes (section 3.3).
+    std::size_t run(state& st, span<const float> in, span<float> out) const noexcept;
+
+    static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return n; }
+    static constexpr std::size_t outputs_for(const state&, std::size_t n) noexcept { return n; }
+    static constexpr std::size_t frames_needed(const state&, std::size_t k) noexcept { return k; }
+
+  private:
+    float         m_level;
+    std::uint32_t m_ramp_frames;
+};
 ```
+
+Two rules follow from the split. A state's reset value is all zeros, so anything with another
+starting value belongs in the configuration (a dither's seed) or behind a flag like
+`started`. And a setter is not synchronised: it is called on the thread that runs the chain,
+between calls (section 13, question 4, for the other case).
 
 **Algorithms or loops.** A stage that maps each sample on its own (gain, `map`, `convert`,
 a fill of silence) is written with a standard algorithm, as above: there is no index to
@@ -728,33 +745,61 @@ algorithm form counts the same as the loop (it compiles to the same loop, but th
 measurement, not an assumption), and nothing meant to be evaluated at compile time uses
 one, because the standard algorithms are not `constexpr` before C++20.
 
-### 9.2 A stage with a design: Butterworth
+### 9.2 A stage with a design: a low-pass filter
 
-The design can fail and runs in `double`; the stage cannot fail and runs in its sample type.
+The design can fail and uses `double` and `tan`; the stage is built from a design, cannot
+fail and never sees a `double`. (The design carrying its sample format and its latency as a
+stored number is D37, proposed.)
 
 ```cpp
-// At start-up, outside the audio path. `designed` is a value, not a pointer:
-// catenae::expected<butterworth_design<4>, status>, with std::expected's interface.
-const auto designed = catenae::butterworth_design<4>::make(0.1);
-if (!designed) {
-    return designed.error();                                     // status::cutoff_out_of_range
-}
-catenae::butterworth<4, 2> lowpass(*designed);                   // order 4, stereo, float; noexcept
+template <typename S>
+class lowpass_design {
+  public:
+    static expected<lowpass_design, status> make(double cutoff) noexcept;   // may fail
+    static constexpr lowpass_design from_table(const std::array<S, 5>& coefficients,
+                                               float latency_frames) noexcept;
 
-// Or with no designer in the image: the same value type as a table in ROM.
-constexpr catenae::butterworth_design<4> k_lowpass_design = { /* generated, bit-pinned */ };
-catenae::butterworth<4, 2> fixed_lowpass(k_lowpass_design);
+    constexpr const std::array<S, 5>& coefficients() const noexcept;        // already in S
+    constexpr float                   nominal_latency() const noexcept;     // a stored number
+};
 
-// In the audio path. A stage on its own is a chain of one, which supplies the checked entry:
-auto filter = catenae::chain(lowpass);
-filter.process(in, out);                                         // one size check, then run()
-const catenae::latency_report l = lowpass.latency();             // {4.02, 2.51} frames at fc = 0.1
+template <std::size_t Ch>
+class lowpass {
+  public:
+    struct state {
+        std::array<std::array<float, 2>, Ch> z;   // the filter's history, per channel
+    };
+
+    explicit constexpr lowpass(const lowpass_design<float>& design) noexcept;
+    constexpr void set_design(const lowpass_design<float>& design) noexcept;   // cannot fail
+
+    std::size_t run(state& st, span<const float> in, span<float> out) const noexcept;
+};
 ```
+
+```cpp
+// A configuration whose parameters will change is a variable. It starts here from a design
+// that is a table in ROM: no designer has run and none need be linked.
+static auto                        s_strip = lowpass<2>{k_lowpass_at_0_1} | gain<2>{1.0f, 96};
+static state_of<decltype(s_strip)> s_strip_state;
+
+static_cast<void>(s_strip.process(s_strip_state, in, out));   // the audio callback
+
+// A new cutoff, off the audio path: design it (this can fail), then hand it over (this cannot).
+const auto retuned = lowpass_design<float>::make(0.02);
+if (retuned) {
+    s_strip.stage<0>().set_design(*retuned);
+}
+s_strip.stage<1>().set_level(0.25f);                          // ramps over 96 frames
+```
+
+On a Cortex-M33 the strip's configuration is 32 bytes of `.data`, its state 548 bytes of
+`.bss`, its callback's stack frame 20 bytes, and the file holding the audio path calls no
+software floating point; the designer's file calls `tan` and seven software-double routines.
 
 ### 9.3 A chain: four-times oversampling around a tanh overdrive
 
 ```cpp
-// A stateless nonlinearity: any noexcept callable, a sample at a time, through map<>.
 struct soft_clip {
     float drive;
     float operator()(float x) const noexcept { return std::tanh(drive * x); }
@@ -762,23 +807,33 @@ struct soft_clip {
 
 using namespace catenae;
 
-// Stereo, float. The type is the topology; nothing is looked up from a rate.
-auto overdrive = up2<2>{} | up2<2>{} | map<2, soft_clip>{{4.0f}} | down2<2>{} | down2<2>{};
+// The configuration: a constant. The type is the topology; the object is 8 bytes (the drive).
+constexpr auto overdrive = up2<2>{} | up2<2>{} | map<2, soft_clip>{soft_clip{4.0f}} | down2<2>{} | down2<2>{};
 
-static_assert(stage_traits<decltype(overdrive)>::rate_ratio == ratio{1, 1});
+static_assert(decltype(overdrive)::rate_ratio == (ratio{1, 1}));
 
-const latency_report l = overdrive.latency();   // k + 1/2 frames with linear-phase half-bands:
-                                                // oversample<4, ...> is the whole-frame form (D39)
-overdrive.process(in, out);                     // any length: one size check here, none between stages
+// The memory: one zero-initialised object per instance. Two voices share one configuration.
+static state_of<decltype(overdrive)> s_voice_a;
+static state_of<decltype(overdrive)> s_voice_b;
 
-// With a fixed block, no run-time check at all:
-std::array<float, 64 * 2> block_in{}, block_out{};
-const std::size_t made = overdrive.process(block_in, block_out);   // arrays: checked by static_assert
+// The audio callback. Both arguments are arrays, so every size is checked by the compiler.
+void audio_callback(const std::array<float, 64 * 2>& in, std::array<float, 64 * 2>& out) noexcept {
+    static_cast<void>(overdrive.process(s_voice_a, in, out));
+}
 ```
 
-What the sketch leaves open: `up2` and `down2` take a profile (how much attenuation, how
-wide a passband), and the second pair may relax theirs because they run at twice the rate.
-The layout benchmark decides whether `map` wants a planar section on a wide vector unit.
+| On a Cortex-M33, `-Os` | One object per chain (the audit) | Configuration and state |
+|---|---:|---:|
+| Flash for the chain's data | 8,180 bytes | 0 |
+| RAM | 8,180 bytes | 6,184 bytes of `.bss` |
+| Start-up code or stack to construct it | none, or a 12 KB frame | none |
+| Stack of the callback | not measured | 64 bytes |
+
+The RAM figures are from different mock stages; the flash figure is the comparison. What the
+sketch leaves open: `up2` and `down2` take a profile, the pairs here are toys, and with real
+linear-phase half-bands the latency is k + 1/2 frames, which `oversample<4, ...>` makes whole
+(D39). The layout benchmark decides whether `map` wants a planar section on a wide vector
+unit.
 
 ### 9.4 A chain with a transform-domain region: a spectral gate
 
@@ -975,7 +1030,7 @@ Four kinds of document, each answering one kind of question for one kind of read
 | Document | Answers | Reader | Made with |
 |---|---|---|---|
 | `README.md` | What is this, and how do I build my first chain? | Someone deciding whether to use it | Hand-written, short |
-| The guide | How do I think about stages, chains, junctions, layouts, formats, memory? How do I write a stage? | An integrator; a stage author | A small book (mdBook, as SampleRateTap's), its code included from compiled examples |
+| The guide | Why is the library shaped this way, and how do I use it and write a stage for it? | An experienced software engineer new to embedded hardware (section 11.4) | A small book (mdBook, as SampleRateTap's), its code included from compiled examples |
 | The reference | What exactly does this stage promise? | An integrator with the header open | Doxygen, from the headers |
 | The record | Why is it this way, what changed, what knowingly departs from the rules? | The maintainer; a reviewer or assessor | `PLAN.md`, `CHANGELOG.md`, the deviation log |
 
@@ -1059,6 +1114,40 @@ not a restatement of them.
 A page is written with its code, in the same change, by the workstream that writes the
 code (section 10.1). Nothing is documented before it exists.
 
+### 11.4 The guide's reader (D41)
+
+The guide has one reader in mind: an experienced software engineer who has not worked on
+embedded hardware. It is their tutorial. The reason is that catenae's shape is strange to
+that reader and obvious to an embedded one: a configuration apart from its state, no heap,
+designs apart from stages, fixed blocks, `float` that must not touch `double`. Each of those
+is the answer to a constraint the desktop never shows. A reader who has felt the constraint
+needs the reference; a reader who has not needs to be shown it once, with a number.
+
+So every chapter has the same three steps, and nothing else:
+
+1. **What you would naturally write.** A class with a `std::vector`, a constructor that
+   throws, a gain with a setter: correct code on a desktop.
+2. **What it costs on the target, measured.** The flash, the RAM, the stack, the
+   instructions, from a size probe or the ratchet on a Cortex-M. The reader is given the
+   command that reproduces the number.
+3. **What catenae does instead**, as code that compiles.
+
+| Chapter | The constraint it shows | What it leads to |
+|---|---|---|
+| Where memory lives | Flash, RAM, `.data` and `.bss`, the stack; why there is no heap | Configuration and state (D22, D34) |
+| The audio callback | A deadline every block; nothing in it may fail, wait or allocate | Checks at the edge, designs, `expected` (D21, D27, D37) |
+| What arithmetic costs | An FPU that has no `double`; fixed point and where the binary point is | The `float` profile, Q formats, the golden model (D24, D29, D36) |
+| Stages and chains | A mistake that should not survive compilation | Ports, joints, the compile-time proofs (D6, D17) |
+| Rate, latency and bursts | A callback that must return n frames for n | Ratios, exact latency, `steady` (D18, D35, D39) |
+| Threads and clocks | Two call sites that cannot share a lock | Junctions (D19) |
+| Measuring | A cost that is not measured is not known | The ratchet, size probes, the layout benchmark |
+| Writing a stage | | The contract, a card, a battery |
+
+The first chapter's measurement already exists (`docs/sketches/config-state/`). The guide
+assumes C++ and what a filter is; it does not teach signal processing, and it does not
+re-explain to an embedded reader what they know, which is the reference's reader. It stays
+under D32's rules: a page answers one question and has a length ceiling.
+
 ## 12. What is carried in, and what moved
 
 ### Carried from DspTap (ported, each with its tests)
@@ -1125,7 +1214,7 @@ nothing from the plan; the license waits for the code (D33).
 Gating C0b, because each defines a contract header (the audit's finding 2 moved the first
 three here from "gating C1"):
 
-1. **Section 1.1: D34, D35, D37 and D38.**
+1. **Section 1.1: D35, D37 and D38.**
 2. **The planar signature.** Recommended: a span per channel. One span with the channels end
    to end cannot be cut into blocks, which the chain's block-at-a-time `process` and a
    nested chain both need (finding 63).
@@ -1175,7 +1264,7 @@ are that file's.
 
 | Theme | Findings | In this draft |
 |---|---|---|
-| Where a chain's memory lands | 8, 10, 17, 36 | D34 (proposed); `docs/sketches/config-state/` |
+| Where a chain's memory lands | 8, 10, 17, 36 | D34 (accepted); `docs/sketches/config-state/` |
 | Per-call behaviour, pull, overshoot | 23, 33, 37, 50 | D35 (proposed); sections 3.2, 3.3, 6; the same sketch |
 | The float accumulator | 1, 26, 31 | D36 (accepted); the link-stage gate in 7.2 |
 | What a design is | 5, 11, 12, 13, 35, 55 | D37 (proposed) |

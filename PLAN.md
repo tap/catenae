@@ -690,3 +690,7 @@ Gating later milestones:
 4. **A fixed-point spectrum's exponent.** Under the fixed scaling policy it is in the
    port's type (D29). Under block floating it is a run-time number per channel per frame:
    in the frame (a header value) or beside it? Or is block floating left out?
+5. **Analyzer results across threads.** Through a `handoff`, or each analyzer's own rule?
+6. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass?
+7. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
+   fixed-point one with C6?

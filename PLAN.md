@@ -1,4 +1,4 @@
-# catenae — plan (draft 8)
+# catenae — plan (draft 9)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -63,7 +63,7 @@ open to change. **proposed** is new in this draft or not yet reviewed.
 | D24 | `float` is the default sample type and `double` is the golden model. An unsuffixed name is the `float` stage (`gain<2>`); `_f64`, `_q15` and `_q31` name the others. Every profile's numbers are stated against the `double` one, which never changes for speed. | settled (the naming is proposed) |
 | D25 | A frame of transform coefficients is, per channel, N/2 + 1 bins of `complex<S>` (real then imaginary, adjacent), DC to Nyquist, all stored; channels follow one another whole (section 5.2). | proposed |
 | D26 | Build systems: CMake first; waf supported and built in CI from C0; a Zephyr module when a consumer needs it. One amalgamated source file exists for anything else. | settled as to which; the timing is proposed |
-| D27 | Preconditions come in two tiers (section 3.3). A *boundary* check, made once per call where the caller's data enters the library, is on in every build. An *audit* check, inside the library's own loops or on what the host is responsible for, is on in debug builds only. One generated configuration header sets the level for the whole image, and a link-time guard refuses an image that mixes levels. | proposed |
+| D27 | Joints inside a chain are checked at compile time and cost nothing at run time: the port types match, and the chain's scratch is proven large enough by a `static_assert` on each stage's `max_outputs_for`. A run-time *boundary* check exists only where the caller's own buffers enter, at a chain's `process` and a junction's `push` and `pull`; it is written once, generically, from the traits, and is on in every build. With fixed-extent spans that check is compile-time too. An *audit* check, inside the library's own loops or on what the host is responsible for, is on in debug builds only. One generated header sets the level for the whole image and a link-time guard refuses a mix (section 3.3). | proposed (the maintainer's correction of draft 8: no run-time checks between stages) |
 | D28 | FFT back ends (section 7.1): catenae's own engines are the default on every target and the only ones in this repository. CMSIS-DSP and Apple's vDSP are opt-in, chosen when the library is built, and never vendored: the consumer's own copy is used. | proposed |
 
 ## 2. Charter
@@ -109,9 +109,9 @@ ill-typed member.
 |---|---|
 | `input_port`, `output_port` | The two port types. |
 | `k_ratio` | `ratio{up, down}`, reduced. For an analysis stage it is 1 / hop. |
-| `k_in_place` | Whether `process` may read and write one buffer. |
+| `k_in_place` | Whether `run` may read and write one buffer. |
 | `k_exact_latency` | Whether the stage delays every frequency alike. |
-| `process(in, out)` | Spans of the ports' value types; consumes all of `in`; returns the frames written. `noexcept`, no allocation, no failure. |
+| `run(in, out)` | The stage's work, trusted: spans of the ports' value types, already known to be the right sizes; consumes all of `in`; returns the frames written. `noexcept`, no allocation, no failure, no boundary check. Called by a chain, not by the caller's code (section 3.3). |
 | `outputs_for(n)`, `frames_needed(k)` | Exact, from the current position. |
 | `max_outputs_for(n)` | An upper bound from any state, `constexpr`. The chain sizes its scratch from this. |
 | `reset()` | Back to the constructed state. |
@@ -120,32 +120,40 @@ ill-typed member.
 
 ### 3.3 Failure, without exceptions (D21)
 
-- **The audio path cannot fail.** `process`, `push`, `pull` and `reset` return counts, never
-  errors. What they require of the caller is a precondition.
+- **The audio path cannot fail.** `run`, `process`, `push`, `pull` and `reset` return counts,
+  never errors. What they require of the caller is a precondition.
 - **Design is where failure lives.** Anything computed from run-time numbers (a cutoff, a
   set of taps) is a *design*: a small value type produced by `T::make(args)`, which returns
   `result<T>` (a value or a `status`; no heap, C++17). A stage is constructed from a design
   and cannot fail. A design can equally be a `constexpr` table in ROM, in which case no
   designer is linked at all.
-- **Preconditions, in two tiers (D27).**
-  - A *boundary* check guards what the caller hands in: a span too short for
-    `outputs_for(n)` frames, a length that is not a whole number of frames, `reset()` on a
-    running junction. It is made once per call, costs a few compares per block, and is on
-    in every build, because in a release build an unchecked one is a write past a buffer.
-    Its cost is in the instruction-count ratchet like any other.
-  - An *audit* check guards what the library itself or the host is responsible for: an
-    index inside a kernel's loop, a state invariant, the host's flush-to-zero setting. It is
-    on in debug builds and compiled out otherwise: the battery and its coverage are what
-    prove these, and a check per sample would cost more than the filter and stop the
-    compiler vectorizing.
-  - A failed check calls one `[[noreturn]]` handler that the integrator supplies at link
-    time (the default traps). It receives a small enumerated code, not a file name and a
-    message, so checks add no strings to ROM.
-  - Checks are inline functions, not macros. The level is one generated header,
-    `catenae/config.h`, the same for every file of an image; each object file refers to a
-    symbol named for its level and the compiled library defines only its own, so an image
-    that mixes levels fails to link instead of misbehaving (the one-definition hazard the
-    Tap libraries document for their per-file macros).
+
+**Where checks happen (D27).**
+
+| Where | What is checked | When |
+|---|---|---|
+| A joint between two stages | The port types are the same; the scratch between them holds `max_outputs_for` of a block | Compile time. Nothing at run time. |
+| The caller's entry: `chain::process`, a junction's `push` and `pull` | The input is a whole number of frames; the output span holds `outputs_for(n)` frames | Once per call, in every build. At compile time instead, when the caller passes fixed-extent spans. |
+| Inside the library: a kernel's indices, a state invariant, a stage returning more than its own `max_outputs_for`, the host's flush-to-zero setting | The library's own promises, and the host's | Debug builds only (audit). The battery and its coverage are the proof. |
+
+- **A stage has no checked entry of its own.** It implements `run`, which trusts its spans.
+  The checked entry is the chain's `process`, so a stage used alone is a chain of one. The
+  boundary check is therefore one function, written from `stage_traits` and tested once, and
+  a stage author cannot forget it or get it wrong.
+- **Fixed blocks need no run-time check at all.** Most embedded callers process a fixed
+  block. `process(span<const S, N * Ch>, span<S, M * Ch>)` checks `M >= max_outputs_for(N)`
+  with a `static_assert`; the dynamic-extent overload is the one that checks at run time.
+- **Content is not a precondition.** Any bytes are valid samples, so a wire stage needs no
+  check on what it reads. A non-finite float from outside is not a memory fault either; it
+  poisons a recursive state until `reset()`. A caller who cannot vouch for its input puts an
+  explicit `sanitize` stage at the edge, which is a stage with a cost, not a hidden check.
+- **A failed check** calls one `[[noreturn]]` handler that the integrator supplies at link
+  time (the default traps). It receives a small enumerated code, not a file name and a
+  message, so checks add no strings to ROM.
+- **One level per image.** Checks are inline functions, not macros. Whether audit checks
+  are on is one generated header, `catenae/config.h`; each object file refers to a symbol
+  named for its level and the compiled library defines only its own, so an image that mixes
+  levels fails to link.
 
 ## 4. The chain
 
@@ -155,8 +163,11 @@ ill-typed member.
 - Composes ratio, `outputs_for`, `frames_needed`, latency, tail and residue. A chain is
   itself a stage, so chains nest.
 - Scratch is a member array (D22), sized from each stage's `max_outputs_for` at a
-  compile-time block length (64 frames unless the chain is told otherwise). `process`
-  accepts any length and works through it a block at a time. A run of `k_in_place` stages
+  compile-time block length (64 frames unless the chain is told otherwise), with a
+  `static_assert` that each buffer holds what the stage before it can write. `process` is
+  the caller's entry and the only place a run-time size check is made; it accepts any length
+  and works through it a block at a time, calling each stage's `run`. A chain has `run` as
+  well, which is what an enclosing chain calls. A run of `k_in_place` stages
   shares one buffer.
 - Bit-identical for any chunking of a stream, under the library's floating-point contraction
   policy.
@@ -356,7 +367,8 @@ namespace catenae {
         explicit constexpr basic_gain(S g) noexcept
             : m_gain(g) {}
 
-        std::size_t process(span<const S> in, span<S> out) noexcept {
+        // Trusted: the chain has already proven the spans' sizes (section 3.3).
+        std::size_t run(span<const S> in, span<S> out) noexcept {
             for (std::size_t i = 0; i < in.size(); ++i) {
                 out[i] = in[i] * m_gain;
             }
@@ -396,8 +408,9 @@ catenae::butterworth<4, 2> lowpass(*design);                     // order 4, ste
 constexpr catenae::butterworth_design<4> k_lowpass_design = { /* generated, bit-pinned */ };
 catenae::butterworth<4, 2> fixed_lowpass(k_lowpass_design);
 
-// In the audio path:
-lowpass.process(in, out);
+// In the audio path. A stage on its own is a chain of one, which supplies the checked entry:
+auto filter = catenae::chain(lowpass);
+filter.process(in, out);                                         // one size check, then run()
 const catenae::latency_report l = lowpass.latency();             // {4.02, 2.51} frames at fc = 0.1
 ```
 
@@ -418,7 +431,11 @@ auto overdrive = up2<2>{} | up2<2>{} | map<2, soft_clip>{{4.0f}} | down2<2>{} | 
 static_assert(stage_traits<decltype(overdrive)>::k_ratio == ratio{1, 1});
 
 const latency_report l = overdrive.latency();   // delay the dry path by l.nominal to mix it in
-overdrive.process(in, out);                     // any length; no allocation; noexcept
+overdrive.process(in, out);                     // any length: one size check here, none between stages
+
+// With a fixed block, no run-time check at all:
+std::array<float, 64 * 2> block_in{}, block_out{};
+overdrive.process(span<const float, 128>(block_in), span<float, 128>(block_out));   // static_assert
 ```
 
 What the sketch leaves open: `up2` and `down2` take a profile (how much attenuation, how
@@ -525,7 +542,7 @@ Each ends with its battery green on every CI leg and its numbers recorded.
 | | Milestone | Contents |
 |---|---|---|
 | C0 | Skeleton | Repository layout, license, `NOTICE.md`, style files. The CMake build and the waf build, both in CI: hosted at `-std=c++17`, 20 and 23, always `-fno-exceptions -fno-rtti`; the Cortex-M and Hexagon QEMU legs. `span`, `status` / `result`, the precondition handler, `sample_traits`, the ports, `stage_traits`, `junction_traits`, the contract documents with requirement identifiers. The static library with its first compiled unit, the amalgamation, a size probe per embedded target, coverage. The deviation log opened. The two precondition tiers, the handler and the link-time level guard. The compile-fail battery: one test per architectural rule (mismatched ports at a joint in each of the ways a port can differ; a junction inside a chain), each asserting on its message. |
-| C1 | The chain on trivial stages | `chain`, `gain`, `map`, integer `delay`, `interleave` / `deinterleave`, the sample converters. `handoff`, with `feeding` and `fed_by`. The instruction-count harness and the layout benchmark, carried from the spike. This proves D6, D7, D9, D10, D19, D21 and D22 on the simplest instances. |
+| C1 | The chain on trivial stages | `chain` with its checked `process` (dynamic and fixed extent) and its compile-time joint proofs, `gain`, `map`, integer `delay`, `interleave` / `deinterleave`, the sample converters. `handoff`, with `feeding` and `fed_by`. The instruction-count harness and the layout benchmark, carried from the spike. This proves D6, D7, D9, D10, D19, D21 and D22 on the simplest instances. |
 | C2 | The edges | `unpack` / `pack` (16, 24-packed, 24-in-32, 32; either byte order), TPDF dither, the mix matrix. |
 | C3 | Filters | The biquad block kernel, the biquad family and the Butterworth with their designs, a direct-form FIR, `up2` / `down2` and the L/M stages. The overdrive chain of 9.3 as a tested example. |
 | C4 | Blocks | The FFT behind its compiled interface, the overlap-save FFT FIR, `planar_section`. |

@@ -1,4 +1,4 @@
-# catenae — plan (draft 16)
+# catenae — plan (draft 17)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -9,11 +9,11 @@ composes those numbers; a junction has a contract of the same kind for the place
 call sites meet.
 
 Status: draft for the maintainer's review. Nothing here is built, and every code listing in
-section 9 is a proposal that has not been compiled. Section 12 lists the open questions.
+section 9 is a proposal that has not been compiled. Section 13 lists the open questions.
 
 Evidence: the layout spike of November 2026 (DspTap and SampleRateTap branches
 `ccr-ef01ff18-nxz8n4`; DspTap `bench.yml` runs 153, 157, 161) and the write-up
-"Interleaved or Planar: A Short Book for the Tap Chain". Section 11 says what those two
+"Interleaved or Planar: A Short Book for the Tap Chain". Section 12 says what those two
 libraries have changed since and what that does to the evidence.
 
 ---
@@ -41,7 +41,7 @@ open to change. **proposed** is new in this draft or not yet reviewed.
 | D2 | The language is C++17, strictly: one code path, and every file compiles to the same thing at `-std=c++17`, 20 and 23. No C++20 feature appears, not even behind a feature test. Where the standard library only has a type from C++20 on, catenae writes its own (`catenae::span` first). | settled |
 | D3 | DspTap and SampleRateTap are sources of material, not dependencies: no submodule, no link. Code is carried in by copy, ported, and recorded in `NOTICE.md` with the commit it came from. | settled |
 | D4 | MIT. Not header-only: templates whose compile-time numbers matter stay in headers, and everything else is compiled once into a static library, `catenae` (section 7). The FFT is behind one compiled interface, its back end chosen when the library is built. | settled in principle (the maintainer rejected header-only); the split is accepted |
-| D5 | The chain's native layout is interleaved, with the channel count a compile-time number. | accepted (measured: section 11) |
+| D5 | The chain's native layout is interleaved, with the channel count a compile-time number. | accepted (measured: section 12) |
 | D6 | A stage declares its input and output separately, each as a *port type* (section 3). Two stages join when one's output port and the next one's input port are the same type. | accepted; the port-as-a-type form is proposed |
 | D7 | Planar is a typed region inside a chain: converter stages at its ends, a wrapper for convenience. | accepted |
 | D8 | Byte order and packing exist only in *edge stages* at the ends of a chain: `unpack` and `pack`. They are stages, not junctions: one call, one thread, one clock, ratio 1:1. Only their outer port is unusual, a `wire` port of bytes, which no other stage accepts, so the type system keeps them at the ends. Inside, every sample is native. | accepted; the stage-not-junction reading is this draft's answer |
@@ -68,6 +68,7 @@ open to change. **proposed** is new in this draft or not yet reviewed.
 | D29 | A fixed-point port names its Q format, and the format is part of the port's type: `port<fixed<std::int32_t, 27>, Ch>` is Q4.27 audio, and joining it to a Q0.31 port does not compile. The format is a compile-time tag only; buffers hold raw `int16_t` and `int32_t`, never a wrapper class. Moving between formats is an explicit `convert` stage (a shift, with its rounding and saturation stated). Any format can be named, so one that becomes useful later (Q1.14 between 16-bit stages) is an addition and not a redesign; a stage accepts only the formats its battery pins (section 3.1). The first set: `q15`, `q31` and Q4.27. | accepted (2026-11-24) |
 | D30 | Public constants have no prefix. A stage's contract reads as the standard library's traits do: `rate_ratio`, `is_in_place`, `has_exact_latency` (compare `std::numeric_limits<T>::is_signed`, `std::chrono::steady_clock::is_steady`). The `k_` prefix stays for constants that are not part of the public interface: private members and everything in `detail`. This is the first place catenae's style departs from the Tap rules (D20). | settled (the names chosen are proposed) |
 | D31 | Warnings are errors, and the set is strict (section 7.2): the conversion, sign, shadowing, double-promotion, old-style-cast and switch warnings of every compiler in CI, on catenae's own code and on a consumer's view of its headers. A suppression is a recorded deviation, never a habit. | settled as a direction; the flag sets are proposed |
+| D32 | Documentation is four kinds of document with one job each (README, guide, reference, record), plus executed notebooks and generated measurement tables, under rules that keep it short: one home per fact, a fixed contract card per stage, headers that describe only the present, and length budgets enforced in CI (section 11). | proposed |
 
 ## 2. Charter
 
@@ -122,7 +123,7 @@ shift is a constant.
 **What exists already.** There are no fixed-point *types* in the Tap libraries, on purpose:
 the arithmetic lives in traits over raw integers, so that the headroom bits, the
 pre-shifts and the single rounding point of each datapath stay visible and pinned. Three
-sets are carried in (section 11):
+sets are carried in (section 12):
 
 | Traits | For | What they fix |
 |---|---|---|
@@ -279,7 +280,7 @@ channel 1:  re[0] im[0]  re[1] im[1]  ...  re[N/2] im[N/2]
   engine is conjugated in its post-pass. An analysis and synthesis pair states its overall
   gain (1) and its reconstruction error as numbers.
 - **Fixed point.** A Q15 or Q31 spectrum needs a block exponent per channel per frame, as
-  DspTap's fixed FFT returns one. Where it travels is open (section 12).
+  DspTap's fixed FFT returns one. Where it travels is open (section 13).
 - **The alternative, split complex** (all real parts, then all imaginary: vDSP's native
   form) vectorizes magnitude and gain loops more easily. It is measured against the
   interleaved form in the layout benchmark before D25 is frozen; a vDSP back end converts
@@ -776,7 +777,93 @@ tests meet it without a modelling tool.
 
 C7 and C8 do not start until the maintainer calls the architecture stable.
 
-## 11. What is carried in, and what moved
+## 11. Documentation (D32)
+
+### 11.1 Who reads what
+
+Four kinds of document, each answering one kind of question for one kind of reader.
+
+| Document | Answers | Reader | Made with |
+|---|---|---|---|
+| `README.md` | What is this, and how do I build my first chain? | Someone deciding whether to use it | Hand-written, short |
+| The guide | How do I think about stages, chains, junctions, layouts, formats, memory? How do I write a stage? | An integrator; a stage author | A small book (mdBook, as SampleRateTap's), its code included from compiled examples |
+| The reference | What exactly does this stage promise? | An integrator with the header open | Doxygen, from the headers |
+| The record | Why is it this way, what changed, what knowingly departs from the rules? | The maintainer; a reviewer or assessor | `PLAN.md`, `CHANGELOG.md`, the deviation log |
+
+Beside them, **notebooks** for what has to be seen and not read: frequency responses,
+group delay, the layout comparison, the spectral gate at work. They are committed executed
+and drive the shipping code through its C ABI, so they arrive with it (C6). And
+**measurements** are tables generated from the benchmark's own output, with their
+provenance in the data, not in sentences.
+
+One published site carries the guide and the reference, cross-linked.
+
+### 11.2 Keeping it from becoming too much
+
+The Tap libraries' documentation is accurate and heavy: a contract number can appear in a
+header, a README, a plan and a benchmark page, each time wrapped in the story of how it was
+measured, and a header comment can run to two hundred lines. catenae keeps the accuracy and
+drops the weight by rule.
+
+1. **One home for each fact.** A number lives in one place, and that place is checked by a
+   machine: a test's pin or a generated table. Everywhere else links to it.
+2. **A contract is a card, not an essay.** Every stage's header carries the same fixed
+   fields, as a table, and nothing else:
+
+   ```cpp
+   /// @brief Butterworth low-pass, even order, as a 1:1 stage.
+   ///
+   /// | Contract   |                                                                   |
+   /// |------------|-------------------------------------------------------------------|
+   /// | Ports      | `port<S, Ch>` in and out                                          |
+   /// | Ratio      | 1:1, in place                                                     |
+   /// | Latency    | nominal: group delay at DC; deviation: its excess up to the cutoff |
+   /// | Tail       | `tail_frames()`; residue at most 256 x the smallest normal value  |
+   /// | Formats    | `float`, `double`                                                 |
+   /// | Limits     | a non-finite input poisons the state until `reset()`              |
+   /// | Method     | bilinear transform, pre-warped (Oppenheim and Schafer, sec. 7.2)  |
+   /// | Rationale  | D9, D22                                                           |
+   ///
+   /// @req{CAT-BUTTERWORTH-001} |H| is -3.0103 dB at the cutoff, within 1e-4 dB.
+   /// @req{CAT-BUTTERWORTH-002} ...
+   ```
+
+   Each `@req` line is one requirement with its identifier (D23). Doxygen collects them
+   into a requirements page, and a script checks that every identifier is cited by a test
+   and every test cites one.
+3. **A header describes the present.** What the code used to do is the changelog's. Why it
+   is this way is the plan's, cited by decision number. How a number was measured (the
+   machine, the compiler, the run) is the generated table's.
+4. **Budgets, enforced like the size ceilings.** A stage's header comment, the README and
+   a guide page each have a length ceiling, checked in CI. A document that needs more
+   needs splitting, or is holding something that belongs in another kind of document.
+5. **A guide page answers one question**, starts with the answer, and shows code that
+   compiles: every listing is included from an example that the build compiles and the
+   battery runs. No listing is typed into a page.
+6. **One glossary.** Stage, chain, junction, port, frame, design, tail, residue: each
+   defined once and linked, never re-explained.
+7. **Documentation is built with the same strictness as code.** Doxygen's warnings are
+   errors (an undocumented public member fails the build), links are checked, and the
+   README's quick start is compiled.
+
+`CLAUDE.md` follows the same rule: a short map of where things are and which rules bind,
+not a restatement of them.
+
+### 11.3 When each part is written
+
+| Milestone | Documentation it ships |
+|---|---|
+| C0 | The README, the glossary, the contract card and `@req` conventions, Doxygen and the budgets in CI, the site published |
+| C1 | The guide's core: stage, chain, junction, checks and failure, memory without a heap; "Writing a stage", around `gain` |
+| C2 to C5 | A guide page per idea as its code lands (edges and formats; filters and designs; the transform domain; analysis), each around a tested example; every stage's card |
+| C6 | The notebooks; the fixed-point and back-end pages; the C ABI reference |
+| C7, C8 | The converters' pages, and what differs from SampleRateTap for someone moving across |
+| C9 | The guide read end to end as a book and trimmed |
+
+A page is written with its code, in the same change, by the workstream that writes the
+code (section 10.1). Nothing is documented before it exists.
+
+## 12. What is carried in, and what moved
 
 ### Carried from DspTap (ported, each with its tests)
 
@@ -824,7 +911,7 @@ Consequence for the evidence: the spike's Butterworth layout rows describe two k
 are both superseded; the FIR, FFT FIR, converter and gain rows stand. C3 measures the
 Butterworth's layout again on the block kernel.
 
-## 12. Open questions
+## 13. Open questions
 
 Decided on 2026-11-24: D23 is a precaution with nothing claimed and no checker; cobra needs
 nothing from the plan.
@@ -850,3 +937,7 @@ Gating later milestones:
 6. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass?
 7. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
    fixed-point one with C6?
+8. **Documentation tooling.** mdBook for the guide and Doxygen for the reference, as
+   proposed, or Doxygen alone with Markdown pages (one tool, a plainer guide)? Is a print
+   edition of the guide wanted, as SampleRateTap has? And should some notebooks arrive
+   before the C ABI at C6, through a small command-line tool that writes data for them?

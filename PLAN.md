@@ -1,4 +1,4 @@
-# catenae — plan (draft 31)
+# catenae — plan (draft 32)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -84,6 +84,7 @@ open.
 | D43 | `parallel<ChainA, ChainB>` is part of C1's chain work: it runs two chains on two groups of one port's channels and aligns their latencies, so a dry path beside a wet one is a type and not the caller's bookkeeping. Their ratios must match (asserted). It is what a side chain would later be built from; a stage with two audio inputs stays out of the charter. | settled |
 | D44 | A value crosses between threads through a `mailbox<T>` (section 6.2): one poster, one taker, the newest value wins, neither side ever waits, no lock. A new configuration reaches the thread that runs a chain this way, applied by that thread at the top of a call, and a reading leaves it the same way. It is a primitive of its own beside the junction, which carries a stream; "when a change takes effect" is therefore "at the next call after it is collected", and whether it is smoothed is the stage's matter (`gain` ramps; a filter's redesign is a step). | settled (2026-11-24); `docs/sketches/config-state/` has it compiled and run under the thread sanitizer |
 | D45 | The C ABI is a manifest: a list, fixed when the library is built, of named instantiations (a chain or a junction with its sample format, channel count and profile). Each is exported under its name as plain C functions over storage the caller supplies, with its sizes as constants. Nothing is chosen at run time behind a handle, so it needs no heap, no virtual dispatch and no exceptions, and it is consistent with D13, D21 and D22, which SampleRateTap's C ABIs are not (finding 38). The notebooks measure what the manifest names. | settled (2026-11-24) |
+| D46 | Documentation tooling: mdBook for the guide and Doxygen for the reference, on one published site. No print edition. The notebooks arrive with the C ABI at C6 and not before, so there is one path from the shipping code to a figure. | settled (2026-11-24: the maintainer accepted the recommendation; the print edition and the notebooks' timing are this draft's reading of it) |
 
 ### 1.1 Decisions the audit asks for
 
@@ -1289,16 +1290,36 @@ Decided on 2026-11-24: the mailbox (D44) and the C ABI as a manifest (D45).
 
 Gating C0b and CF: nothing. Every decision that defines a contract header is made.
 
-Gating later milestones:
+Decided on 2026-11-24: the documentation tooling (D46).
 
-1. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass? D36's
-   alternative would pull it forward.
-2. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
-   fixed-point one with C6?
-3. **Documentation tooling.** mdBook for the guide and Doxygen for the reference, as
-   proposed, or Doxygen alone with Markdown pages (one tool, a plainer guide)? Is a print
-   edition of the guide wanted, as SampleRateTap has? And should some notebooks arrive
-   before the C ABI at C6, through a small command-line tool that writes data for them?
+Gating later milestones, each with this draft's recommendation:
+
+1. **Fixed point: with each stage's first version, or as the C6 pass?** Recommended: by
+   whether the arithmetic already exists.
+   - *With the first version* where the carried code has it and has measured it: the FIR
+     kernels, the decimators and L/M stages, and the format stages that exist only because
+     of it (`convert`, `unpack`, `pack`). `sample_traits` serves all four types at once, so
+     taking the fixed-point half out would be work, and leaving it in keeps the stage
+     templates honest.
+   - *At C6* where it is new design: the recursive stages (a fixed-point biquad needs a
+     section-scaling design the sources do not have), the nonlinear and ramped stages, and
+     the spectral ones (D38).
+   - *From C1, for every stage*: it is written against the traits, never as raw `float`
+     arithmetic in a template, and CI instantiates each stage's contract (not its
+     arithmetic) for `q31`, so that C6 adds profiles and does not rewrite stages.
+
+   D36 removed the pressure to pull everything forward: the `float` profile no longer costs
+   software floating point on a single-precision core.
+2. **The FFT: both of DspTap's engines at C4, or the floating one first?** Recommended: the
+   floating engine at C4, the fixed-point one at C6, and the interface for all four types
+   at C4. Nothing consumes a fixed-point transform before C6 (the FFT FIR is floating only,
+   and D38 puts fixed-point spectra there), while the fixed-point engine is the larger
+   port: its own kernel and arithmetic, tables it builds in `double` today that become
+   generated ROM tables, and two scaling policies of which D38 needs one. What must not
+   wait is its shape: `fft_plan<S>`, `fft_tables<S, N>`, the four build options and the
+   spectrum's format as a function of the length (D29) are all fixed at C4 with the
+   fixed-point types declared and unimplemented, so that C6 fills an interface in and does
+   not reopen it. Block floating is not carried until D38's deferred design is done.
 
 ## 14. The audit of draft 19, and where each finding went
 

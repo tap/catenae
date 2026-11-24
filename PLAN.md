@@ -1,4 +1,4 @@
-# catenae — plan (draft 19)
+# catenae — plan (draft 20)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -8,8 +8,12 @@ numbers (ports, ratio, latency, tail); a chain is a type the caller writes from 
 composes those numbers; a junction has a contract of the same kind for the place where two
 call sites meet.
 
-Status: draft for the maintainer's review. Nothing here is built, and every code listing in
-section 9 is a proposal that has not been compiled. Section 13 lists the open questions.
+Status: draft for the maintainer's review. Nothing here is built. Draft 19 was audited by
+seven reviewers and two verifiers (`docs/audits/2026-11-24-plan-draft-19.md`: 63 findings, no
+blockers, none refuted); this draft carries the corrections, and section 1.1 holds the six
+decisions the audit asks of the maintainer. The listings of section 9 compiled in the audit
+with small changes, but they predate section 1.1 and are rewritten when it is decided.
+Section 13 lists the open questions and section 14 maps the audit to the changes.
 
 Evidence: the layout spike of November 2026 (DspTap and SampleRateTap branches
 `ccr-ef01ff18-nxz8n4`; DspTap `bench.yml` runs 153, 157, 161) and the write-up
@@ -42,15 +46,15 @@ open.
 | # | Decision | Status |
 |---|---|---|
 | D1 | The name is `catenae`; the repository is `tap/catenae`. | settled |
-| D2 | The language is C++17, strictly: one code path, and every file compiles to the same thing at `-std=c++17`, 20 and 23. No C++20 feature appears, not even behind a feature test. Where the standard library only has a type from C++20 on, catenae writes its own (`catenae::span` first). | settled |
+| D2 | The language is C++17, strictly: one code path, no C++20 feature, not even behind a feature test. What is checked: every file compiles without a warning at `-std=c++17`, 20 and 23, and the instruction-count ratchet's numbers are equal across the three. (Valid C++17 can change meaning later; section 7.2 lists the constructs to avoid.) Where the standard library only has a type from C++20 on, catenae writes its own (`catenae::span` first). | settled |
 | D3 | DspTap and SampleRateTap are sources of material, not dependencies: no submodule, no link. Code is carried in by copy, ported, and recorded in `NOTICE.md` with the commit it came from. | settled |
 | D4 | Not header-only: templates whose compile-time numbers matter stay in headers, and everything else is compiled once into a static library, `catenae` (section 7). The FFT is behind one compiled interface, its back end chosen when the library is built. | settled in principle (the maintainer rejected header-only); the split is accepted |
 | D5 | The chain's native layout is interleaved, with the channel count a compile-time number. | accepted (measured: section 12) |
 | D6 | A stage declares its input and output separately, each as a *port type* (section 3). Two stages join when one's output port and the next one's input port are the same type. | accepted; the port-as-a-type form is proposed |
 | D7 | Planar is a typed region inside a chain: converter stages at its ends, a wrapper for convenience. | accepted |
-| D8 | Byte order and packing exist only in *edge stages* at the ends of a chain: `unpack` and `pack`. They are stages, not junctions: one call, one thread, one clock, ratio 1:1. Only their outer port is unusual, a `wire` port of bytes, which no other stage accepts, so the type system keeps them at the ends. Inside, every sample is native. | accepted; the stage-not-junction reading is this draft's answer |
+| D8 | Byte order and packing exist only in *edge stages* at the ends of a chain: `unpack` and `pack`. They are stages, not junctions: one call, one thread, one clock, ratio 1:1. Only their outer port is unusual, a `wire_port` of bytes, which no other stage accepts, so the type system keeps them at the ends. Inside, every sample is native. | accepted; the stage-not-junction reading is this draft's answer |
 | D9 | One latency report per stage (nominal, deviation, exactness, group delay) and one flush contract with a stated residue. | accepted |
-| D10 | Capabilities are published as constants and checked by one `stage_traits<T>`; nothing detects a capability by probing for a member. | accepted |
+| D10 | Capabilities are published as constants and checked by one `stage_traits<T>`; nothing detects a capability by probing for a member. A type says it is a stage by one explicit opt-in (a specialisation of `is_stage<T>`), which is what `operator|` is constrained on. | accepted (the opt-in is the audit's, finding 45) |
 | D11 | Read-only analysis (meters, correlation, pitch) is a sibling `analyzer` concept; `tap<Analyzer>` is the stage that puts one in a chain, passing the audio through. | accepted |
 | D12 | The Tap libraries' engineering discipline carries over: contracts as numbers pinned by tests; fixed-point profiles opt-in per stage; processing `noexcept`; published literature only; honest limits stated and pinned. Three points of it are made stricter here: D21, D22 and D24. | accepted |
 | D13 | A chain is written by the caller as a type. Nothing is looked up from a rate pair or built from a run-time description. | accepted |
@@ -58,7 +62,7 @@ open.
 | D15 | catenae and SampleRateTap coexist for good. Neither depends on the other, and catenae's stage contract owes `tap::dsp::sync_stage` nothing. | settled |
 | D16 | Once the architecture is settled and stable, catenae duplicates all of SampleRateTap's functionality (`rational`, `bridge`, `async`), re-implemented on catenae's contracts. The architecture is not called stable until it is shown that they fit. | settled |
 | D17 | A port has a *signal kind*: time-domain audio, frames of transform coefficients, or wire bytes. Each kind is its own port template, so a transform-domain region (analysis, coefficient stages, synthesis) is typed in a chain and a time-domain stage after an analysis does not compile. | accepted |
-| D18 | The stage contract is fixed-ratio: every stage's ratio is a compile-time L/M and `outputs_for` is exact. | accepted |
+| D18 | The stage contract is fixed-ratio: every stage's ratio is a compile-time L/M and `outputs_for` is exact. The ratio is the long-run one: a call of n frames need not return n L/M (D35). | accepted |
 | D19 | A *junction* is a first-class concept beside the stage, with its own contract (section 6), for the place where two threads or two clocks meet. The asynchronous converter is a junction. A chain never contains one. | accepted |
 | D20 | The naming and formatting rules are the Tap rules, enforced by `.clang-format` and `.clang-tidy` in CI; the files are owned here, with no drift check against TapHouse. | settled |
 | D21 | No exceptions and no RTTI, ever. Every build is `-fno-exceptions -fno-rtti`; no `throw`, `try`, `dynamic_cast` or `typeid` appears; there is no second configuration. Whatever can fail does so through a returned `status` or `expected<T, status>`, and only outside the audio path (section 3.3). | settled |
@@ -66,14 +70,29 @@ open.
 | D23 | catenae is written with MISRA C++:2023 and ASIL B in mind, as a precaution: there is no requirement today, one may come, and there is no checker. So the constraints that are expensive to retrofit are designed in now (section 8), and nothing is claimed: no compliance statement, no compliance matrix, no safety case. | settled |
 | D24 | `float` is the default sample type and `double` is the golden model. An unsuffixed name is the `float` stage (`gain<2>`); `_f64`, `_q15` and `_q31` name the others. Every profile's numbers are stated against the `double` one, which never changes for speed. | settled (the naming is proposed) |
 | D25 | A frame of transform coefficients is, per channel, N/2 + 1 bins of `complex<S>` (real then imaginary, adjacent), DC to Nyquist, all stored; channels follow one another whole (section 5.2). | proposed |
-| D26 | Build systems: CMake first; waf supported and built in CI from C0; a Zephyr module when a consumer needs it. One amalgamated source file exists for anything else. | settled as to which; the timing is proposed |
-| D27 | Joints inside a chain are checked at compile time and cost nothing at run time: the port types match, and the chain's scratch is proven large enough by a `static_assert` on each stage's `max_outputs_for`. A run-time *boundary* check exists only where the caller's own buffers enter, at a chain's `process` and a junction's `push` and `pull`; it is written once, generically, from the traits, and is on in every build. With fixed-extent spans that check is compile-time too. An *audit* check, inside the library's own loops or on what the host is responsible for, is on in debug builds only. One generated header sets the level for the whole image and a link-time guard refuses a mix (section 3.3). | proposed (the maintainer's correction of draft 8: no run-time checks between stages) |
-| D28 | FFT back ends (section 7.1): catenae's own engines are the default on every target and the only ones in this repository. CMSIS-DSP and Apple's vDSP are opt-in, chosen when the library is built, and never vendored: the consumer's own copy is used. | proposed |
-| D29 | A fixed-point port names its Q format, and the format is part of the port's type: `port<fixed<std::int32_t, 27>, Ch>` is Q4.27 audio, and joining it to a Q0.31 port does not compile. The format is a compile-time tag only; buffers hold raw `int16_t` and `int32_t`, never a wrapper class. Moving between formats is an explicit `convert` stage (a shift, with its rounding and saturation stated). Any format can be named, so one that becomes useful later (Q1.14 between 16-bit stages) is an addition and not a redesign; a stage accepts only the formats its battery pins (section 3.1). The first set: `q15`, `q31` and Q4.27. | accepted (2026-11-24) |
-| D30 | Public constants have no prefix. A stage's contract reads as the standard library's traits do: `rate_ratio`, `is_in_place`, `has_exact_latency` (compare `std::numeric_limits<T>::is_signed`, `std::chrono::steady_clock::is_steady`). The `k_` prefix stays for constants that are not part of the public interface: private members and everything in `detail`. This is the first place catenae's style departs from the Tap rules (D20). | settled (the names chosen are proposed) |
+| D26 | Build systems: CMake first; waf supported and built in CI from C0a; a Zephyr module when a consumer needs it. One amalgamated source file exists for anything else. | settled as to which; the timing is proposed |
+| D27 | Joints inside a chain are checked at compile time and cost nothing at run time: the port types match, and the chain's scratch is proven large enough by a `static_assert` on each stage's `max_outputs_for`. A run-time *boundary* check exists only where the caller's own buffers enter, at a chain's `process` and a junction's `push` and `pull`; it is written once, generically, from the traits, and is on in every build. With fixed-extent spans that check is compile-time too. An *audit* check, inside the library's own loops or on what the host is responsible for, is on in debug builds only. The level is an explicit build option written into one configuration header, and it is part of an inline namespace, so an image that mixes levels cannot link (section 3.3). | proposed (the maintainer's correction of draft 8: no run-time checks between stages) |
+| D28 | FFT back ends (section 7.1): catenae's own engines are the default on every target and the only ones in this repository. CMSIS-DSP and Apple's vDSP are opt-in, chosen when the library is built, and never vendored: the consumer's own copy is used, through a CMake target that carries its configuration. | proposed |
+| D29 | A fixed-point port names its Q format, and the format is part of the port's type: `port<fixed<std::int32_t, 27>, Ch>` is Q4.27 audio, and joining it to a Q0.31 port does not compile. The format is a compile-time tag only; buffers hold raw `int16_t` and `int32_t`, never a wrapper class. Moving between formats is an explicit `convert` stage (a shift, with its rounding and saturation stated). Any format can be named, so one that becomes useful later (Q1.14 between 16-bit stages) is an addition and not a redesign; a stage accepts only the formats its battery pins (section 3.1). The first set: `q15`, `q31` and Q4.27. Every wire format unpacks to one of the first two: 16-bit to `q15`; 24-bit, packed or in 32, left-justified to `q31`; 32-bit to `q31`. | accepted (2026-11-24) |
+| D30 | Public constants have no prefix. A stage's contract reads as the standard library's traits do: `rate_ratio`, `is_in_place`, `has_exact_latency` (compare `std::numeric_limits<T>::is_signed`, `std::chrono::steady_clock::is_steady`). The `k_` prefix stays for constants that are not part of the public interface: private members and everything in `detail`. This is the first place catenae's style departs from the Tap rules (D20). `clang-tidy` can check the case of a constant but not its access, so the prefix rule is enforced by a script in the tidy job (section 7.2). | settled (the names chosen are proposed) |
 | D31 | Warnings are errors, and the set is strict (section 7.2): the conversion, sign, shadowing, double-promotion, old-style-cast and switch warnings of every compiler in CI, on catenae's own code and on a consumer's view of its headers. A suppression is a recorded deviation, never a habit. | settled as a direction; the flag sets are proposed |
 | D32 | Documentation is four kinds of document with one job each (README, guide, reference, record), plus executed notebooks and generated measurement tables, under rules that keep it short: one home per fact, a fixed contract card per stage, headers that describe only the present, and length budgets enforced in CI (section 11). | proposed |
 | D33 | The license is not chosen. It is decided after the coding is complete, and until then the repository carries no license file and no SPDX line. Files carry the copyright banner of D14 only. `NOTICE.md` still records where every carried file came from and the license it was under there (DspTap and SampleRateTap are MIT), so that whatever is chosen can honour it. | settled |
+
+### 1.1 Decisions the audit asks for
+
+Each row is a problem the audit confirmed, the options, and this draft's recommendation.
+They are **proposed**: none is the maintainer's yet, and D34 to D37 change the contract
+headers, so they are settled before C0b (section 10).
+
+| # | The problem | Recommendation | Other options |
+|---|---|---|---|
+| D34 | **Where a chain's memory lands.** An object with one non-zero member (a gain, a coefficient, a pointer to taps) is initialised data: its scratch and histories, nearly all zeros, are stored in flash as well as RAM (8,180 bytes measured for the overdrive chain of 9.3). The alternative is construction at start-up, with a 12 to 20 KB stack frame, which `a \| b \| c` over objects that carry their histories makes worse. (Findings 8, 10, 17, 36.) | **Split configuration from state.** A stage's *configuration* is a small constant value (its design, a view of its taps): `constexpr`, in ROM. Its *state* (histories, scratch) is a separate type that is valid when all zero, so it lives in `.bss` and costs no flash and no start-up code. `a \| b \| c` composes configurations, which are a few bytes each; `state_of<Chain>` is the memory. One configuration can serve many states (voices), and a run-time parameter change becomes "swap the configuration", which also answers how a new design reaches a running chain. | (a) Keep one object and accept flash equal to its size for every chain with a non-zero member. (b) One object, built in place at start-up from designs, with the start-up stack and ordering that implies. |
+| D35 | **A 1:1 ratio is not n frames out for n in.** `stft \| ... \| istft` with a hop of 128, fed 64 frames, returns 0 then 128; a by-3 down then up returns 66, 63, 63. The fixed-extent entry cannot compile for such a chain, a callback that must return n for n cannot use it, and `fed_by` overshoots: a chain by 16 asked for 100 frames writes 112. SampleRateTap's `pull(out, k)` stops at exactly k; the stage contract has no such form. (Findings 23, 33, 37.) | **State it, and provide the two adapters.** (1) A stage publishes `is_frame_synchronous` (`outputs_for(n)` is always n L/M); the fixed-extent entry and an n-for-n callback require it. (2) `steady<Chain>` wraps a bursting chain with a member FIFO and presents a frame-synchronous stage with its true, larger latency (511 frames for the 512/128 region, not 384); it is how a spectral region meets an audio callback. (3) `fed_by` owns a holdover array of the chain's worst overshoot, a `constexpr` number from the traits, and so delivers exactly k: that is where SampleRateTap's `pull` lands. `frames_needed(k)` is defined as the smallest n with `outputs_for(n) >= k`. | Add an output-bounded `run` to every stage (it may leave input unconsumed), and redo the chain's scratch proof for banked outputs. More general; it complicates every stage for the sake of two adapters. |
+| D36 | **The float default runs in software double on two targets.** The carried FIR arithmetic accumulates a `float` filter in `double`, on purpose and with explicit casts no warning sees. On the Cortex-M4F and M33 (single-precision FPUs) every FIR, `up2` / `down2`, L/M stage and converter would do a software-double multiply-add per tap; DspTap's own header records about 19 times Q15's instruction count on the M33. That contradicts D24 and the purpose section 7.2 gives for the double-promotion warning. (Findings 1, 26.) | **The `float` profile accumulates in `float`.** It is the profile for cores with a single-precision FPU, so it must not leave it. Its noise floor is measured and stated per stage (lower than the carried one; `_f64` stays the golden model and the choice for a host). C7's comparison with SampleRateTap is then to a tolerance for `float` and bit for bit only where the arithmetic is unchanged (`double`, Q15, Q31). A link-stage gate enforces it: a `float`-profile image on those cores may not reference a software-double routine. | Keep `double` accumulation as carried, record it as an exception, and tell M4F and M33 users to use fixed point, which pulls the fixed-point profiles forward from C6. |
+| D37 | **A design is more than "a small value".** (1) A design's validity depends on the sample format: a cutoff that is stable in `double` can lose a pole in `float`, and the tail is computed from the rounded coefficients. A format-free design cannot give the infallible constructor section 3.3 promises. (2) `bridge` and `async` design tables of 12 to 164 KB from run-time arguments, using up to 328 KB of `double` scratch; such a table cannot be returned by value, and its tap count sizes the stage's storage. (3) `latency()` as one report recomputes a 1,025-point group-delay scan that DspTap split out for its cost (28 M instructions on the M33). (Findings 5, 11, 12, 13, 35, 55.) | **Designs carry their format, hold their numbers, and come in two kinds.** `butterworth_design<S, N>`: `make()` validates for that `S` and stores coefficients already in the kernel's coefficient type, with the tail and the latency numbers computed once. So a stage built from a ROM design links no `double` and no `libm`, and `latency()` returns stored numbers; `group_delay(f)` is a design-time free function, not a stage member. *Small* designs are returned by value. *Table* designs are generated ROM tables with a bit pin, or are built by `make(spec, table, workspace)` into storage the caller supplies, with `constexpr` size functions. Where a profile fixes a tap count that sizes storage, the profile is a template argument. A design is a class with a `constexpr` constructor, not an open aggregate, so only `make()` and the table generator can produce one. | Keep format-free designs and let the stage constructor validate and fail, which gives up "a stage cannot fail". |
+| D38 | **Fixed-point resynthesis does not survive fixed scaling.** A fixed-scaling forward transform followed by its inverse returns the signal about log2 N + 1 bits down: 36 dB of signal-to-noise at N = 512 in Q15, 24 dB at 2048 (measured on DspTap's engine). DspTap says its fixed policy is for magnitude consumers and block floating for round trips; CMSIS-DSP's fixed-point transforms have only the fixed kind. (Finding 25.) | **At 1.0, fixed-point transform regions are analysis only.** A Q15 or Q31 `stft` feeds analyzers and magnitude consumers, with its format in the spectrum's type (D29) and no exponent travelling. `istft` and coefficient-domain processing are `float` and `double`. Fixed-point resynthesis waits for a design of its own (block floating with the exponent in the frame, or an inverse for a spectrum of known format), outside 1.0. A CMSIS-DSP fixed-point back end can serve analysis only. | Carry block floating now and decide where the exponent travels and what a spectral stage does when exponents differ. |
+| D39 | **Latency needs an exact form, and a 4x oversampler is half a sample out.** A linear-phase half-band's delay is odd at its own rate, so `up2 \| up2 \| ... \| down2 \| down2` has a latency of k + 1/2 base-rate frames (18.5 and 23.5 measured on SampleRateTap's chains), and "delay the dry path by the nominal latency" cannot be done with an integer delay. A pair of doubles also cannot pin "this latency is exactly 80/3". (Findings 27, 55.) | **An exact stage reports an exact rational.** `latency()` returns `{nominal, deviation}` as numbers for every stage, and a stage with `has_exact_latency` also has `exact_latency()`, a reduced rational, which is what a chain of exact stages composes and what a test pins. `oversample<Factor, Stage>` builds the up and down stages with the one-frame delay at the inner rate that makes its latency a whole number of base-rate frames; bare `up2` / `down2` beyond 2x are documented as fractionally delayed. | Doubles only, with the oversampler's delay left to the caller. |
 
 ## 2. Charter
 
@@ -90,6 +109,9 @@ first (its stages are already chain stages), then `bridge` (one fixed-ratio conv
 **Out, at least until 1.0:**
 
 - Stages with two audio inputs (side-chain compressors, convolution against a live signal).
+  Two signals meet only as channels of one wider port: `mix` and cross-correlation take
+  them that way. Running different chains on groups of channels (a dry path beside a wet
+  one) is the caller's code until a `parallel` combinator is decided (section 13).
 - A run-time graph: no dynamic routing, no plug-in host, no patch format.
 - Pitch shifters and other processes with their own framing and latency model.
 - Elastic processes inside one clock domain (time-stretch, varispeed).
@@ -107,7 +129,7 @@ A port is a type. Two stages join when the types are the same, so the joint rule
 | `port<S, Ch, layout::interleaved>` (the default layout) | time-domain audio in sample format `S`: `float`, `double`, or a fixed-point format (below) | `Ch` samples |
 | `port<S, Ch, layout::planar>` | the same, a channel at a time | `Ch` samples, each channel's run contiguous within a call |
 | `spectrum<S, Ch, Bins>` | transform coefficients (D25) | `Ch * Bins` values of `complex<S>` |
-| `wire<Format, Ch>` | bytes on their way in or out (`s16le`, `s24le_packed`, `s24be_in_32`, ...) | `Ch * bytes_per_sample` bytes |
+| `wire_port<Format, Ch>` | bytes on their way in or out; the formats are in namespace `wire` (`wire::s16le`, `wire::s24le_packed`, `wire::s24be_in_32`, ...) | `Ch * bytes_per_sample` bytes |
 
 **Fixed-point formats (D29).** `fixed<Storage, F>` is a signed two's-complement format with
 `F` fractional bits in `Storage` (`std::int16_t` or `std::int32_t`); the integer bits are
@@ -116,6 +138,9 @@ what is left after the sign. `q15` is `fixed<std::int16_t, 15>` and `q31` is
 sample format: a port always says where its binary point is. The notation is stated once
 because the industry's differ: here Q4.27 means one sign bit, 4 integer bits and 27
 fractional bits.
+
+A format tag is stripped before a kernel is called: kernels are instantiated on the storage
+type, so Q4.27 and Q0.31 share one copy of the code.
 
 What the formats between Q0.15 and Q0.31 are for is headroom. A chain in Q0.31 saturates at
 every stage whose output can exceed full scale (a peaking filter's boost, a resonance's
@@ -138,8 +163,8 @@ sets are carried in (section 12):
 
 They are keyed on `int16_t` and `int32_t` and named for Q0.15 and Q0.31, but a linear
 kernel does not know where the binary point is: the same integer arithmetic filters Q4.27
-and Q0.31 alike, bit for bit. So for a linear stage a new format costs no new kernel and no
-new measurement. Its floor in LSBs is the one already pinned, and its signal-to-noise ratio
+and Q0.31 alike, bit for bit (the audit ran it: no sample differs at nominal level or 20 dB
+above it). So for a linear stage a new format costs no new kernel and no new measurement. Its floor in LSBs is the one already pinned, and its signal-to-noise ratio
 against nominal full scale is that floor less the headroom (24 dB less in Q4.27), a derived
 number with one test to pin it.
 
@@ -153,20 +178,37 @@ What has to be written:
 - the places where the binary point does matter: a nonlinearity, dither's amplitude, a
   threshold or a meter in dBFS. These take `F` from the format.
 
-One thing in the carried arithmetic needs a decision under D23: it shifts negative signed
-integers right, which every compiler catenae targets does arithmetically but which C++17
-leaves implementation-defined. It goes through one helper with one recorded deviation,
-rather than being scattered.
+Three limits of the carried recursive kernel, which a headroom format does not remove
+(finding 24):
+
+- Its states have two guard bits above the *integer* full scale. A section that exceeds them
+  does not saturate; it wraps, and the wrapped value is fed back. DspTap proved the guard
+  bits sufficient for its tabulated designs only, so a fixed-point design's `make()` checks
+  the section's gain against them and fails with a `status`.
+- Its coefficients are Q2.30, below 2 in magnitude, and the carried conversion saturates
+  silently: a shelf or a peak above about 6 dB becomes a different filter. `make()` rejects
+  a coefficient out of range.
+- A general fixed-point biquad or Butterworth needs a section-scaling design that the source
+  libraries do not have. It is new work, at C6.
+
+The carried arithmetic is defined behaviour in C++20 and not all of it is in C++17
+(findings 16, 58): a right shift of a negative value is implementation-defined, a left shift
+of one is undefined (and a compile error when a `constexpr` function meets it), and an
+out-of-range unsigned-to-signed conversion is implementation-defined. Every shift of a
+signed value goes through one helper (left as a multiplication, right with one recorded
+deviation), a script rejects a raw shift of a signed operand elsewhere, and a compile-time
+test evaluates the helpers with negative operands so that the error class fails every build.
 
 The limit: a stage's noise floor and saturation-free level are numbers that depend on the
 format, and a number nobody measured is not a contract. So a stage's fixed-point profile
 lists the formats its battery pins and a `static_assert` refuses the rest; widening the list
 is adding rows to the battery, which for a linear stage is the derived row above.
 
-The same tag settles half of an open question: an FFT with the fixed scaling policy grows
-its output by a known number of bits for a given length, so the spectrum's format can carry
-that as its type and no exponent travels with the frame. Only the block-floating policy
-still needs a run-time exponent.
+The same tag carries a fixed-point spectrum's format: an FFT with the fixed scaling policy
+grows its output by a known number of bits for a given length (log2 N for Q15, log2 N + 1
+for Q31 in the carried engine), so the format is the spectrum's type and no exponent travels
+with the frame. That serves analysis. It does not serve resynthesis, which D38 leaves to
+`float` and `double`.
 
 ### 3.2 What a stage declares
 
@@ -177,14 +219,21 @@ ill-typed member.
 |---|---|
 | `input_port`, `output_port` | The two port types. |
 | `rate_ratio` | `ratio{up, down}`, reduced. For an analysis stage it is 1 / hop. |
-| `is_in_place` | Whether `run` may read and write one buffer. |
+| `is_in_place` | Whether `in.data() == out.data()` is allowed. It may be declared only when the two ports are the same type and the ratio is 1:1, which `stage_traits` asserts; a stage whose ports differ simply gets two buffers. |
+| `is_frame_synchronous` | Whether `outputs_for(n)` is n L/M on every call (D35). False for a hopped transform and for a stage whose phase makes its output count vary. |
 | `has_exact_latency` | Whether the stage delays every frequency alike. |
 | `run(in, out)` | The stage's work, trusted: spans of the ports' value types, already known to be the right sizes; consumes all of `in`; returns the frames written. `noexcept`, no allocation, no failure, no boundary check. Called by a chain, not by the caller's code (section 3.3). |
-| `outputs_for(n)`, `frames_needed(k)` | Exact, from the current position. |
+| `outputs_for(n)`, `frames_needed(k)` | From the current position: `outputs_for(n)` is exactly what the next call of n frames writes; `frames_needed(k)` is the smallest n with `outputs_for(n) >= k`, which for an interpolating stage can write more than k. |
 | `max_outputs_for(n)` | An upper bound from any state, `constexpr`. The chain sizes its scratch from this. |
 | `reset()` | Back to the constructed state. |
-| `latency()` | `{nominal, deviation}` in output frames; deviation 0 when exact. Plus `group_delay(f)`. |
-| `tail_frames()`, `flush_residue()` | Zero input frames after which the output is silence within the residue (0 for FIR; a stated bound for a floating-point recursion). |
+| `latency()` | `{nominal, deviation}` in output frames, stored numbers from the design (D37); deviation 0 when exact. A stage with `has_exact_latency` also has `exact_latency()`, a reduced rational (D39). |
+| `tail_frames()`, `flush_residue()` | Zero input frames after which the stage's own output is silence within the residue (0 for FIR; a stated bound, with the range of designs it holds for, for a floating-point recursion). |
+
+`stage_traits`'s joint check is a helper `joint<Index, OutputPort, InputPort>` with one
+`static_assert` and one fixed message for each way two ports can differ (kind, sample format,
+channel count, layout, bins). A C++17 `static_assert` cannot print a type, so the message is
+the fixed sentence and the compiler's own note, which names `joint<...>` with its arguments,
+is where the two port types are read (finding 42).
 
 ### 3.3 Failure, without exceptions (D21)
 
@@ -215,27 +264,53 @@ ill-typed member.
   boundary check is therefore one function, written from `stage_traits` and tested once, and
   a stage author cannot forget it or get it wrong.
 - **Fixed blocks need no run-time check at all.** Most embedded callers process a fixed
-  block. `process(span<const S, N * Ch>, span<S, M * Ch>)` checks `M >= max_outputs_for(N)`
-  with a `static_assert`; the dynamic-extent overload is the one that checks at run time.
+  block. `process` has overloads that take `std::array<T, N>&`, `T(&)[N]` and a fixed-extent
+  span, deduce the two extents as they are, and `static_assert` that each is a whole number
+  of frames and that the output holds `max_outputs_for` of the input. (The bound is the
+  maximum, so the fixed form can ask for a frame more than one call uses; and it needs
+  `is_frame_synchronous`, D35.) The dynamic-extent overload is the one that checks at run
+  time, against `outputs_for(n)`.
+- **The count is not to be ignored.** `process`, `push` and `pull` are `[[nodiscard]]`: on
+  a junction the count is the only sign of an overrun or an underrun.
 - **Content is not a precondition.** Any bytes are valid samples, so a wire stage needs no
   check on what it reads. A non-finite float from outside is not a memory fault either; it
   poisons a recursive state until `reset()`. A caller who cannot vouch for its input puts an
   explicit `sanitize` stage at the edge, which is a stage with a cost, not a hidden check.
-- **A failed check** calls one `[[noreturn]]` handler that the integrator supplies at link
-  time (the default traps). It receives a small enumerated code, not a file name and a
-  message, so checks add no strings to ROM.
-- **One level per image.** Checks are inline functions, not macros. Whether audit checks
-  are on is one generated header, `catenae/config.h`; each object file refers to a symbol
-  named for its level and the compiled library defines only its own, so an image that mixes
-  levels fails to link.
+- **A failed check** calls one `[[noreturn]]` handler. The library defines none: the
+  integrator must, and it is where their system enters its safe state (a default that traps
+  ships as a separate source file for examples, tests and anyone who wants it). That needs
+  no weak symbol and cannot collide in the amalgamated build (finding 41). The handler
+  receives a small enumerated code, not a file name and a message, so checks add no strings
+  to ROM.
+- **One level per image, enforced by names.** Checks are inline functions, not macros. The
+  level is an explicit option, `CATENAE_CHECKS` = `boundary` (the default) or `audit`,
+  independent of the build type (a generated header cannot follow a multi-configuration
+  generator, and "debug" means nothing to waf or the amalgamation); CI's debug legs set
+  `audit`. Each build system writes it into `catenae/config.h`, and a default `config.h`
+  ships beside the amalgamation. The level and the FFT choices of section 7.1 are spelled
+  into an inline namespace, as DspTap does for its FFT engine, so every symbol that crosses
+  into the library carries them and two files that disagree do not link. (A symbol that
+  exists only to be a guard does not work: the audit showed the linker discards it under
+  `--gc-sections`, on exactly the embedded builds it is for. Findings 15, 28, 57.) C0b has a
+  link-fail test of this on an embedded leg at `-Os` with `--gc-sections`.
 
 ## 4. The chain
 
 - `chain<Stages...>`, built by `a | b | c`.
 - At each joint the output port of one stage is the input port of the next, or the chain
   does not compile.
-- Composes ratio, `outputs_for`, `frames_needed`, latency, tail and residue. A chain is
-  itself a stage, so chains nest.
+- Composes ratio, `outputs_for`, `frames_needed`, latency and tail. A chain is itself a
+  stage, so chains nest. It does not compose a residue: a recursion's residue under
+  flush-to-zero is a standing limit cycle that every later stage amplifies by a gain the
+  contract does not carry, so a chain says what DspTap's does, that flushing equals zero
+  padding its input, and each stage's card states its own residue (finding 54).
+- `flush(out)` is the end-of-stream operation: it feeds each stage, in order, its
+  `tail_frames()` of zeros through the stages after it, from a zero block that is part of
+  the chain's all-zero state, and returns the frames written; `flush_output_frames()` says
+  how many beforehand. A chain that holds a chain flushes (DspTap needed 0.5.0 for that).
+- The block length is given by `with_block<128>(a | b | c)`, which is a different type; a
+  bare `a | b | c` has the default. `a | b | c` flattens, so the type lists the stages once.
+  Class templates meant for deduction have explicit deduction guides.
 - Scratch is a member array (D22), sized from each stage's `max_outputs_for` at a
   compile-time block length (64 frames unless the chain is told otherwise), with a
   `static_assert` that each buffer holds what the stage before it can write. `process` is
@@ -243,8 +318,9 @@ ill-typed member.
   and works through it a block at a time, calling each stage's `run`. A chain has `run` as
   well, which is what an enclosing chain calls. A run of `is_in_place` stages
   shares one buffer.
-- Bit-identical for any chunking of a stream, under the library's floating-point contraction
-  policy.
+- Bit-identical for any chunking of a stream at contraction off. The compiled core is built
+  that way; a header-template stage compiles under the consumer's flags, so for it the claim
+  is the consumer's to keep, and the stage's card says so (finding 6).
 - One call, one thread, one clock. A chain holds no junction (D19).
 
 ## 5. Layout and signal kind
@@ -269,8 +345,10 @@ channel 1:  re[0] im[0]  re[1] im[1]  ...  re[N/2] im[N/2]
 
 - **Real and imaginary parts are interleaved**, as `catenae::complex<S>`, a plain
   `{S re; S im;}`. (`std::complex` is specified only for floating types, and Q15 and Q31
-  need the same shape.) This is the layout of `std::complex`, CMSIS-DSP's real FFT and most
-  other back ends, so their output is the frame with no copy.
+  need the same shape.) This is the layout of `std::complex` and the shape most back ends
+  are nearest to. No back end produces the frame with no work: catenae's own engine and
+  CMSIS-DSP's `float` transform pack the Nyquist bin beside DC and need a fix-up of two
+  bins, and vDSP is split complex (section 7.1).
 - **Every bin from DC to Nyquist is stored, zero imaginary parts included**: N + 2 scalars
   per channel. DspTap's packing saves the two zeros by keeping the Nyquist bin's real part
   at index 1; catenae spends them so that a coefficient stage is one uniform loop over bins
@@ -284,11 +362,14 @@ channel 1:  re[0] im[0]  re[1] im[1]  ...  re[N/2] im[N/2]
   convention and the accelerated back ends'. DspTap's engine uses `exp(+i)`; the carried
   engine is conjugated in its post-pass. An analysis and synthesis pair states its overall
   gain (1) and its reconstruction error as numbers.
-- **Fixed point.** A Q15 or Q31 spectrum needs a block exponent per channel per frame, as
-  DspTap's fixed FFT returns one. Where it travels is open (section 13).
+- **Fixed point.** A Q15 or Q31 spectrum's format is in its type and it is for analysis
+  (D29, D38).
+- **A frame's time.** A spectrum frame is stamped by the first sample of its window; the
+  region's latency is stated against that.
 - **The alternative, split complex** (all real parts, then all imaginary: vDSP's native
   form) vectorizes magnitude and gain loops more easily. It is measured against the
-  interleaved form in the layout benchmark before D25 is frozen; a vDSP back end converts
+  interleaved form in the layout benchmark at C4, where the first stage that consumes a
+  spectrum is built, and D25 is frozen then; a vDSP back end converts
   at its boundary either way.
 
 A transform-domain region is an analysis stage (audio in, spectrum out, ratio 1 / hop),
@@ -308,9 +389,9 @@ contract read through `junction_traits<T>`.
 | `tolerance_ppm()` | Independent clocks only: the offset and drift the junction absorbs. |
 | `push(in)` | Called by exactly one thread. Returns the frames accepted; what happens to the rest (dropped, counted) is stated. `noexcept`, wait-free. |
 | `pull(out)` | Called by exactly one other thread. Always fills `out`; the frames it could not supply are silence, and it returns how many were real. |
-| `status()` | Any thread: state (filling, locked), fill, underruns, overruns, the rate estimate where there is one. |
+| `report()` | Any thread. Each field (state, fill, underruns, overruns, the rate estimate where there is one) is individually atomic and 32 bits wide; there is no snapshot across fields, and the fill is computed in a stated read order and clamped to the capacity. This is new design: the carried ring has no query that a third thread may call (finding 22). Named `report`, not `status`, which is the error type. |
 | `latency()` | `{nominal, range}` in source frames: a junction's delay breathes with its fill, so it is never exact. |
-| `capacity_frames` | A template argument (D22). |
+| `capacity_frames` | A template argument (D22), a power of two for the carried ring's index scheme (asserted). |
 | `reset()` | Only while neither side is running; a stated precondition. |
 
 Instances: `handoff<S, Ch, Capacity>` (a single-producer, single-consumer ring: shared clock,
@@ -318,16 +399,43 @@ two threads; the trivial junction, which proves the contract as `gain` proves th
 the asynchronous converter (D16); later and outside today's charter, a jitter buffer.
 
 `feeding(chain, junction)` runs a chain and pushes what it wrote; `fed_by(junction, chain)`
-pulls what a chain needs and runs it. Each checks the port where it joins. There is no `|`
+pulls what a chain needs and runs it. Each checks the port where it joins. Both are
+long-lived objects, not per-call temporaries: the frames in transit between chain and ring
+need somewhere to be, and for a chain that decimates by 16 that is a kilobyte of frames per
+64 out, which does not belong on an audio thread's stack. Their staging is a member array
+(D22), and `fed_by`'s includes the holdover of D35 (finding 50). There is no `|`
 across a junction and no type that holds both sides: the thread boundary stays visible in
 the caller's code. Latency across a junction composes as nominal only.
+
+What a junction assumes of its callers is an assumption of use (section 8): one thread per
+side, where an interrupt handler counts as a thread, and `reset()` only at rest. A violation
+is a data race that no check can see, so junctions are verified under the thread sanitizer
+and on real weakly ordered hardware (section 7.2).
+
+### 6.1 Analyzers (D11)
+
+An analyzer is read through `analyzer_traits<T>`, as a stage is through its traits.
+
+| Member | Meaning |
+|---|---|
+| `input_port` | What it reads; it has no output port. |
+| `hop_frames`, `window_frames` | Its framing: a result every `hop_frames`, over the last `window_frames`. |
+| `analyze(in)` | Trusted, as a stage's `run`. `noexcept`, no allocation. |
+| `result_type`, `result()` | The latest result: a value, or a view of storage the analyzer owns. |
+| `results_ready()` | How many results have completed since the last read. |
+| `reset()` | Back to the constructed state. |
+
+`tap<Analyzer>` is the stage that holds one and passes its input through, 1:1, in place,
+with no latency. A stage inside a chain is reached by its index, `chain.stage<I>()`, which
+is how an analyzer's results are read on the chain's own thread. How results, or a new
+configuration, cross to another thread is open (section 13).
 
 ## 7. Headers, the compiled core and the build
 
 | Parameterized on | Where it lives | Examples |
 |---|---|---|
 | A compile-time number measured to matter (channel count, section count, ratio, block length), or a loop that must inline into a stage's per-sample loop | Header template | The stages, the chain, `feeding` / `fed_by`, the FIR dot kernels, the biquad block kernel, `span`, the traits |
-| Only the sample type (a closed set of four) and sizes passed at run time | Compiled, explicitly instantiated for the four types | The FFT engines, bulk wire `pack` / `unpack`, the asynchronous converter's servo, the analysis instruments |
+| Only the storage type (a closed set of four: `float`, `double`, `int16_t`, `int32_t`; a Q format is a tag over one of them) and sizes passed at run time | Compiled, explicitly instantiated for the four types | The FFT engines, bulk wire `pack` / `unpack`, the asynchronous converter's servo, the analysis instruments |
 | Nothing (design-time arithmetic in `double`) | Compiled | The Kaiser and Nyquist designers, the Butterworth and biquad designs, the flush-window computation, group delay |
 
 What this buys:
@@ -335,12 +443,17 @@ What this buys:
 1. **One definition per image.** The spike hit the header-only failure twice: two files
    built with different contraction flags shared one inline kernel, and DspTap needs an ABI
    tag on every class that embeds the FFT. A compiled FFT has one back end per library build.
-   It works on storage it is handed (a member array sized by the transform length, or a
-   caller's span); it allocates nothing (D22).
+   It works on storage it is handed and allocates nothing (D22). Its trigonometric tables
+   are constant, so they are a separate object, `fft_tables<S, N>`, in ROM and shared by
+   every transform of that length (generated where C++17 cannot evaluate them); the
+   workspace handed to a transform is scratch only. The audit found the first sketch of
+   this put the tables in RAM once per stage (finding 14).
 2. **The numeric contract is the library's.** The compiled core is built with catenae's own
    contraction policy, so its bit pins hold whatever the consumer passes. Header templates
    still compile under the consumer's flags, and the contract says so.
-3. **ROM.** Compiled code is one copy, can be built for size, and is dropped when unused.
+3. **ROM.** Compiled code is one copy, can be built for size, and is dropped when unused,
+   provided the library is built with `-ffunction-sections -fdata-sections` and each
+   function has its own section, which the build sets and a size probe confirms.
    Design code in `double` need not link at all when a design is a table (section 3.3).
    These are predictions: each component that could go either way gets a size probe in both
    forms on the embedded targets, and the table above is corrected where a probe disagrees.
@@ -351,7 +464,7 @@ What this buys:
 |---|---|---|---|
 | catenae's own floating engine (DspTap's srdif engine, ported) | `float`, `double` | everywhere; the default | source in this repository |
 | catenae's own fixed-point engine (DspTap's, ported) | Q15, Q31 | everywhere; the default | source in this repository |
-| CMSIS-DSP | `float`, Q15 and Q31, which it provides alike (Helium on the Cortex-M55, Neon on Cortex-A); the `float` adapter first, the fixed-point ones with C6 | Arm, opt-in | the consumer's copy: an existing CMake target or a path given at configure time. CI fetches one pinned release by hash. |
+| CMSIS-DSP | `float`, Q15 and Q31. The `float` adapter for Helium (Cortex-M55) first; the fixed-point ones with C6, for analysis (D38); a Neon adapter is a separate one, written when a consumer needs it | Arm, opt-in | the consumer's copy, as a CMake target that carries its include directories and its compile definitions. CI fetches one pinned release by hash. |
 | vDSP (Accelerate) | `float` first | Apple, opt-in | the system framework; nothing to bring in |
 
 - **Own engines are the reference.** They are the only FFT code in the repository, the only
@@ -361,8 +474,13 @@ What this buys:
 - **Not vendored, because an embedded consumer nearly always has CMSIS-DSP already**, pinned
   by its silicon vendor's SDK. A second copy inside catenae would define the same symbols
   and either fail to link or, worse, link the wrong one. So catenae compiles its thin
-  adapter against the copy it is pointed at, states the versions it is tested with, and
-  under Zephyr uses Zephyr's CMSIS-DSP module.
+  adapter against the copy it is pointed at, and under Zephyr uses Zephyr's CMSIS-DSP
+  module. The adapter must be compiled with the consumer's CMSIS-DSP configuration macros,
+  because the library's public structures change layout with them and a mismatch is silent
+  memory corruption: hence a target that carries its definitions (a bare path is accepted
+  only with an explicit definitions variable), `static_assert`s in the adapter on the size
+  of the instance structures and on the version macros, and a tested version window stated
+  as a contract number (finding 32).
 - **One back end per sample type, chosen when the library is built.** Four options, each a
   choice from a validated list, all defaulting to `own`:
 
@@ -379,22 +497,20 @@ What this buys:
   one onto waf options and Zephyr Kconfig choices. `none` leaves that type's FFT out of the
   build, so an image carries no transform it does not use, and a stage that needs it fails
   to compile with a message naming the option. The choices are written into
-  `catenae/config.h`, under the same link-time guard as the check level (section 3.3).
+  `catenae/config.h` and into the same inline namespace as the check level (section 3.3).
 - **No silent fallback.** A back end serves its own range of lengths. A stage whose length
   is a template argument outside that range fails to compile; a run-time length outside it
   is a `status` from `make()`. Falling back to `own` would change the output bits without
   the caller knowing.
-- **The adapter converts** the back end's native packing to D25's frame (CMSIS-DSP packs
-  the Nyquist bin beside DC; vDSP is split complex).
-- **CMSIS-DSP's fixed-point transforms scale differently from catenae's own.** They shift
-  down as they go, by an amount fixed by the length, so their output is in a Q format that
-  depends on the length, and they have no block-floating mode. That fits D29: the format
-  is a compile-time number the spectrum's type can carry. What has to be settled when the
-  adapters are written is whether the contract's format for a length is CMSIS-DSP's or
-  catenae's own engine's (the adapter shifts where they differ), and the floor each is
-  held to against the `double` engine, since a fixed down-scaling costs low-order bits
-  that block floating keeps. This paragraph is from memory of CMSIS-DSP's documentation
-  and is checked against it then.
+- **What each back end really produces** (checked in the audit against CMSIS-DSP's source
+  and Apple's documentation, finding 53), and so what its adapter does:
+
+  | Back end | Output | Lengths | To be handled |
+  |---|---|---|---|
+  | CMSIS-DSP `float` | N floats, the Nyquist bin's real part in bin 0's imaginary slot; forward is exp(-i) | 32 to 4096 | It overwrites its input. Fix up bins 0 and N/2. |
+  | CMSIS-DSP Q15, Q31 | Halved at every stage: the output's Q format depends on the length (Q15: 6.10 at 32 to 14.2 at 8192). No packing of DC and Nyquist. No block-floating mode. | 32 to 8192 | Scalar builds write 2N values, so the buffer is larger. Q15's format is the same as catenae's own fixed policy; Q31's differs by one bit, which the adapter shifts. |
+  | vDSP | Split complex, exp(-i), forward scaled by 2, DC and Nyquist packed together | powers of two | Its setup allocates. Its workspace has an alignment requirement. Interleave on the way out. |
+
 - **Honest limits.** A back end's code is not catenae's: vDSP allocates when a setup is
   created, which is a recorded exception to D22 on Apple hosts only; and each back end
   serves its own range of transform lengths, stated as contract numbers.
@@ -407,20 +523,32 @@ What this buys:
 
 | Compiler | Flags |
 |---|---|
-| GCC (hosted and `arm-none-eabi`) | `-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion -Wdouble-promotion -Wfloat-equal -Wold-style-cast -Wuseless-cast -Wcast-align -Wcast-qual -Wundef -Wnull-dereference -Wformat=2 -Wimplicit-fallthrough -Wswitch-enum -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wzero-as-null-pointer-constant -Wextra-semi -Wvla`, and `-Wstack-usage=` at each target's stack ceiling |
-| Clang (hosted, Apple, Hexagon) | `-Weverything`, less a short list that is written down with a reason for each entry: the C++98 compatibility groups, `-Wpadded`, and whatever else earns its place there. Starting from everything means a new Clang's new warnings arrive switched on. |
+| GCC (hosted and `arm-none-eabi`) | `-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion -Warith-conversion -Wdouble-promotion -Wfloat-equal -Wold-style-cast -Wuseless-cast -Wcast-align=strict -Wcast-qual -Wundef -Wnull-dereference -Wformat=2 -Wimplicit-fallthrough -Wswitch-enum -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wzero-as-null-pointer-constant -Wextra-semi -Wvla`, and `-Wstack-usage=` at each target's stack ceiling |
+| Clang (hosted, Apple, Hexagon) | `-Weverything`, less a list that is written down with a reason for each entry. It starts as: the C++98 compatibility groups; `-Wpadded`; `-Wunsafe-buffer-usage` (it fires inside `span` itself and on every indexed kernel loop, which is the code section 9.1 keeps as plain loops on purpose); `-Wswitch-default` (it contradicts `-Wswitch-enum` and `-Wcovered-switch-default`, which are kept); `-Wglobal-constructors` and `-Wexit-time-destructors` where a test framework needs them off. Starting from everything means a new Clang's new warnings arrive switched on. |
 | MSVC | `/W4 /permissive-` and the level-4-off conversion and shadowing warnings raised to errors by number |
 
 **Why each strict group is there.**
 
 - **Shadowing** (`-Wshadow` in GCC's full form, Clang's `-Wshadow-all`, MSVC's C4456 to
   C4459): a local, a parameter or a lambda capture never hides a member, an enclosing local
-  or a global. Private members' `m_` prefix already keeps constructor parameters clear.
+  or a global. Private members' `m_` prefix keeps constructor parameters clear of them.
+  Public value types have unprefixed fields (`ratio{up, down}`, `complex{re, im}`,
+  `latency_report{nominal, deviation}`), so a parameter takes a different word
+  (`up_factor`), and the warning enforces it.
 - **Double promotion and float conversion**: with `float` the default (D24), one stray
   `double` literal in a loop is software floating point on a core without a double FPU.
   These two warnings are how that is caught at compile time and not in the ratchet.
 - **Conversion and sign conversion**: the fixed-point arithmetic is where a silent
-  narrowing is a wrong sample.
+  narrowing is a wrong sample. `-Warith-conversion` is in the set because without it GCC
+  says nothing about `int16_t = int16_t + int16_t`, the commonest Q15 wrap; Clang has no
+  equivalent, so that case rests on the GCC legs and on the sanitizer.
+- **A link-stage gate for what warnings cannot see.** A `float`-profile image for a core
+  with a single-precision FPU, or none, may not reference a software-double routine
+  (`__aeabi_dmul` and its family, a `double` `libm` entry). An explicit cast silences the
+  warning and still costs the routine; the gate sees every path (finding 31, D36).
+- **Useless casts**: conversions between fixed-width types and `int`, `long` and `size_t`
+  go through one named helper, which keeps `-Wuseless-cast` satisfiable on targets where
+  the types coincide.
 - **Float equality**: an exact comparison is sometimes right (a state that is exactly
   zero). It goes through one named helper, so each use is deliberate.
 
@@ -428,9 +556,12 @@ What this buys:
 
 - **A consumer's view is tested too.** Header templates compile in the consumer's files
   under the consumer's flags. Each public header is compiled alone, in a file of its own,
-  under the strictest set of each compiler, so a consumer who builds with `-Weverything`
-  sees nothing from catenae. catenae's headers are never marked as system headers to hide
-  a warning; third-party ones (CMSIS-DSP, the test framework) are.
+  under each compiler's set as section 7.2 defines it. The promise to a consumer is that:
+  clean under those sets, with Clang's exclusion list published for anyone who builds with
+  `-Weverything`. (Clean under bare `-Weverything` would need a suppression block in every
+  public header, which is the habit this section rules out.) catenae's headers are never
+  marked as system headers to hide a warning; third-party ones (CMSIS-DSP, the test
+  framework) are.
 - **Warnings as errors is the default where catenae is the project being built, and off
   where it is consumed** (`add_subdirectory`, a waf subproject): a consumer on a newer
   compiler must not have their build broken by a warning that did not exist when a release
@@ -438,26 +569,39 @@ What this buys:
 - **A suppression is a deviation.** A `#pragma` that silences a diagnostic, or a `NOLINT`,
   carries a reference to an entry in the deviation log (section 8), and CI counts them
   against the log.
-- **Beyond warnings:** `clang-tidy` findings are errors; one hosted leg runs the battery
-  under the address and undefined-behaviour sanitizers, which is where the arithmetic that
-  the warnings cannot see (a shift, a signed overflow) is caught.
+- **Beyond warnings:** `clang-tidy` findings are errors, with a ceiling on each function's
+  complexity among them. One hosted leg runs the battery under the address and
+  undefined-behaviour sanitizers at `-std=c++17` (a later standard defines shifts that
+  C++17 does not, and would hide them). Every junction also runs under the thread sanitizer,
+  and under stress on real weakly ordered hardware (an arm64 runner), as SampleRateTap does
+  for the same ring: x86 cannot reorder as Arm does and QEMU does not help.
+- **Constructs to avoid**, because they are valid C++17 and change meaning or stop compiling
+  later (finding 46): an aggregate with a user-declared constructor, `[=]` capturing `this`,
+  a default-initialised `std::atomic`, compound assignment to a `volatile`, arithmetic
+  between different enumerations, and an unqualified call with explicit template arguments.
 
 **What D30 and strict shadowing cost each other.** The `k_` prefix was doing a second job:
 a public constant named `channels` now shares a namespace with every parameter someone
 would naturally call `channels`, and `-Wshadow` reports it. Likewise a member named `ratio`
 cannot be of a type named `ratio`. So public constants take names that do not collide
 (`rate_ratio`; the channel count is read from the port type, not from a member), and the
-shadowing warning is what enforces it. One thing to verify at C0: whether `clang-tidy`'s
-naming check can tell a public constant from a private one. If it cannot, a small script
-checks D30.
+shadowing warning is what enforces it. The same lesson named two more things in the audit:
+the port of bytes is `wire_port` and its formats live in namespace `wire`, and a junction
+reports through `report()` because `status` is the error type. `clang-tidy`'s naming check
+classifies a static constant without regard to its access (the audit tried it), so it
+checks case only, with the Tap configuration's `k_` requirement on constants switched off;
+D30's rule (the prefix on private and `detail` constants, none on public ones) is enforced
+by a script in the tidy job from C0a.
 
 **Build systems (D26).** The library is always built from source in the consumer's build,
 with the consumer's target flags, and never shipped prebuilt.
 
 - **CMake**: the reference build. `add_subdirectory`, one target.
-- **waf**: a maintained `wscript`, built and tested in CI from C0, so it cannot rot.
+- **waf**: a maintained `wscript`, built and tested in CI from C0a, so it cannot rot.
 - **Zephyr**: a module file and Kconfig over the CMake build, added when a consumer needs it.
-- **Anything else**: one amalgamated `catenae.cpp`, generated in CI.
+- **Anything else**: one amalgamated `catenae.cpp`, generated in CI, with a default
+  `catenae/config.h` beside it (own engines, the `boundary` level) for its consumer to
+  edit. One CI leg builds and runs the battery against the amalgamated file.
 
 ## 8. MISRA C++:2023 and ASIL B (D23)
 
@@ -466,7 +610,7 @@ not certify a library on its own: a component is developed as a safety element o
 context, against assumed requirements, and the integrator's safety case takes it from
 there. What catenae can do is be built so that this is possible and cheap. The posture:
 
-**Designed in from C0, because retrofitting them is expensive:**
+**Designed in from the first code, because retrofitting them is expensive:**
 
 - No exceptions, no RTTI (D21); no heap (D22); no recursion; every loop bounded by a
   number the contract states.
@@ -476,14 +620,33 @@ there. What catenae can do is be built so that this is possible and cheap. The p
 - Every contract point is a requirement with an identifier (`CAT-STAGE-007`), and the test
   that pins it cites the identifier. The house rule "a test is named for the promise it
   pins" becomes requirement-to-test traceability with no new tool.
-- Worst-case behaviour is a number: the instruction-count ratchet's worst single call and
-  the stack ceilings (both carried from SampleRateTap's harness) are per-stage contract
-  points.
-- A deviation log from the first commit. Some family habits will need a recorded deviation
-  or a replacement: function-like macros for preconditions, `memcpy`-based bit casts, the
-  `|` operator as a builder.
+- Cost is measured and gated: the instruction-count ratchet's largest single call and the
+  stack ceilings (both carried from SampleRateTap's harness) are per-stage numbers. They
+  are the largest value observed over stated workloads, not a proven worst case, and the
+  contract calls them that.
+- An assumptions-of-use register from the first commit (`docs/assumptions.md`, each with an
+  identifier): what the library requires of its integrator and cannot check. One thread per
+  side of a junction; no aliasing of `in` and `out` unless `is_in_place`; the host's
+  flush-to-zero setting; the handler does not return. Today these are scattered through
+  the plan as preconditions.
+- A deviation log from the first commit. Its opening entries, from the audit's reading of
+  public summaries of the guidelines and unverified against the text (finding 52):
+  `#pragma once` against include guards; compiler extensions (`restrict`, inlining control,
+  reading the floating-point control register), which go in one header so that each is one
+  deviation; `memcpy`-based bit casts; the signed right shift; early returns against a
+  single exit point; `-Wunsafe-buffer-usage` off. An overloaded `|` is not expected to need
+  one.
+- Positions an assessor reads off ISO 26262-6's tables at ASIL B, recorded now because they
+  touch every function (finding 51): guard-clause early returns are the project's style,
+  with its rationale as a deviation; a complexity ceiling per function, kernels included,
+  is enforced in CI; each `@req` states its equivalence classes and boundary values; and a
+  change to a contract header or a kernel is reviewed with a retained record.
+- **What is tested is what ships.** The battery runs at both check levels. Coverage is
+  measured on the configuration that ships (`boundary`, optimised), not only on the debug
+  one. The configuration space is finite and written down (the check level, the four FFT
+  options, exceptions of D22 per host), and CI names which combinations it runs.
 
-**In CI from C0:** statement and branch coverage of the compiled core and of each
+**In CI from C0a:** statement and branch coverage of the compiled core and of each
 instantiation the battery makes; the static analysis that is free (`clang-tidy`'s checks,
 compiler warnings as errors). These approximate a MISRA checker; they are not one.
 
@@ -499,8 +662,11 @@ from memory. It should be checked against the text when a copy is to hand.
 
 ## 9. What the code is proposed to look like
 
-Sketches, not compiled. Their purpose is to make the contracts above concrete enough to
-argue with.
+Sketches. Their purpose is to make the contracts concrete enough to argue with. The audit
+compiled them on GCC 13 and 14 and Clang 18, at C++17, 20 and 23, under the strict warnings,
+with the changes now folded in below. They still show one object per stage and per chain;
+if D34 is accepted, each becomes a constant configuration and a separate state, and this
+section is rewritten then.
 
 ### 9.1 A stateless stage: gain
 
@@ -597,12 +763,13 @@ auto overdrive = up2<2>{} | up2<2>{} | map<2, soft_clip>{{4.0f}} | down2<2>{} | 
 
 static_assert(stage_traits<decltype(overdrive)>::rate_ratio == ratio{1, 1});
 
-const latency_report l = overdrive.latency();   // delay the dry path by l.nominal to mix it in
+const latency_report l = overdrive.latency();   // k + 1/2 frames with linear-phase half-bands:
+                                                // oversample<4, ...> is the whole-frame form (D39)
 overdrive.process(in, out);                     // any length: one size check here, none between stages
 
 // With a fixed block, no run-time check at all:
 std::array<float, 64 * 2> block_in{}, block_out{};
-overdrive.process(span<const float, 128>(block_in), span<float, 128>(block_out));   // static_assert
+const std::size_t made = overdrive.process(block_in, block_out);   // arrays: checked by static_assert
 ```
 
 What the sketch leaves open: `up2` and `down2` take a profile (how much attenuation, how
@@ -627,7 +794,9 @@ static_assert(stage_traits<decltype(denoise)>::rate_ratio == ratio{1, 1});   // 
 
 // What the type system refuses:
 //   stft<512, 128, 1>{window::hann} | gain<1>{0.5f}
-//   error: static assertion failed: catenae: joint 0: spectrum<float, 1, 257> feeds port<float, 1>
+//   error: static assertion failed: catenae: a spectrum cannot feed a time-domain port
+//   note:  in instantiation of joint<0, spectrum<float, 1, 257>, port<float, 1>>
+// and what it does not promise: 64 frames in give 0 or 128 out. steady<> makes it n for n (D35).
 ```
 
 ### 9.5 Edges and a junction
@@ -636,17 +805,19 @@ static_assert(stage_traits<decltype(denoise)>::rate_ratio == ratio{1, 1});   // 
 using namespace catenae;
 
 // Audio callback thread: 24-bit packed little-endian stereo off the wire, into float.
-auto input = unpack<wire::s24le_packed, 2>{}          // wire<s24le_packed, 2> -> port<int32_t, 2>
-           | convert<std::int32_t, float, 2>{}        // port<int32_t, 2>      -> port<float, 2>
+auto input = unpack<wire::s24le_packed, 2>{}          // wire_port<wire::s24le_packed, 2> -> port<q31, 2>
+           | convert<q31, float, 2>{}                 // port<q31, 2>                     -> port<float, 2>
            | butterworth<4, 2>{k_lowpass_design};
 
 handoff<float, 2, 1024> link;                         // capacity is a template argument: no heap
 
-feeding(input, link).process(wire_bytes_in);          // runs the chain, pushes what it wrote
+static auto into_link = feeding(input, link);         // long-lived: it owns its staging memory
+const std::size_t pushed = into_link.process(wire_bytes_in);   // runs the chain, pushes what it wrote
 
 // Worker thread, same clock: mix to mono and meter it.
 auto metering = mix<2, 1>{k_mono_mix} | tap<1, rms_meter>{};
-fed_by(link, metering).process(mono_out);             // pulls what the chain needs, runs it
+static auto from_link = fed_by(link, metering);       // owns its staging and its holdover (D35)
+const std::size_t real = from_link.process(mono_out); // exactly mono_out's frames; `real` were not silence
 ```
 
 ### 9.6 Where the memory is, without a heap (D22)
@@ -708,58 +879,65 @@ Each ends with its battery green on every CI leg and its numbers recorded.
 
 | | Milestone | Contents |
 |---|---|---|
-| C0 | Skeleton | Repository layout, `NOTICE.md`, style files (no license file: D33). The CMake build and the waf build, both in CI: hosted at `-std=c++17`, 20 and 23, always `-fno-exceptions -fno-rtti`; the Cortex-M and Hexagon QEMU legs. `span`, `status` / `expected`, the precondition handler, `sample_traits`, the ports, `stage_traits`, `junction_traits`, the contract documents with requirement identifiers. The static library with its first compiled unit, the amalgamation, a size probe per embedded target, coverage. The deviation log opened. The two precondition tiers, the handler and the link-time level guard. The compile-fail battery: one test per architectural rule (mismatched ports at a joint in each of the ways a port can differ; a junction inside a chain), each asserting on its message. |
-| C1 | The chain on trivial stages | `chain` with its checked `process` (dynamic and fixed extent) and its compile-time joint proofs, `gain`, `map`, integer `delay`, `interleave` / `deinterleave`, the sample converters. `handoff`, with `feeding` and `fed_by`. The instruction-count harness and the layout benchmark, carried from the spike. This proves D6, D7, D9, D10, D19, D21 and D22 on the simplest instances. |
+| C0a | Ground | Repository layout, `NOTICE.md`, style files (no license file: D33). The CMake build and the waf build, both in CI: hosted GCC, Clang, MSVC and Apple at `-std=c++17`, 20 and 23, always `-fno-exceptions -fno-rtti`; the Cortex-M and Hexagon QEMU legs; the sanitizer legs; the warning sets, `clang-tidy` and the naming script. The harness: the instruction-count ratchet, the size probes (`.text`, `.rodata`, `.data` and `.bss` apart, and the start-up stack), coverage. The amalgamation. A smoke test of the documentation tools on one header and one page, before their conventions are fixed. No library code beyond a first compiled unit. |
+| C0b | Contracts | After section 1.1 is decided. `span`, `status` / `expected`, the checks and the handler, `catenae/config.h` with its inline namespace and the link-fail test, `sample_traits` and the `fixed<>` tags, the ports, `stage_traits` (with `is_stage` and `joint`), `junction_traits`, `analyzer_traits`. The contract documents with requirement identifiers, the assumptions-of-use register, the deviation log. The compile-fail battery for what exists here: a missing or ill-typed contract member, an ignored `expected`. |
+| C1 | The chain on trivial stages | `chain` with its checked `process` (dynamic and fixed extent), `flush`, its compile-time joint proofs and their compile-fail tests (one per way two ports can differ; a junction in a chain). `gain`, `map`, integer `delay`, `interleave` / `deinterleave`, `convert` among `float`, `q15` and `q31`. `steady`. `handoff`, with `feeding` and `fed_by` and its holdover, under the thread sanitizer and on arm64 hardware. The layout benchmark. The example chain's `.data`, `.bss` and start-up stack as pinned numbers. This proves D6, D7, D9, D10, D19, D21, D22, D27 and section 1.1 on the simplest instances. |
+| CF | Fit (D16) | Throwaway skeletons, with no quality bar on the signal processing, written against C0b's and C1's headers: one `rational` chain with its pull and its flush, one `bridge` stage with its table design, and the `async` junction. Beside them, a table of every public member of SampleRateTap's three engines and where it lands here or why it is dropped, and the shape of the C ABI decided. Passing CF is what "shown that they fit" means. What it forces on the contracts is changed here, before C2 to C6 build on them. |
 | C2 | The edges | `unpack` / `pack` (16, 24-packed, 24-in-32, 32; either byte order), TPDF dither, the mix matrix. |
-| C3 | Filters | The biquad block kernel, the biquad family and the Butterworth with their designs, a direct-form FIR, `up2` / `down2` and the L/M stages. The overdrive chain of 9.3 as a tested example. |
-| C4 | Blocks | The FFT behind its compiled interface, the overlap-save FFT FIR, `planar_section`. |
-| C5 | Analysis and the transform domain | `analyzer`, `tap`, meters, auto- and cross-correlation. `stft` / `istft` and a spectral gain: the gate of 9.4 as a tested example. D25 frozen after its measurement. |
-| C6 | Profiles | Q15 and Q31 for the stages that take them, the accelerated back ends (vDSP, CMSIS-DSP, HVX) behind the golden contract, the C ABI and executed notebooks. |
-| C7 | The synchronous converters (D16) | `rational`'s stages, named chains and profiles; `bridge`. Each is compared against SampleRateTap's output as an independent reference. |
+| C3 | Filters | The biquad block kernel, the biquad family and the Butterworth with their designs, a direct-form FIR, `up2` / `down2` and the L/M stage machine with one pinned design (profiles and named chains are C7's), `oversample`. The overdrive chain of 9.3 as a tested example. The Butterworth's layout measured again. |
+| C4 | Blocks | The FFT behind its compiled interface with its ROM tables, the overlap-save FFT FIR, `planar_section`. The split-complex measurement, and D25 frozen. |
+| C5 | Analysis and the transform domain | Meters, auto- and cross-correlation over `tap`. `stft` / `istft` in `float` and `double` and a spectral gain: the gate of 9.4, inside `steady`, as a tested example. |
+| C6 | Profiles | Q15, Q31 and Q4.27 for the stages that take them, with the section-scaling design a fixed-point biquad needs. The accelerated back ends (vDSP, CMSIS-DSP Helium) behind the golden contract; the fixed-point CMSIS-DSP adapters for analysis. The C ABI as CF shaped it, and the executed notebooks. |
+| C7 | The synchronous converters (D16) | `rational`'s stages, named chains and profiles; `bridge`. Each is checked against vectors committed from SampleRateTap (fidelity of the port, to a tolerance where D36 changed the arithmetic) and against a reference independent of both libraries, as SampleRateTap checks itself. |
 | C8 | The asynchronous converter (D16) | `async`, as a junction. |
 | C9 | Freeze | The 1.0 contract freeze, once C7 and C8 have shown the architecture holds all of it. |
 
 ### 10.1 What can run in parallel
 
 The milestones are numbered by what they prove, not by the order they must be done in. Only
-two things are strictly serial: C0's contract headers come first, and C1's proof of them on
-trivial stages gates every stage that will be judged against the contract.
+three things are strictly serial: the ground (C0a), then the contract headers (C0b), then
+C1's proof of them on trivial stages, which gates every stage that will be judged against
+the contract. CF follows C1 at once and runs beside the stage work.
 
 ```mermaid
 graph LR
-    C0[C0 contract headers, build, CI] --> C1[C1 chain and handoff on trivial stages]
-    C0 --> H[Harness: counts, layout benchmark, size probes, coverage]
-    C0 --> F[FFT engines, compiled]
-    C0 --> K[Kernels and designs: FIR, biquad, Kaiser, Butterworth]
-    C1 --> E[C2 edges: pack, unpack, convert, dither, mix]
+    C0a[C0a ground: builds, CI, harness] --> C0b[C0b contract headers]
+    C0b --> C1[C1 chain and handoff on trivial stages]
+    C0a --> H[Harness rows, per stage]
+    C0b --> F[FFT engines, compiled]
+    C0b --> K[Kernels and designs: FIR, biquad, Kaiser, Butterworth]
+    C1 --> CF[CF fit: skeletons of rational, bridge, async]
+    C1 --> E[C2 edges: pack, unpack, dither, mix]
     C1 --> S[C3 filter stages, up2 and down2]
     K --> S
-    C1 --> A[C5 analyzer, tap, meters, direct correlation]
+    C1 --> A[C5 meters, direct correlation]
     F --> B[C4 FFT FIR, planar_section]
     C1 --> B
     F --> T[C5 stft, istft, spectral gain]
     C1 --> T
     S --> Q[C6 fixed-point profiles, per stage]
     F --> X[C6 back-end adapters, per back end]
-    S --> R[C7 rational]
-    C1 --> BR[C7 bridge]
+    CF --> R[C7 rational]
+    S --> R
+    CF --> BR[C7 bridge]
     K --> BR
-    C1 --> AS[C8 async]
+    CF --> AS[C8 async]
     K --> AS
 ```
 
 | Workstream | Needs | Can start |
 |---|---|---|
-| Harness (instruction counts, layout benchmark, size probes, coverage, the QEMU legs) | C0's build | With C1, and it runs beside everything after |
-| FFT engines in the compiled core | C0's storage and `expected` patterns | With C1: nothing in it depends on the chain |
-| Kernels and designs (FIR dot products, the biquad cascade, Kaiser, Nyquist, Butterworth) | C0's `sample_traits` and `expected` | With C1: a kernel takes spans and knows nothing of stages |
+| Harness rows (a stage's counts, sizes and layout row) | C0a's harness | With each stage |
+| FFT engines in the compiled core | C0b's storage and `expected` patterns | With C1: nothing in it depends on the chain |
+| Kernels and designs (FIR dot products, the biquad cascade, Kaiser, Nyquist, Butterworth) | C0b's `sample_traits` and `expected`, and D36 and D37 decided | With C1: a kernel takes spans and knows nothing of stages |
+| Fit (CF) | C1 | At once after C1, beside everything below |
 | Edges (C2) | C1 | After C1, beside filters and analysis |
 | Filter stages (C3) | C1 and the kernels | After C1 |
-| Analysis (C5: `analyzer`, `tap`, meters, direct correlation) | C1 | After C1; needs no filter and no FFT |
+| Analysis (C5: meters, direct correlation) | C1 | After C1; needs no filter and no FFT |
 | Block stages (C4) and the transform domain (C5: `stft`, `istft`) | C1 and the FFT engines | When both are in |
 | Fixed-point profiles (C6) | The stage being given one | Per stage, independently |
 | Back-end adapters (C6) | The FFT engines' interface | Per back end, independently |
-| `rational`, `bridge`, `async` (C7, C8) | The stable call; then `rational` needs the L/M stages, `bridge` and `async` the FIR kernels, `async` also `handoff` | The three in parallel |
+| `rational`, `bridge`, `async` (C7, C8) | CF passed; then `rational` needs the L/M stages, `bridge` and `async` the FIR kernels, `async` also `handoff` | The three in parallel |
 
 Inside C1, `handoff` is independent of `chain`; only `feeding` and `fed_by` need both.
 
@@ -780,7 +958,9 @@ compile-fail battery, and kept only if it exposes something they missed. D23 mak
 requirement traceability a real need, but the identifiers in the contract documents and
 tests meet it without a modelling tool.
 
-C7 and C8 do not start until the maintainer calls the architecture stable.
+C7 and C8 start after CF. The maintainer's call that the architecture is stable (D16) is
+made on CF's evidence; before the audit nothing came before that call, which made it
+circular (finding 34).
 
 ## 11. Documentation (D32)
 
@@ -814,7 +994,9 @@ drops the weight by rule.
 1. **One home for each fact.** A number lives in one place, and that place is checked by a
    machine: a test's pin or a generated table. Everywhere else links to it.
 2. **A contract is a card, not an essay.** Every stage's header carries the same fixed
-   fields, as a table, and nothing else:
+   fields, as a table, and its requirements. The contract's members (`run`, `outputs_for`
+   and the rest) are documented once, on the stage contract's own page, and are excluded by
+   name from the undocumented-member check, so a stage does not repeat a dozen comments:
 
    ```cpp
    /// @brief Butterworth low-pass, even order, as a 1:1 stage.
@@ -824,7 +1006,7 @@ drops the weight by rule.
    /// | Ports      | `port<S, Ch>` in and out                                          |
    /// | Ratio      | 1:1, in place                                                     |
    /// | Latency    | nominal: group delay at DC; deviation: its excess up to the cutoff |
-   /// | Tail       | `tail_frames()`; residue at most 256 x the smallest normal value  |
+   /// | Tail       | `tail_frames()`; residue <= 256 x min normal, orders 2-8, fc >= 0.002 |
    /// | Formats    | `float`, `double`                                                 |
    /// | Limits     | a non-finite input poisons the state until `reset()`              |
    /// | Method     | bilinear transform, pre-warped (Oppenheim and Schafer, sec. 7.2)  |
@@ -836,7 +1018,10 @@ drops the weight by rule.
 
    Each `@req` line is one requirement with its identifier (D23). Doxygen collects them
    into a requirements page, and a script checks that every identifier is cited by a test
-   and every test cites one.
+   and every test cites one. Whether `@req` is an alias or a built-in command, and how a
+   Markdown table survives in a `///` comment and the formatter (a `CommentPragmas` line in
+   catenae's own `.clang-format`), is settled by C0a's smoke test: Doxygen and mdBook were
+   not installed where the audit ran, so nothing in this section has been tried.
 3. **A header describes the present.** What the code used to do is the changelog's. Why it
    is this way is the plan's, cited by decision number. How a number was measured (the
    machine, the compiler, the run) is the generated table's.
@@ -859,7 +1044,8 @@ not a restatement of them.
 
 | Milestone | Documentation it ships |
 |---|---|
-| C0 | The README (a placeholder with the icon exists from the planning stage), the glossary, the contract card and `@req` conventions, Doxygen and the budgets in CI, the site published |
+| C0a | The README (a placeholder with the icon exists from the planning stage); Doxygen, mdBook and the budgets tried on one header and one page, then put in CI; the site published |
+| C0b | The glossary, the contract card and `@req` conventions, the stage, junction and analyzer contract pages |
 | C1 | The guide's core: stage, chain, junction, checks and failure, memory without a heap; "Writing a stage", around `gain` |
 | C2 to C5 | A guide page per idea as its code lands (edges and formats; filters and designs; the transform domain; analysis), each around a tested example; every stage's card |
 | C6 | The notebooks; the fixed-point and back-end pages; the C ABI reference |
@@ -874,12 +1060,14 @@ code (section 10.1). Nothing is documented before it exists.
 ### Carried from DspTap (ported, each with its tests)
 
 `sample_traits.h`, `subnormals.h`, `math.h`; `fir_kernels.h`, `kaiser.h`, `nyquist.h`,
-`quantize.h`, `decimate.h`; `iir_design.h` (sections, group delay), `iir_kernels.h` (the
-biquad cascade, per sample and per block); `butterworth.h`; the FFT (`fft.h` and the srdif
-engine) at C4; `analysis/` for the test instruments; the bench harness, the QEMU counting
-plugin (with the page-boundary fix found in the spike) and the style files.
+`quantize.h`, `decimate.h`; `iir_design.h` (sections, group delay), `iir_tables.h`,
+`iir_kernels.h` (the biquad cascade, per sample and per block) and `detail/cx_math.h` under
+them; `butterworth.h`; `chain.h` as the model for the chain; the FFT at C4 (`fft.h`, the
+srdif engine, and the fixed-point engine with `fft/fft_arith.h`); `analysis/` for the test
+instruments; the bench harness with the layout benchmark, the QEMU counting plugin (with the
+page-boundary fix found in the spike) and the style files.
 
-From the spike branch only, not on DspTap's `main`: `fft_fir.h` and the layout benchmark.
+From the spike branch only, not on DspTap's `main`: `fft_fir.h`.
 
 From SampleRateTap: `async`'s `spsc_ring.h` for `handoff` at C1; the L/M stage machine
 (`rational`'s `basic_stage`) as the model for rate-changing stages at C3; its ratchet and
@@ -887,17 +1075,24 @@ ceilings scripts. Its engines come later and whole (D16), with their plans' sett
 decisions read first.
 
 The port is more than C++20 to C++17. Concepts become traits and `static_assert`s and
-`std::span` becomes `catenae::span`, which is mechanical. Three things are not:
+`std::span` becomes `catenae::span`, which is mechanical. Five things are not:
 
-- **Allocation.** Every carried class sizes `std::vector`s at construction. Each becomes a
-  member array sized by a template argument, or works on a caller's span (D22).
-- **Rejection.** Every carried constructor that validates its arguments throws through
-  `tap::dsp::raise`. Each becomes a design with `make()` and an infallible constructor
-  (D21, section 3.3).
-- **Compile-time designs.** They need checking one by one; a design that cannot be
-  evaluated in C++17 `constexpr` becomes a generated, committed table with a bit pin.
+- **Allocation.** The designers (`kaiser.h`, `nyquist.h`, `quantize.h`), `decimate.h`,
+  `chain.h`, the FFT's tables and SampleRateTap's engines size `std::vector`s at
+  construction; the kernels and `butterworth.h` do not. Each vector becomes a member array
+  sized by a template argument, a ROM table, or a caller's span (D22, D37).
+- **Rejection.** `butterworth.h` throws through `tap::dsp::raise` when it rejects a design,
+  as SampleRateTap's engines do; the other headers state preconditions. Each rejection
+  becomes a design with `make()` and an infallible constructor (D21, D37).
+- **Compile-time designs.** DspTap's rest on `detail/cx_math.h`, which is built on
+  `std::bit_cast` and so cannot be evaluated in C++17 `constexpr`. Every compile-time
+  design therefore becomes a generated, committed table with a bit pin, and the generator
+  is a host tool in the build (finding 44).
+- **The float accumulator** (D36): the `float` FIR datapath is a new numeric design with
+  new floors, not a copy.
+- **Shifts** (section 3.1): what C++20 defines and C++17 does not goes through one helper.
 
-Fixes will still travel between the libraries (D20's reason), but for these three reasons a
+Fixes will still travel between the libraries (D20's reason), but for these reasons a
 carried file is a port, not a copy.
 
 ### What moved since the spike was measured
@@ -905,8 +1100,9 @@ carried file is a port, not a copy.
 DspTap went from 0.3.0 to 0.7.0, SampleRateTap from 0.8.0 to 0.9.0 and past it:
 
 - **The Butterworth stage is on DspTap's `main`** (0.6.0), with `set_cutoff()` redesigning it
-  in place (0.7.0).
-- **`biquad_cascade_block`**: the floating cascade a block at a time, the section count and
+  in place; 0.7.0 made that cheaper by taking the group-delay scan out of it.
+- **The layout benchmark is on DspTap's `main`** too.
+- **`biquad_cascade_block`** (0.7.0): the floating cascade a block at a time, the section count and
   channel count as template arguments, at 0.26 to 0.52 of the per-sample kernel's
   instructions at orders 2 to 8 on the M4F, M33, M55 and Hexagon. The fix the spike asked for.
 - **A chain reports `window_frames()`** (0.5.0), so a chain that holds a chain flushes.
@@ -920,30 +1116,72 @@ Butterworth's layout again on the block kernel.
 ## 13. Open questions
 
 Decided on 2026-11-24: D23 is a precaution with nothing claimed and no checker; cobra needs
-nothing from the plan.
+nothing from the plan; the license waits for the code (D33).
 
-Gating C0: nothing, if D22, D27 and D28 are accepted.
+Gating C0b, because each defines a contract header (the audit's finding 2 moved the first
+three here from "gating C1"):
 
-Gating C1:
-
-1. **The planar signature.** A span per channel, or one span with the channels end to end?
-2. **Run-time channel counts.** In the charter at all? The spike says to serve them through
+1. **Section 1.1: D34 to D39.**
+2. **The planar signature.** Recommended: a span per channel. One span with the channels end
+   to end cannot be cut into blocks, which the chain's block-at-a-time `process` and a
+   nested chain both need (finding 63).
+3. **Run-time channel counts.** In the charter at all? The spike says to serve them through
    planar stages, where a run-time count costs under 2 %. D22 means a maximum count would
    still be a template argument.
-3. **Run-time parameters.** Under section 3.3 a parameter change is a new design applied to
-   a running stage. Is applying one part of the stage contract (when it takes effect,
-   whether it is smoothed), or each stage's own matter?
+4. **Changing a running chain, and reading from one.** With D34 a parameter change is a new
+   configuration. How does it reach the thread that runs the chain, and how do an
+   analyzer's results leave it? One small primitive would serve both (a single-slot mailbox
+   of a trivially copyable value, applied or read at a block boundary). Is it a kind of
+   junction or a thing of its own, and is "when it takes effect, whether it is smoothed"
+   part of the stage contract? (Finding 61; this replaces the earlier questions on run-time
+   parameters and on analyzer results across threads.)
+5. **Groups of channels.** Is `parallel<ChainA, ChainB>`, which runs two chains on two
+   groups of one port's channels with their latencies aligned, part of C1's chain work? It
+   is what a dry path beside a wet one, and later a side chain, would be built from
+   (finding 62).
+
+Gating CF:
+
+6. **The C ABI's shape.** SampleRateTap's C ABIs choose chain, profile, format and channel
+   count at run time behind a heap-allocated handle, which D13, D21 and D22 forbid.
+   Recommended: a manifest, fixed when the library is built, of named instantiations, each
+   exported under its name with storage the caller supplies (finding 38). It also decides
+   what the notebooks can show.
 
 Gating later milestones:
 
-4. **A fixed-point spectrum's exponent.** Under the fixed scaling policy it is in the
-   port's type (D29). Under block floating it is a run-time number per channel per frame:
-   in the frame (a header value) or beside it? Or is block floating left out?
-5. **Analyzer results across threads.** Through a `handoff`, or each analyzer's own rule?
-6. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass?
-7. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
+7. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass? D36's
+   alternative would pull it forward.
+8. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
    fixed-point one with C6?
-8. **Documentation tooling.** mdBook for the guide and Doxygen for the reference, as
+9. **Documentation tooling.** mdBook for the guide and Doxygen for the reference, as
    proposed, or Doxygen alone with Markdown pages (one tool, a plainer guide)? Is a print
    edition of the guide wanted, as SampleRateTap has? And should some notebooks arrive
    before the C ABI at C6, through a small command-line tool that writes data for them?
+
+## 14. The audit of draft 19, and where each finding went
+
+`docs/audits/2026-11-24-plan-draft-19.md` has every finding with its evidence. Numbers below
+are that file's.
+
+| Theme | Findings | In this draft |
+|---|---|---|
+| Where a chain's memory lands | 8, 10, 17, 36 | D34 (proposed) |
+| Per-call behaviour, pull, overshoot | 23, 33, 37, 50 | D35 (proposed); sections 3.2, 3.3, 6 |
+| The float accumulator | 1, 26, 31 | D36 (proposed); the link-stage gate in 7.2 |
+| What a design is | 5, 11, 12, 13, 35, 55 | D37 (proposed) |
+| Fixed point | 3, 9, 16, 24, 25, 49, 58 | D38 (proposed); D29 and section 3.1; the sketch of 9.5 |
+| Latency | 27, 55 | D39 (proposed) |
+| One level per image | 15, 28, 41, 57 | Section 3.3: an explicit option, an inline namespace, no default handler |
+| The stage and chain contracts | 6, 42, 43, 45, 54, 56, 63 | Sections 3.2, 3.3 and 4; question 2 |
+| Junctions | 22, 50 | Section 6: `report()`, the sanitizer and hardware legs, staging |
+| Missing contracts | 7, 38, 61, 62 | `flush` in section 4; analyzers in 6.1; questions 4, 5 and 6 |
+| Back ends | 4, 14, 32, 53 | Sections 5.2 and 7.1 |
+| Warnings and tools | 30, 31, 46, 47, 59 | Section 7.2; D2, D30 |
+| The safety posture | 18, 19, 20, 21, 51, 52 | Section 8 |
+| Milestones | 2, 29, 34, 39 | Section 10: C0 split, CF added, the graph and tables reconciled; section 13 |
+| The source libraries | 40, 44, 48 | Sections 7 and 12 |
+| Documentation | 60 | Section 11 |
+
+Not acted on: none of the 63 was refuted. Fifteen were judged partly right; in each case
+the change above follows the second reviewer's narrower reading.

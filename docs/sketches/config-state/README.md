@@ -18,8 +18,14 @@ g++ -std=c++17 -O2 -fno-exceptions -fno-rtti demo.cpp -o demo && ./demo
 ./measure.sh        # needs arm-none-eabi-g++
 ```
 
-Measured on 2026-11-24 (arm-none-eabi-g++ 13.2, Cortex-M33, `-Os`), the overdrive chain of
-PLAN.md 9.3 as a configuration and a state:
+What to read in `sketch.h`, in order: `map` and `times` (a fixed gain is only a `map`),
+`gain` (a level that ramps when it is changed), `lowpass_design` and `lowpass` (a parameter
+that can be wrong, so it is designed apart from the stage), `chain`, then `steady` and
+`fed_by`.
+
+Measured on 2026-11-24 (arm-none-eabi-g++ 13.2, Cortex-M33, `-Os`).
+
+The overdrive chain of PLAN.md 9.3, fixed:
 
 | | One object per chain (the audit's measurement) | Configuration and state |
 |---|---:|---:|
@@ -30,3 +36,13 @@ PLAN.md 9.3 as a configuration and a state:
 
 The two RAM figures are from different mock stages and are not comparable to the byte; the
 flash figure is the point.
+
+A stereo channel strip, `lowpass | gain`, whose cutoff and level change at run time:
+
+| | |
+|---|---:|
+| Its configuration, a variable (`.data`: five coefficients, a latency, a level, a ramp length) | 32 bytes |
+| Its state (`.bss`) | 548 bytes |
+| Stack of its audio callback | 20 bytes |
+| Software floating point called from the audio path's file | none |
+| Called from the designer's file, which runs off the audio path | `tan` and seven `__aeabi_d*` routines |

@@ -1,15 +1,16 @@
 // Copyright 2026 Timothy Place and the catenae contributors
 //
 // A THROWAWAY SKETCH for decisions D34 and D35 of PLAN.md. It exists to show what the code
-// would look like and to measure where the memory lands. It is not the library: the stages
-// are toys (a linear-interpolating up2, a pair-averaging down2), there is one sample type,
-// and nothing here is a contract.
+// would look like and to measure where the memory lands. It is not the library: the rate
+// changers are toys (a linear-interpolating up2, a pair-averaging down2), there is one sample
+// type, and nothing here is a contract.
 #ifndef CATENAE_SKETCHES_CONFIG_STATE_SKETCH_H
 #define CATENAE_SKETCHES_CONFIG_STATE_SKETCH_H
 
 #include <algorithm>
 #include <array>
 #include <atomic>
+#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <numeric>
@@ -91,41 +92,6 @@ namespace catenae {
     // calls is a separate STATE, which is valid when every byte of it is zero.
     // =====================================================================================
 
-    /// out = in * g. It remembers nothing, so its state is empty.
-    template <std::size_t Ch>
-    class gain {
-      public:
-        using input_port  = port<float, Ch>;
-        using output_port = port<float, Ch>;
-        static constexpr ratio rate_ratio{1, 1};
-        static constexpr bool  is_frame_synchronous = true;
-
-        struct state {};
-
-        explicit constexpr gain(float g) noexcept
-            : m_gain(g) {}
-
-        /// The parameter is the configuration's, so reading and changing it are too. A change
-        /// takes effect at the next run(); it is a step, not a ramp. Not synchronised: call it
-        /// on the thread that runs the chain, between calls.
-        constexpr float level() const noexcept { return m_gain; }
-        constexpr void  set_level(float g) noexcept { m_gain = g; }
-
-        std::size_t run(state& /*unused*/, span<const float> in, span<float> out) const noexcept {
-            const float g = m_gain;
-            std::transform(in.begin(), in.end(), out.begin(), [g](float x) noexcept { return x * g; });
-            return in.size() / Ch;
-        }
-        static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return n; }
-        static constexpr std::size_t outputs_for(const state& /*unused*/, std::size_t n) noexcept { return n; }
-        static constexpr std::size_t frames_needed(const state& /*unused*/, std::size_t k) noexcept { return k; }
-
-      private:
-        float m_gain; // the configuration: four bytes, in ROM
-    };
-    template <std::size_t Ch>
-    struct is_stage<gain<Ch>> : std::true_type {};
-
     /// out = f(in), a sample at a time.
     template <std::size_t Ch, typename F>
     class map {
@@ -156,6 +122,214 @@ namespace catenae {
     };
     template <std::size_t Ch, typename F>
     struct is_stage<map<Ch, F>> : std::true_type {};
+
+    /// A fixed gain is nothing more than map<> with a multiplication: no class of its own.
+    struct times {
+        float factor;
+        constexpr float operator()(float x) const noexcept { return x * factor; }
+    };
+
+    // ---- a parameter that changes while the stream runs: gain -----------------------------
+
+    /// A gain whose level can change at run time without a click: it ramps to a new level
+    /// over ramp_frames. The level and the ramp length are the configuration. Where the ramp
+    /// has got to is state.
+    template <std::size_t Ch>
+    class gain {
+      public:
+        using input_port  = port<float, Ch>;
+        using output_port = port<float, Ch>;
+        static constexpr ratio rate_ratio{1, 1};
+        static constexpr bool  is_frame_synchronous = true;
+
+        struct state {
+            float         current;   // the level being applied now
+            float         goal;      // the level the ramp is heading for
+            float         step;      // per frame, while a ramp runs
+            std::uint32_t remaining; // frames of ramp left
+            std::uint32_t started;   // 0 until the first call, which starts at the level with no fade-in
+        };
+
+        constexpr gain(float level, std::uint32_t ramp_frames) noexcept
+            : m_level(level)
+            , m_ramp_frames(ramp_frames) {}
+
+        constexpr float level() const noexcept { return m_level; }
+        /// Takes effect from the next run(), as a ramp. Not synchronised: call it on the thread
+        /// that runs the chain, between calls.
+        constexpr void set_level(float level) noexcept { m_level = level; }
+
+        std::size_t run(state& st, span<const float> in, span<float> out) const noexcept {
+            if (st.started == 0) {
+                st.current = m_level;
+                st.goal    = m_level;
+                st.started = 1;
+            }
+            if (st.goal < m_level || st.goal > m_level) { // the level was changed: head for it
+                st.goal      = m_level;
+                st.remaining = m_ramp_frames;
+                if (m_ramp_frames == 0) {
+                    st.current = m_level;
+                }
+                else {
+                    st.step = (m_level - st.current) / static_cast<float>(m_ramp_frames);
+                }
+            }
+            const std::size_t frames = in.size() / Ch;
+            for (std::size_t i = 0; i < frames; ++i) {
+                if (st.remaining > 0) {
+                    st.current += st.step;
+                    --st.remaining;
+                    if (st.remaining == 0) {
+                        st.current = st.goal; // land exactly, whatever the rounding did
+                    }
+                }
+                for (std::size_t c = 0; c < Ch; ++c) {
+                    out[i * Ch + c] = in[i * Ch + c] * st.current;
+                }
+            }
+            return frames;
+        }
+        static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return n; }
+        static constexpr std::size_t outputs_for(const state& /*unused*/, std::size_t n) noexcept { return n; }
+        static constexpr std::size_t frames_needed(const state& /*unused*/, std::size_t k) noexcept { return k; }
+
+      private:
+        float         m_level;
+        std::uint32_t m_ramp_frames;
+    };
+    template <std::size_t Ch>
+    struct is_stage<gain<Ch>> : std::true_type {};
+
+    // ---- a parameter that can be wrong: a low-pass filter and its design (D37) --------------
+
+    enum class [[nodiscard]] status { cutoff_out_of_range };
+
+    template <typename E>
+    struct unexpected {
+        E value;
+    };
+
+    /// A value or the reason there is none, after std::expected. No heap, no exceptions.
+    template <typename T, typename E>
+    class [[nodiscard]] expected {
+      public:
+        constexpr expected(const T& value) noexcept // NOLINT: converting, as std::expected
+            : m_value(value)
+            , m_has(true) {}
+        constexpr expected(unexpected<E> error) noexcept // NOLINT
+            : m_error(error.value)
+            , m_has(false) {}
+
+        constexpr bool     has_value() const noexcept { return m_has; }
+        constexpr explicit operator bool() const noexcept { return m_has; }
+        constexpr const T& operator*() const noexcept {
+            expects(m_has, 3);
+            return m_value;
+        }
+        constexpr E error() const noexcept {
+            expects(!m_has, 4);
+            return m_error;
+        }
+
+      private:
+        union {
+            T m_value;
+            E m_error;
+        };
+        bool m_has;
+    };
+
+    /// A second-order Butterworth low-pass, designed for sample format S. This is the part
+    /// that can fail and the part that uses double and libm, so it is kept apart from the
+    /// stage: make() is called at start-up or on a control thread, never in the audio path.
+    /// A design holds its coefficients already in S, and its latency as a stored number.
+    template <typename S>
+    class lowpass_design {
+      public:
+        /// cutoff in cycles per sample. Fails outside the range the format can hold.
+        static expected<lowpass_design, status> make(double cutoff) noexcept {
+            constexpr double lowest = 1.0e-4; // below this a float design's poles reach the unit circle
+            if (!(cutoff >= lowest && cutoff <= 0.5 - lowest)) {
+                return unexpected<status>{status::cutoff_out_of_range};
+            }
+            constexpr double pi    = 3.14159265358979323846;
+            constexpr double sqrt2 = 1.41421356237309504880;
+            const double     k     = std::tan(pi * cutoff);
+            const double     norm  = 1.0 / (1.0 + sqrt2 * k + k * k);
+            const double     b0    = k * k * norm;
+            const double     b1    = 2.0 * b0;
+            const double     b2    = b0;
+            const double     a1    = 2.0 * (k * k - 1.0) * norm;
+            const double     a2    = (1.0 - sqrt2 * k + k * k) * norm;
+            const double     delay = (b1 + 2.0 * b2) / (b0 + b1 + b2) - (a1 + 2.0 * a2) / (1.0 + a1 + a2);
+            return lowpass_design({static_cast<S>(b0), static_cast<S>(b1), static_cast<S>(b2), static_cast<S>(a1),
+                                   static_cast<S>(a2)},
+                                  static_cast<float>(delay));
+        }
+
+        /// For a table that a generator wrote: the same value with no designer in the image.
+        static constexpr lowpass_design from_table(const std::array<S, 5>& coefficients, float latency_frames) noexcept {
+            return lowpass_design(coefficients, latency_frames);
+        }
+
+        constexpr const std::array<S, 5>& coefficients() const noexcept { return m_coefficients; } // b0 b1 b2 a1 a2
+        constexpr float                   nominal_latency() const noexcept { return m_latency; }   // group delay at DC
+
+      private:
+        constexpr lowpass_design(const std::array<S, 5>& coefficients, float latency_frames) noexcept
+            : m_coefficients(coefficients)
+            , m_latency(latency_frames) {}
+
+        std::array<S, 5> m_coefficients;
+        float            m_latency;
+    };
+
+    /// The filter. It is built from a design, so it cannot fail, and it never sees a double.
+    template <std::size_t Ch>
+    class lowpass {
+      public:
+        using input_port  = port<float, Ch>;
+        using output_port = port<float, Ch>;
+        static constexpr ratio rate_ratio{1, 1};
+        static constexpr bool  is_frame_synchronous = true;
+
+        struct state {
+            std::array<std::array<float, 2>, Ch> z; // transposed direct form II, per channel
+        };
+
+        explicit constexpr lowpass(const lowpass_design<float>& design) noexcept
+            : m_design(design) {}
+
+        constexpr const lowpass_design<float>& design() const noexcept { return m_design; }
+        /// A new cutoff is a new design. This cannot fail: the design was checked when it was
+        /// made. The filter's history carries on under the new coefficients.
+        constexpr void  set_design(const lowpass_design<float>& design) noexcept { m_design = design; }
+        constexpr float nominal_latency() const noexcept { return m_design.nominal_latency(); }
+
+        std::size_t run(state& st, span<const float> in, span<float> out) const noexcept {
+            const std::array<float, 5>& k      = m_design.coefficients();
+            const std::size_t           frames = in.size() / Ch;
+            for (std::size_t i = 0; i < frames; ++i) {
+                for (std::size_t c = 0; c < Ch; ++c) {
+                    const float x   = in[i * Ch + c];
+                    const float y   = k[0] * x + st.z[c][0];
+                    st.z[c][0]      = k[1] * x - k[3] * y + st.z[c][1];
+                    st.z[c][1]      = k[2] * x - k[4] * y;
+                    out[i * Ch + c] = y;
+                }
+            }
+            return frames;
+        }
+        static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return n; }
+        static constexpr std::size_t outputs_for(const state& /*unused*/, std::size_t n) noexcept { return n; }
+        static constexpr std::size_t frames_needed(const state& /*unused*/, std::size_t k) noexcept { return k; }
+
+      private:
+        lowpass_design<float> m_design; // the configuration: five coefficients and a latency
+    };
+    template <std::size_t Ch>
+    struct is_stage<lowpass<Ch>> : std::true_type {};
 
     /// Twice the rate, by linear interpolation (a toy). It remembers one frame.
     template <std::size_t Ch>

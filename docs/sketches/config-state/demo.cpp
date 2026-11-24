@@ -43,6 +43,12 @@ static_assert(steady<blockwise<128, halve>>::added_latency_frames == 127);
 
 constexpr auto up4 = up2<2>{} | up2<2>{};
 
+// A low-pass at 0.1 of the sample rate, as a table a generator would write: no designer, no
+// double and no libm are needed to use it.
+constexpr auto k_lowpass_at_0_1 = lowpass_design<float>::from_table(
+    {0.06745527388907191f, 0.13491054777814382f, 0.06745527388907191f, -1.1429805025399011f, 0.4128015980961886f},
+    2.176250899482823f);
+
 int main() {
     // D34: process fixed blocks. Both arguments are arrays, so every size is checked by the compiler.
     std::array<float, 64 * 2> in{};
@@ -62,9 +68,42 @@ int main() {
     std::printf("D34  drive is now %.1f: %zu frames from the same state\n",
                 static_cast<double>(s_drive_chain.stage<k_clip>().function().drive), c);
 
-    static auto s_trim = chain(gain<2>{0.5f});
-    s_trim.stage<0>().set_level(0.25f);
-    std::printf("D34  gain level read back: %.2f\n", static_cast<double>(s_trim.stage<0>().level()));
+    // ---- parameters that change at run time: a low-pass and a ramped gain -------------------
+    // A fixed gain is just map<> with a multiplication.
+    constexpr auto trim = chain(map<2, times>{times{0.5f}});
+    static_cast<void>(trim);
+
+    // A channel strip whose cutoff and level will change, so its configuration is a variable.
+    // It starts from a design that is a table in ROM: no designer has run.
+    static auto                         s_strip = lowpass<2>{k_lowpass_at_0_1} | gain<2>{1.0f, 96};
+    static state_of<decltype(s_strip)>  s_strip_state;
+    std::array<float, 64 * 2>           dc{};
+    dc.fill(1.0f);                                   // a steady input makes the changes easy to read
+    std::array<float, 64 * 2>           strip_out{};
+    for (int call = 0; call < 8; ++call) {
+        static_cast<void>(s_strip.process(s_strip_state, dc, strip_out));
+    }
+    std::printf("strip  settled at %.3f; latency %.3f frames (stored in the design)\n",
+                static_cast<double>(strip_out[126]), static_cast<double>(s_strip.stage<0>().nominal_latency()));
+
+    // A new cutoff: design it (this can fail, and it is the part that uses double and tan),
+    // then hand the result to the filter (this cannot fail).
+    const auto retuned = lowpass_design<float>::make(0.02);
+    if (retuned) {
+        s_strip.stage<0>().set_design(*retuned);
+    }
+    const auto impossible = lowpass_design<float>::make(0.7);
+    std::printf("strip  cutoff 0.02 %s; cutoff 0.7 %s\n", retuned ? "accepted" : "refused",
+                impossible ? "accepted" : "refused: cutoff_out_of_range");
+
+    // A new level: the gain ramps to it over its 96 frames, from wherever it is.
+    s_strip.stage<1>().set_level(0.25f);
+    std::printf("strip  level 1.0 -> 0.25, output at the end of each 64-frame call:");
+    for (int call = 0; call < 3; ++call) {
+        static_cast<void>(s_strip.process(s_strip_state, dc, strip_out));
+        std::printf(" %.3f", static_cast<double>(strip_out[126]));
+    }
+    std::printf("\n");
 
     // D35: the bare region bursts.
     static state_of<decltype(region)> s_region;
@@ -91,7 +130,7 @@ int main() {
         const std::size_t made = region_steady.process(s_steady, mono, mono_out);
         std::printf(" %zu", made);
         for (std::size_t i = 0; i < 64; ++i) {
-            if (mono_out[i] != 0.0f) { // NOLINT: an exact test for the sketch
+            if (mono_out[i] > 0.0f) {
                 where = call * 64 + i;
             }
         }

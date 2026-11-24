@@ -24,13 +24,21 @@ void audio_callback(const std::array<float, 64 * 2>& in, std::array<float, 64 * 
     static_cast<void>(overdrive.process(s_overdrive, in, out));
 }
 
-// The same chain with a drive that can change at run time: the configuration is a variable.
-static auto s_drive_chain = overdrive;
-static state_of<decltype(overdrive)> s_driven;
+// A channel strip whose cutoff and level change at run time. Its configuration is a variable,
+// started from a design that is a table in ROM.
+constexpr auto k_lowpass_at_0_1 = lowpass_design<float>::from_table(
+    {0.06745527388907191f, 0.13491054777814382f, 0.06745527388907191f, -1.1429805025399011f, 0.4128015980961886f},
+    2.176250899482823f);
 
-void set_drive(float drive) noexcept {
-    s_drive_chain.stage<2>().function().drive = drive;
+static auto                        s_strip = lowpass<2>{k_lowpass_at_0_1} | gain<2>{1.0f, 96};
+static state_of<decltype(s_strip)> s_strip_state;
+
+void strip_callback(const std::array<float, 64 * 2>& in, std::array<float, 64 * 2>& out) noexcept {
+    static_cast<void>(s_strip.process(s_strip_state, in, out));
 }
-void audio_callback_driven(const std::array<float, 64 * 2>& in, std::array<float, 64 * 2>& out) noexcept {
-    static_cast<void>(s_drive_chain.process(s_driven, in, out));
+void set_level(float level) noexcept {
+    s_strip.stage<1>().set_level(level);
+}
+void set_design(const lowpass_design<float>& design) noexcept {
+    s_strip.stage<0>().set_design(design);
 }

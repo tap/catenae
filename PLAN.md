@@ -1,4 +1,4 @@
-# catenae — plan (draft 10)
+# catenae — plan (draft 11)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -65,7 +65,7 @@ open to change. **proposed** is new in this draft or not yet reviewed.
 | D26 | Build systems: CMake first; waf supported and built in CI from C0; a Zephyr module when a consumer needs it. One amalgamated source file exists for anything else. | settled as to which; the timing is proposed |
 | D27 | Joints inside a chain are checked at compile time and cost nothing at run time: the port types match, and the chain's scratch is proven large enough by a `static_assert` on each stage's `max_outputs_for`. A run-time *boundary* check exists only where the caller's own buffers enter, at a chain's `process` and a junction's `push` and `pull`; it is written once, generically, from the traits, and is on in every build. With fixed-extent spans that check is compile-time too. An *audit* check, inside the library's own loops or on what the host is responsible for, is on in debug builds only. One generated header sets the level for the whole image and a link-time guard refuses a mix (section 3.3). | proposed (the maintainer's correction of draft 8: no run-time checks between stages) |
 | D28 | FFT back ends (section 7.1): catenae's own engines are the default on every target and the only ones in this repository. CMSIS-DSP and Apple's vDSP are opt-in, chosen when the library is built, and never vendored: the consumer's own copy is used. | proposed |
-| D29 | A fixed-point port names its Q format, and the format is part of the port's type: `port<fixed<std::int32_t, 27>, Ch>` is Q4.27 audio, and joining it to a Q0.31 port does not compile. The format is a compile-time tag only; buffers hold raw `int16_t` and `int32_t`, never a wrapper class. Moving between formats is an explicit `convert` stage (a shift, with its rounding and saturation stated). Any format can be named; a stage accepts only the formats its battery pins (section 3.1). | proposed |
+| D29 | A fixed-point port names its Q format, and the format is part of the port's type: `port<fixed<std::int32_t, 27>, Ch>` is Q4.27 audio, and joining it to a Q0.31 port does not compile. The format is a compile-time tag only; buffers hold raw `int16_t` and `int32_t`, never a wrapper class. Moving between formats is an explicit `convert` stage (a shift, with its rounding and saturation stated). Any format can be named, so one that becomes useful later (Q1.14 between 16-bit stages) is an addition and not a redesign; a stage accepts only the formats its battery pins (section 3.1). The first set: `q15`, `q31` and Q4.27. | accepted (2026-11-24) |
 
 ## 2. Charter
 
@@ -117,11 +117,43 @@ format, which is how fixed-point audio processors are conventionally built. Beca
 format is in the port's type, the joint check of D27 covers it at compile time and every
 shift is a constant.
 
+**What exists already.** There are no fixed-point *types* in the Tap libraries, on purpose:
+the arithmetic lives in traits over raw integers, so that the headroom bits, the
+pre-shifts and the single rounding point of each datapath stay visible and pinned. Three
+sets are carried in (section 11):
+
+| Traits | For | What they fix |
+|---|---|---|
+| `sample_traits` | FIR datapaths | Q1.14 and Q1.30 coefficients, a 64-bit accumulator, one rounding point (round half up), a saturating output |
+| `iir_traits` | recursive kernels | Q2.29 and Q2.60 states with two guard bits, Q2.30 coefficients, exact 64- and 96-bit products, truncation chosen per section so no limit cycle survives, saturation at the output only |
+| `fft_arith` | FFT butterflies | Q1.30 twiddles, saturating add and subtract, a rounding shift, block headroom |
+
+They are keyed on `int16_t` and `int32_t` and named for Q0.15 and Q0.31, but a linear
+kernel does not know where the binary point is: the same integer arithmetic filters Q4.27
+and Q0.31 alike, bit for bit. So for a linear stage a new format costs no new kernel and no
+new measurement. Its floor in LSBs is the one already pinned, and its signal-to-noise ratio
+against nominal full scale is that floor less the headroom (24 dB less in Q4.27), a derived
+number with one test to pin it.
+
+What has to be written:
+
+- the `fixed<Storage, F>` tag and the traits' lookup through it;
+- `convert` between formats: a shift with stated rounding and saturation (the rounding and
+  saturating helpers exist);
+- a small set of scalar helpers for stages that are not filters (a saturating multiply for
+  `gain`, a saturating sum for `mix`);
+- the places where the binary point does matter: a nonlinearity, dither's amplitude, a
+  threshold or a meter in dBFS. These take `F` from the format.
+
+One thing in the carried arithmetic needs a decision under D23: it shifts negative signed
+integers right, which every compiler catenae targets does arithmetically but which C++17
+leaves implementation-defined. It goes through one helper with one recorded deviation,
+rather than being scattered.
+
 The limit: a stage's noise floor and saturation-free level are numbers that depend on the
 format, and a number nobody measured is not a contract. So a stage's fixed-point profile
 lists the formats its battery pins and a `static_assert` refuses the rest; widening the list
-is adding rows to the battery. The first set proposed: `q15`, `q31` and one headroom format
-in 32 bits (Q4.27).
+is adding rows to the battery, which for a linear stage is the derived row above.
 
 The same tag settles half of an open question: an FFT with the fixed scaling policy grows
 its output by a known number of bits for a given length, so the spectrum's format can carry
@@ -658,12 +690,3 @@ Gating later milestones:
 4. **A fixed-point spectrum's exponent.** Under the fixed scaling policy it is in the
    port's type (D29). Under block floating it is a run-time number per channel per frame:
    in the frame (a header value) or beside it? Or is block floating left out?
-8. **Which fixed-point formats.** D29 proposes `q15`, `q31` and Q4.27. Is a 16-bit headroom
-   format (Q1.14, at the cost of 6 dB of resolution) wanted between stages, or is Q1.14 a
-   coefficient format only, which is internal to a kernel and not a port? What is a format
-   with few fractional bits (28 integer, 3 fractional) meant to carry: a control value
-   rather than audio?
-5. **Analyzer results across threads.** Through a `handoff`, or each analyzer's own rule?
-6. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass?
-7. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
-   fixed-point one with C6?

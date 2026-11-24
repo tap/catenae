@@ -12,4 +12,4 @@ A C++17 library of audio processing *stages*, the *chain* that composes them, an
 **Status: planning.** Nothing is built yet. The design, its decisions and the milestones are
 in [`PLAN.md`](PLAN.md).
 
-To be released under the MIT license; the license file arrives with the first code.
+The license has not been chosen yet.

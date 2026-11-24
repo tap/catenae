@@ -1,4 +1,4 @@
-# catenae — plan (draft 13)
+# catenae — plan (draft 14)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -66,6 +66,8 @@ open to change. **proposed** is new in this draft or not yet reviewed.
 | D27 | Joints inside a chain are checked at compile time and cost nothing at run time: the port types match, and the chain's scratch is proven large enough by a `static_assert` on each stage's `max_outputs_for`. A run-time *boundary* check exists only where the caller's own buffers enter, at a chain's `process` and a junction's `push` and `pull`; it is written once, generically, from the traits, and is on in every build. With fixed-extent spans that check is compile-time too. An *audit* check, inside the library's own loops or on what the host is responsible for, is on in debug builds only. One generated header sets the level for the whole image and a link-time guard refuses a mix (section 3.3). | proposed (the maintainer's correction of draft 8: no run-time checks between stages) |
 | D28 | FFT back ends (section 7.1): catenae's own engines are the default on every target and the only ones in this repository. CMSIS-DSP and Apple's vDSP are opt-in, chosen when the library is built, and never vendored: the consumer's own copy is used. | proposed |
 | D29 | A fixed-point port names its Q format, and the format is part of the port's type: `port<fixed<std::int32_t, 27>, Ch>` is Q4.27 audio, and joining it to a Q0.31 port does not compile. The format is a compile-time tag only; buffers hold raw `int16_t` and `int32_t`, never a wrapper class. Moving between formats is an explicit `convert` stage (a shift, with its rounding and saturation stated). Any format can be named, so one that becomes useful later (Q1.14 between 16-bit stages) is an addition and not a redesign; a stage accepts only the formats its battery pins (section 3.1). The first set: `q15`, `q31` and Q4.27. | accepted (2026-11-24) |
+| D30 | Public constants have no prefix. A stage's contract reads as the standard library's traits do: `rate_ratio`, `is_in_place`, `has_exact_latency` (compare `std::numeric_limits<T>::is_signed`, `std::chrono::steady_clock::is_steady`). The `k_` prefix stays for constants that are not part of the public interface: private members and everything in `detail`. This is the first place catenae's style departs from the Tap rules (D20). | settled (the names chosen are proposed) |
+| D31 | Warnings are errors, and the set is strict (section 7.2): the conversion, sign, shadowing, double-promotion, old-style-cast and switch warnings of every compiler in CI, on catenae's own code and on a consumer's view of its headers. A suppression is a recorded deviation, never a habit. | settled as a direction; the flag sets are proposed |
 
 ## 2. Charter
 
@@ -168,9 +170,9 @@ ill-typed member.
 | Member | Meaning |
 |---|---|
 | `input_port`, `output_port` | The two port types. |
-| `k_ratio` | `ratio{up, down}`, reduced. For an analysis stage it is 1 / hop. |
-| `k_in_place` | Whether `run` may read and write one buffer. |
-| `k_exact_latency` | Whether the stage delays every frequency alike. |
+| `rate_ratio` | `ratio{up, down}`, reduced. For an analysis stage it is 1 / hop. |
+| `is_in_place` | Whether `run` may read and write one buffer. |
+| `has_exact_latency` | Whether the stage delays every frequency alike. |
 | `run(in, out)` | The stage's work, trusted: spans of the ports' value types, already known to be the right sizes; consumes all of `in`; returns the frames written. `noexcept`, no allocation, no failure, no boundary check. Called by a chain, not by the caller's code (section 3.3). |
 | `outputs_for(n)`, `frames_needed(k)` | Exact, from the current position. |
 | `max_outputs_for(n)` | An upper bound from any state, `constexpr`. The chain sizes its scratch from this. |
@@ -227,7 +229,7 @@ ill-typed member.
   `static_assert` that each buffer holds what the stage before it can write. `process` is
   the caller's entry and the only place a run-time size check is made; it accepts any length
   and works through it a block at a time, calling each stage's `run`. A chain has `run` as
-  well, which is what an enclosing chain calls. A run of `k_in_place` stages
+  well, which is what an enclosing chain calls. A run of `is_in_place` stages
   shares one buffer.
 - Bit-identical for any chunking of a stream, under the library's floating-point contraction
   policy.
@@ -289,14 +291,14 @@ contract read through `junction_traits<T>`.
 | Member | Meaning |
 |---|---|
 | `sink_port`, `source_port` | Port types, as a stage's. |
-| `k_clocks` | `clocks::shared` (two threads on one clock) or `clocks::independent`. |
-| `k_ratio` | The nominal rate ratio between the two sides (1:1 for a near-unity converter). |
+| `clocking` | `clocks::shared` (two threads on one clock) or `clocks::independent`. |
+| `rate_ratio` | The nominal rate ratio between the two sides (1:1 for a near-unity converter). |
 | `tolerance_ppm()` | Independent clocks only: the offset and drift the junction absorbs. |
 | `push(in)` | Called by exactly one thread. Returns the frames accepted; what happens to the rest (dropped, counted) is stated. `noexcept`, wait-free. |
 | `pull(out)` | Called by exactly one other thread. Always fills `out`; the frames it could not supply are silence, and it returns how many were real. |
 | `status()` | Any thread: state (filling, locked), fill, underruns, overruns, the rate estimate where there is one. |
 | `latency()` | `{nominal, range}` in source frames: a junction's delay breathes with its fill, so it is never exact. |
-| `k_capacity_frames` | A template argument (D22). |
+| `capacity_frames` | A template argument (D22). |
 | `reset()` | Only while neither side is running; a stated precondition. |
 
 Instances: `handoff<S, Ch, Capacity>` (a single-producer, single-consumer ring: shared clock,
@@ -387,6 +389,56 @@ What this buys:
 - **Not planned:** FFTW (GPL); a Hexagon HVX back end until a consumer needs one, where it
   would link the vendor's library from the consumer's SDK in the same way.
 
+### 7.2 Warnings and errors (D31)
+
+**The sets.** Each is `-Werror` (`/WX`) in CI, on every leg.
+
+| Compiler | Flags |
+|---|---|
+| GCC (hosted and `arm-none-eabi`) | `-Wall -Wextra -Wpedantic -Wshadow -Wconversion -Wsign-conversion -Wdouble-promotion -Wfloat-equal -Wold-style-cast -Wuseless-cast -Wcast-align -Wcast-qual -Wundef -Wnull-dereference -Wformat=2 -Wimplicit-fallthrough -Wswitch-enum -Wduplicated-cond -Wduplicated-branches -Wlogical-op -Wmissing-declarations -Wredundant-decls -Wzero-as-null-pointer-constant -Wextra-semi -Wvla`, and `-Wstack-usage=` at each target's stack ceiling |
+| Clang (hosted, Apple, Hexagon) | `-Weverything`, less a short list that is written down with a reason for each entry: the C++98 compatibility groups, `-Wpadded`, and whatever else earns its place there. Starting from everything means a new Clang's new warnings arrive switched on. |
+| MSVC | `/W4 /permissive-` and the level-4-off conversion and shadowing warnings raised to errors by number |
+
+**Why each strict group is there.**
+
+- **Shadowing** (`-Wshadow` in GCC's full form, Clang's `-Wshadow-all`, MSVC's C4456 to
+  C4459): a local, a parameter or a lambda capture never hides a member, an enclosing local
+  or a global. Private members' `m_` prefix already keeps constructor parameters clear.
+- **Double promotion and float conversion**: with `float` the default (D24), one stray
+  `double` literal in a loop is software floating point on a core without a double FPU.
+  These two warnings are how that is caught at compile time and not in the ratchet.
+- **Conversion and sign conversion**: the fixed-point arithmetic is where a silent
+  narrowing is a wrong sample.
+- **Float equality**: an exact comparison is sometimes right (a state that is exactly
+  zero). It goes through one named helper, so each use is deliberate.
+
+**The rules around the flags.**
+
+- **A consumer's view is tested too.** Header templates compile in the consumer's files
+  under the consumer's flags. Each public header is compiled alone, in a file of its own,
+  under the strictest set of each compiler, so a consumer who builds with `-Weverything`
+  sees nothing from catenae. catenae's headers are never marked as system headers to hide
+  a warning; third-party ones (CMSIS-DSP, the test framework) are.
+- **Warnings as errors is the default where catenae is the project being built, and off
+  where it is consumed** (`add_subdirectory`, a waf subproject): a consumer on a newer
+  compiler must not have their build broken by a warning that did not exist when a release
+  was cut. CI adds each new compiler version deliberately and fixes what it finds.
+- **A suppression is a deviation.** A `#pragma` that silences a diagnostic, or a `NOLINT`,
+  carries a reference to an entry in the deviation log (section 8), and CI counts them
+  against the log.
+- **Beyond warnings:** `clang-tidy` findings are errors; one hosted leg runs the battery
+  under the address and undefined-behaviour sanitizers, which is where the arithmetic that
+  the warnings cannot see (a shift, a signed overflow) is caught.
+
+**What D30 and strict shadowing cost each other.** The `k_` prefix was doing a second job:
+a public constant named `channels` now shares a namespace with every parameter someone
+would naturally call `channels`, and `-Wshadow` reports it. Likewise a member named `ratio`
+cannot be of a type named `ratio`. So public constants take names that do not collide
+(`rate_ratio`; the channel count is read from the port type, not from a member), and the
+shadowing warning is what enforces it. One thing to verify at C0: whether `clang-tidy`'s
+naming check can tell a public constant from a private one. If it cannot, a small script
+checks D30.
+
 **Build systems (D26).** The library is always built from source in the consumer's build,
 with the consumer's target flags, and never shipped prebuilt.
 
@@ -449,9 +501,9 @@ namespace catenae {
       public:
         using input_port  = port<S, Ch>;   // interleaved audio unless a port says otherwise
         using output_port = port<S, Ch>;
-        static constexpr ratio k_ratio{1, 1};
-        static constexpr bool  k_in_place      = true;
-        static constexpr bool  k_exact_latency = true;
+        static constexpr ratio rate_ratio{1, 1};
+        static constexpr bool  is_in_place      = true;
+        static constexpr bool  has_exact_latency = true;
 
         explicit constexpr basic_gain(S g) noexcept
             : m_gain(g) {}
@@ -517,7 +569,7 @@ using namespace catenae;
 // Stereo, float. The type is the topology; nothing is looked up from a rate.
 auto overdrive = up2<2>{} | up2<2>{} | map<2, soft_clip>{{4.0f}} | down2<2>{} | down2<2>{};
 
-static_assert(stage_traits<decltype(overdrive)>::k_ratio == ratio{1, 1});
+static_assert(stage_traits<decltype(overdrive)>::rate_ratio == ratio{1, 1});
 
 const latency_report l = overdrive.latency();   // delay the dry path by l.nominal to mix it in
 overdrive.process(in, out);                     // any length: one size check here, none between stages
@@ -545,7 +597,7 @@ auto denoise = stft<512, 128, 1>{window::hann}
 //   spectral_gate's ports: spectrum<float, 1, 257>    ->  spectrum<float, 1, 257>
 //   istft's ports:         spectrum<float, 1, 257>    ->  port<float, 1>
 
-static_assert(stage_traits<decltype(denoise)>::k_ratio == ratio{1, 1});   // 1/128 then 128/1
+static_assert(stage_traits<decltype(denoise)>::rate_ratio == ratio{1, 1});   // 1/128 then 128/1
 
 // What the type system refuses:
 //   stft<512, 128, 1>{window::hann} | gain<1>{0.5f}
@@ -640,6 +692,61 @@ Each ends with its battery green on every CI leg and its numbers recorded.
 | C7 | The synchronous converters (D16) | `rational`'s stages, named chains and profiles; `bridge`. Each is compared against SampleRateTap's output as an independent reference. |
 | C8 | The asynchronous converter (D16) | `async`, as a junction. |
 | C9 | Freeze | The 1.0 contract freeze, once C7 and C8 have shown the architecture holds all of it. |
+
+### 10.1 What can run in parallel
+
+The milestones are numbered by what they prove, not by the order they must be done in. Only
+two things are strictly serial: C0's contract headers come first, and C1's proof of them on
+trivial stages gates every stage that will be judged against the contract.
+
+```mermaid
+graph LR
+    C0[C0 contract headers, build, CI] --> C1[C1 chain and handoff on trivial stages]
+    C0 --> H[Harness: counts, layout benchmark, size probes, coverage]
+    C0 --> F[FFT engines, compiled]
+    C0 --> K[Kernels and designs: FIR, biquad, Kaiser, Butterworth]
+    C1 --> E[C2 edges: pack, unpack, convert, dither, mix]
+    C1 --> S[C3 filter stages, up2 and down2]
+    K --> S
+    C1 --> A[C5 analyzer, tap, meters, direct correlation]
+    F --> B[C4 FFT FIR, planar_section]
+    C1 --> B
+    F --> T[C5 stft, istft, spectral gain]
+    C1 --> T
+    S --> Q[C6 fixed-point profiles, per stage]
+    F --> X[C6 back-end adapters, per back end]
+    S --> R[C7 rational]
+    C1 --> BR[C7 bridge]
+    K --> BR
+    C1 --> AS[C8 async]
+    K --> AS
+```
+
+| Workstream | Needs | Can start |
+|---|---|---|
+| Harness (instruction counts, layout benchmark, size probes, coverage, the QEMU legs) | C0's build | With C1, and it runs beside everything after |
+| FFT engines in the compiled core | C0's storage and `result` patterns | With C1: nothing in it depends on the chain |
+| Kernels and designs (FIR dot products, the biquad cascade, Kaiser, Nyquist, Butterworth) | C0's `sample_traits` and `result` | With C1: a kernel takes spans and knows nothing of stages |
+| Edges (C2) | C1 | After C1, beside filters and analysis |
+| Filter stages (C3) | C1 and the kernels | After C1 |
+| Analysis (C5: `analyzer`, `tap`, meters, direct correlation) | C1 | After C1; needs no filter and no FFT |
+| Block stages (C4) and the transform domain (C5: `stft`, `istft`) | C1 and the FFT engines | When both are in |
+| Fixed-point profiles (C6) | The stage being given one | Per stage, independently |
+| Back-end adapters (C6) | The FFT engines' interface | Per back end, independently |
+| `rational`, `bridge`, `async` (C7, C8) | The stable call; then `rational` needs the L/M stages, `bridge` and `async` the FIR kernels, `async` also `handoff` | The three in parallel |
+
+Inside C1, `handoff` is independent of `chain`; only `feeding` and `fed_by` need both.
+
+What keeps parallel work from colliding:
+
+- **The contract headers have one owner.** The ports, `stage_traits`, `junction_traits` and
+  the chain change only by a decision in section 1. A workstream that finds the contract
+  wrong raises it; it does not patch it in passing.
+- **A workstream adds files; it does not edit shared ones.** Each stage is its own header,
+  its own test file and its own benchmark row. The build lists are per directory, so two
+  workstreams never edit the same list.
+- **Every workstream merges through the same gates**: the strict warnings, the compile-fail
+  battery, the ratchet and the size ceilings.
 
 Optional, after C1: a time-boxed experiment (an hour or two) modelling port, stage, junction
 and chain in SysML v2's textual notation, compared against the working code and the

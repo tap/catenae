@@ -105,6 +105,12 @@ namespace catenae {
         explicit constexpr gain(float g) noexcept
             : m_gain(g) {}
 
+        /// The parameter is the configuration's, so reading and changing it are too. A change
+        /// takes effect at the next run(); it is a step, not a ramp. Not synchronised: call it
+        /// on the thread that runs the chain, between calls.
+        constexpr float level() const noexcept { return m_gain; }
+        constexpr void  set_level(float g) noexcept { m_gain = g; }
+
         std::size_t run(state& /*unused*/, span<const float> in, span<float> out) const noexcept {
             const float g = m_gain;
             std::transform(in.begin(), in.end(), out.begin(), [g](float x) noexcept { return x * g; });
@@ -133,6 +139,9 @@ namespace catenae {
 
         explicit constexpr map(F f) noexcept
             : m_f(f) {}
+
+        constexpr const F& function() const noexcept { return m_f; }
+        constexpr F&       function() noexcept { return m_f; }
 
         std::size_t run(state& /*unused*/, span<const float> in, span<float> out) const noexcept {
             std::transform(in.begin(), in.end(), out.begin(), m_f);
@@ -336,6 +345,16 @@ namespace catenae {
             : m_stages(stages...) {}
 
         constexpr const std::tuple<Stages...>& stages() const noexcept { return m_stages; }
+
+        /// One stage's configuration, by its position in the chain.
+        template <std::size_t I>
+        constexpr const stage_t<I>& stage() const noexcept {
+            return std::get<I>(m_stages);
+        }
+        template <std::size_t I>
+        constexpr stage_t<I>& stage() noexcept {
+            return std::get<I>(m_stages);
+        }
 
         static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return fold_max<0>(n); }
         constexpr std::size_t outputs_for(const state& st, std::size_t n) const noexcept { return fold_out<0>(st, n); }

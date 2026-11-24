@@ -1,4 +1,4 @@
-# catenae — plan (draft 22)
+# catenae — plan (draft 23)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -1132,8 +1132,13 @@ three here from "gating C1"):
 3. **Run-time channel counts.** In the charter at all? The spike says to serve them through
    planar stages, where a run-time count costs under 2 %. D22 means a maximum count would
    still be a template argument.
-4. **Changing a running chain, and reading from one.** With D34 a parameter change is a new
-   configuration. How does it reach the thread that runs the chain, and how do an
+4. **Changing a running chain, and reading from one.** With D34 a parameter is part of the
+   configuration, so a stage's configuration has the accessor and the setter (`level()`,
+   `set_level()`), a chain reaches a stage by position (`chain.stage<I>()`), and a
+   configuration that changes at run time is an ordinary small object where a fixed one is a
+   constant: 8 bytes of `.data` for the overdrive chain against 6,184 of `.bss` for its
+   state (the sketch measures it). That is the same-thread form, and it is a step, not a
+   ramp. What remains open: How does it reach the thread that runs the chain, and how do an
    analyzer's results leave it? One small primitive would serve both (a single-slot mailbox
    of a trivially copyable value, applied or read at a block boundary). Is it a kind of
    junction or a thing of its own, and is "when it takes effect, whether it is smoothed"

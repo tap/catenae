@@ -23,3 +23,14 @@ static state_of<decltype(overdrive)> s_overdrive;
 void audio_callback(const std::array<float, 64 * 2>& in, std::array<float, 64 * 2>& out) noexcept {
     static_cast<void>(overdrive.process(s_overdrive, in, out));
 }
+
+// The same chain with a drive that can change at run time: the configuration is a variable.
+static auto s_drive_chain = overdrive;
+static state_of<decltype(overdrive)> s_driven;
+
+void set_drive(float drive) noexcept {
+    s_drive_chain.stage<2>().function().drive = drive;
+}
+void audio_callback_driven(const std::array<float, 64 * 2>& in, std::array<float, 64 * 2>& out) noexcept {
+    static_cast<void>(s_drive_chain.process(s_driven, in, out));
+}

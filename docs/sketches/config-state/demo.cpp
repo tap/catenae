@@ -53,11 +53,18 @@ int main() {
     std::printf("D34  overdrive: %zu and %zu frames; configuration %zu bytes, state %zu bytes\n", a, b, sizeof(overdrive),
                 sizeof(s_voice_a));
 
-    // A parameter change is a new configuration applied to the same state.
-    auto driven = overdrive;                                     // a run-time copy, on the stack: 4 bytes
-    driven      = up2<2>{} | up2<2>{} | map<2, soft_clip>{soft_clip{9.0f}} | down2<2>{} | down2<2>{};
-    const std::size_t c = driven.process(s_voice_a, in, out);    // the histories carry on
-    std::printf("D34  after a change of drive: %zu frames from the same state\n", c);
+    // A parameter that changes at run time: the configuration is then an ordinary object, not a
+    // constant. It is still only the parameters (8 bytes here); the histories stay in the state.
+    static auto       s_drive_chain = overdrive;                    // a copy that may change
+    constexpr std::size_t k_clip    = 2;                            // the map is the third stage
+    s_drive_chain.stage<k_clip>().function().drive = 9.0f;          // set it, between calls
+    const std::size_t c = s_drive_chain.process(s_voice_a, in, out); // the histories carry on
+    std::printf("D34  drive is now %.1f: %zu frames from the same state\n",
+                static_cast<double>(s_drive_chain.stage<k_clip>().function().drive), c);
+
+    static auto s_trim = chain(gain<2>{0.5f});
+    s_trim.stage<0>().set_level(0.25f);
+    std::printf("D34  gain level read back: %.2f\n", static_cast<double>(s_trim.stage<0>().level()));
 
     // D35: the bare region bursts.
     static state_of<decltype(region)> s_region;

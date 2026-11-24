@@ -1,4 +1,4 @@
-# catenae — plan (draft 17)
+# catenae — plan (draft 18)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -33,7 +33,11 @@ header rather than retrofitted.
 
 Status: **settled** is the maintainer's own statement. **accepted** is a proposal the
 maintainer reviewed on 2026-11-24 ("I mostly agree") without objecting to that row; it stays
-open to change. **proposed** is new in this draft or not yet reviewed.
+open to change. **proposed** was new in its draft.
+
+On 2026-11-24 the maintainer accepted the plan as a whole at draft 17 ("I like the plan").
+Rows still marked proposed are accepted with it, and the open questions of section 13 stay
+open.
 
 | # | Decision | Status |
 |---|---|---|
@@ -796,7 +800,8 @@ and drive the shipping code through its C ABI, so they arrive with it (C6). And
 **measurements** are tables generated from the benchmark's own output, with their
 provenance in the data, not in sentences.
 
-One published site carries the guide and the reference, cross-linked.
+One published site carries the guide and the reference, cross-linked. The project's icon
+and favicon are in `assets/icon/`.
 
 ### 11.2 Keeping it from becoming too much
 
@@ -853,7 +858,7 @@ not a restatement of them.
 
 | Milestone | Documentation it ships |
 |---|---|
-| C0 | The README, the glossary, the contract card and `@req` conventions, Doxygen and the budgets in CI, the site published |
+| C0 | The README (a placeholder with the icon exists from the planning stage), the glossary, the contract card and `@req` conventions, Doxygen and the budgets in CI, the site published |
 | C1 | The guide's core: stage, chain, junction, checks and failure, memory without a heap; "Writing a stage", around `gain` |
 | C2 to C5 | A guide page per idea as its code lands (edges and formats; filters and designs; the transform domain; analysis), each around a tested example; every stage's card |
 | C6 | The notebooks; the fixed-point and back-end pages; the C ABI reference |

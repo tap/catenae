@@ -1,4 +1,4 @@
-# catenae — plan (draft 30)
+# catenae — plan (draft 31)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -82,7 +82,8 @@ open.
 | D41 | The guide is written for one reader: an experienced software engineer who has not worked on embedded hardware, and it is their tutorial (section 11.4). The reference, not the guide, is where an embedded engineer who already knows why looks things up. | proposed (the maintainer's suggestion, 2026-11-24; this draft recommends it) |
 | D42 | The channel count is a compile-time number in both layouts. A planar port is `Ch` spans, one per channel, passed as an array of `Ch` of them; one span with the channels end to end is not offered, because it cannot be cut into blocks. Run-time channel counts are outside the library. A caller who learns the count at run time has two idioms, neither of which needs anything new: choose among the configurations it instantiated (mono, stereo, 5.1), or, for planar audio, run one mono configuration over as many states as there are channels (D34 makes a state per channel the natural form; the spike measured a run-time count there at under 2 %). | settled |
 | D43 | `parallel<ChainA, ChainB>` is part of C1's chain work: it runs two chains on two groups of one port's channels and aligns their latencies, so a dry path beside a wet one is a type and not the caller's bookkeeping. Their ratios must match (asserted). It is what a side chain would later be built from; a stage with two audio inputs stays out of the charter. | settled |
-| D44 | A value crosses between threads through a `mailbox<T>` (section 6.2): one poster, one taker, the newest value wins, neither side ever waits, no lock. A new configuration reaches the thread that runs a chain this way, applied by that thread at the top of a call, and a reading leaves it the same way. It is a primitive of its own beside the junction, which carries a stream; "when a change takes effect" is therefore "at the next call after it is collected", and whether it is smoothed is the stage's matter (`gain` ramps; a filter's redesign is a step). | proposed; `docs/sketches/config-state/` has it compiled and run under the thread sanitizer |
+| D44 | A value crosses between threads through a `mailbox<T>` (section 6.2): one poster, one taker, the newest value wins, neither side ever waits, no lock. A new configuration reaches the thread that runs a chain this way, applied by that thread at the top of a call, and a reading leaves it the same way. It is a primitive of its own beside the junction, which carries a stream; "when a change takes effect" is therefore "at the next call after it is collected", and whether it is smoothed is the stage's matter (`gain` ramps; a filter's redesign is a step). | settled (2026-11-24); `docs/sketches/config-state/` has it compiled and run under the thread sanitizer |
+| D45 | The C ABI is a manifest: a list, fixed when the library is built, of named instantiations (a chain or a junction with its sample format, channel count and profile). Each is exported under its name as plain C functions over storage the caller supplies, with its sizes as constants. Nothing is chosen at run time behind a handle, so it needs no heap, no virtual dispatch and no exceptions, and it is consistent with D13, D21 and D22, which SampleRateTap's C ABIs are not (finding 38). The notebooks measure what the manifest names. | settled (2026-11-24) |
 
 ### 1.1 Decisions the audit asks for
 
@@ -1002,12 +1003,12 @@ Each ends with its battery green on every CI leg and its numbers recorded.
 | C0a | Ground | Repository layout, `NOTICE.md`, style files (no license file: D33). The CMake build and the waf build, both in CI: hosted GCC, Clang, MSVC and Apple at `-std=c++17`, 20 and 23, always `-fno-exceptions -fno-rtti`; the Cortex-M and Hexagon QEMU legs; the sanitizer legs; the warning sets, `clang-tidy` and the naming script. The harness: the instruction-count ratchet, the size probes (`.text`, `.rodata`, `.data` and `.bss` apart, and the start-up stack), coverage. The amalgamation. A smoke test of the documentation tools on one header and one page, before their conventions are fixed. No library code beyond a first compiled unit. |
 | C0b | Contracts | After section 1.1 is decided. `span`, `status` / `expected`, the checks and the handler, `catenae/config.h` with its inline namespace and the link-fail test, `sample_traits` and the `fixed<>` tags, the ports, `stage_traits` (with `is_stage` and `joint`), `junction_traits`, `analyzer_traits`. The contract documents with requirement identifiers, the assumptions-of-use register, the deviation log. The compile-fail battery for what exists here: a missing or ill-typed contract member, an ignored `expected`. |
 | C1 | The chain on trivial stages | `chain` with its checked `process` (dynamic and fixed extent), `flush`, its compile-time joint proofs and their compile-fail tests (one per way two ports can differ; a junction in a chain). `gain`, `map`, integer `delay`, `interleave` / `deinterleave`, `convert` among `float`, `q15` and `q31`. `steady`, `parallel`. `mailbox`. `handoff`, with `feeding` and `fed_by` and its holdover, under the thread sanitizer and on arm64 hardware. The layout benchmark. The example chain's `.data`, `.bss` and start-up stack as pinned numbers. This proves D6, D7, D9, D10, D19, D21, D22, D27 and section 1.1 on the simplest instances. |
-| CF | Fit (D16) | Throwaway skeletons, with no quality bar on the signal processing, written against C0b's and C1's headers: one `rational` chain with its pull and its flush, one `bridge` stage with its table design, and the `async` junction. Beside them, a table of every public member of SampleRateTap's three engines and where it lands here or why it is dropped, and the shape of the C ABI decided. Passing CF is what "shown that they fit" means. What it forces on the contracts is changed here, before C2 to C6 build on them. |
+| CF | Fit (D16) | Throwaway skeletons, with no quality bar on the signal processing, written against C0b's and C1's headers: one `rational` chain with its pull and its flush, one `bridge` stage with its table design, and the `async` junction. Beside them, a table of every public member of SampleRateTap's three engines and where it lands here or why it is dropped, and a first manifest for the C ABI (D45) written against them. Passing CF is what "shown that they fit" means. What it forces on the contracts is changed here, before C2 to C6 build on them. |
 | C2 | The edges | `unpack` / `pack` (16, 24-packed, 24-in-32, 32; either byte order), TPDF dither, the mix matrix. |
 | C3 | Filters | The biquad block kernel, the biquad family and the Butterworth with their designs, a direct-form FIR, `up2` / `down2` and the L/M stage machine with one pinned design (profiles and named chains are C7's), `oversample`. The overdrive chain of 9.3 as a tested example. The Butterworth's layout measured again. |
 | C4 | Blocks | The FFT behind its compiled interface with its ROM tables, the overlap-save FFT FIR, `planar_section`. The split-complex measurement, and D25 frozen. |
 | C5 | Analysis and the transform domain | Meters, auto- and cross-correlation over `tap`. `stft` / `istft` in `float` and `double` (their fixed-point forms are C6's, under D38) and a spectral gain: the gate of 9.4, inside `steady`, as a tested example. |
-| C6 | Profiles | Q15, Q31 and Q4.27 for the stages that take them, with the section-scaling design a fixed-point biquad needs. The accelerated back ends (vDSP, CMSIS-DSP Helium) behind the golden contract; the fixed-point CMSIS-DSP adapters, with their Q31 round trip measured (D38). The C ABI as CF shaped it, and the executed notebooks. |
+| C6 | Profiles | Q15, Q31 and Q4.27 for the stages that take them, with the section-scaling design a fixed-point biquad needs. The accelerated back ends (vDSP, CMSIS-DSP Helium) behind the golden contract; the fixed-point CMSIS-DSP adapters, with their Q31 round trip measured (D38). The C ABI from its manifest (D45), and the executed notebooks. |
 | C7 | The synchronous converters (D16) | `rational`'s stages, named chains and profiles; `bridge`. Each is checked against vectors committed from SampleRateTap (fidelity of the port, to a tolerance where D36 changed the arithmetic) and against a reference independent of both libraries, as SampleRateTap checks itself. |
 | C8 | The asynchronous converter (D16) | `async`, as a junction. |
 | C9 | Freeze | The 1.0 contract freeze, once C7 and C8 have shown the architecture holds all of it. |
@@ -1284,25 +1285,17 @@ nothing from the plan; the license waits for the code (D33).
 Decided on 2026-11-24: the planar signature and compile-time channel counts (D42), and
 `parallel` in C1 (D43).
 
-Gating C0b, because each defines a contract header:
+Decided on 2026-11-24: the mailbox (D44) and the C ABI as a manifest (D45).
 
-1. **D44**, the mailbox.
-
-Gating CF:
-
-2. **The C ABI's shape.** SampleRateTap's C ABIs choose chain, profile, format and channel
-   count at run time behind a heap-allocated handle, which D13, D21 and D22 forbid.
-   Recommended: a manifest, fixed when the library is built, of named instantiations, each
-   exported under its name with storage the caller supplies (finding 38). It also decides
-   what the notebooks can show.
+Gating C0b and CF: nothing. Every decision that defines a contract header is made.
 
 Gating later milestones:
 
-3. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass? D36's
+1. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass? D36's
    alternative would pull it forward.
-4. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
+2. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
    fixed-point one with C6?
-5. **Documentation tooling.** mdBook for the guide and Doxygen for the reference, as
+3. **Documentation tooling.** mdBook for the guide and Doxygen for the reference, as
    proposed, or Doxygen alone with Markdown pages (one tool, a plainer guide)? Is a print
    edition of the guide wanted, as SampleRateTap has? And should some notebooks arrive
    before the C ABI at C6, through a small command-line tool that writes data for them?
@@ -1323,7 +1316,7 @@ are that file's.
 | One level per image | 15, 28, 41, 57 | Section 3.3: an explicit option, an inline namespace, no default handler |
 | The stage and chain contracts | 6, 42, 43, 45, 54, 56, 63 | Sections 3.2, 3.3 and 4; D42 |
 | Junctions | 22, 50 | Section 6: `report()`, the sanitizer and hardware legs, staging |
-| Missing contracts | 7, 38, 61, 62 | `flush` in section 4; analyzers in 6.1; D43, D44 and question 2 |
+| Missing contracts | 7, 38, 61, 62 | `flush` in section 4; analyzers in 6.1; D43, D44 and D45 |
 | Back ends | 4, 14, 32, 53 | Sections 5.2 and 7.1 |
 | Warnings and tools | 30, 31, 46, 47, 59 | Section 7.2; D2, D30 |
 | The safety posture | 18, 19, 20, 21, 51, 52 | Section 8 |

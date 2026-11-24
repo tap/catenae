@@ -4,7 +4,8 @@
 // would look like and to measure where the memory lands. It is not the library: the stages
 // are toys (a linear-interpolating up2, a pair-averaging down2), there is one sample type,
 // and nothing here is a contract.
-#pragma once
+#ifndef CATENAE_SKETCHES_CONFIG_STATE_SKETCH_H
+#define CATENAE_SKETCHES_CONFIG_STATE_SKETCH_H
 
 #include <algorithm>
 #include <array>
@@ -599,3 +600,5 @@ namespace catenae {
     }
 
 } // namespace catenae
+
+#endif // CATENAE_SKETCHES_CONFIG_STATE_SKETCH_H

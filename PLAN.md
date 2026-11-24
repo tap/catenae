@@ -1,4 +1,4 @@
-# catenae — plan (draft 21)
+# catenae — plan (draft 22)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -78,6 +78,7 @@ open.
 | D31 | Warnings are errors, and the set is strict (section 7.2): the conversion, sign, shadowing, double-promotion, old-style-cast and switch warnings of every compiler in CI, on catenae's own code and on a consumer's view of its headers. A suppression is a recorded deviation, never a habit. | settled as a direction; the flag sets are proposed |
 | D32 | Documentation is four kinds of document with one job each (README, guide, reference, record), plus executed notebooks and generated measurement tables, under rules that keep it short: one home per fact, a fixed contract card per stage, headers that describe only the present, and length budgets enforced in CI (section 11). | proposed |
 | D33 | The license is not chosen. It is decided after the coding is complete, and until then the repository carries no license file and no SPDX line. Files carry the copyright banner of D14 only. `NOTICE.md` still records where every carried file came from and the license it was under there (DspTap and SampleRateTap are MIT), so that whatever is chosen can honour it. | settled |
+| D40 | Headers use include guards in the style of the C++ Core Guidelines (SF.8), not `#pragma once`: `#ifndef CATENAE_<PATH>_<FILE>_H`, `#define`, and a closing `#endif // CATENAE_<PATH>_<FILE>_H`, the name spelled from the header's path under the include root so that it is unique. A check in the tidy job from C0a derives the expected name from the path and fails on a mismatch, a missing guard or a `#pragma once`. | settled |
 
 ### 1.1 Decisions the audit asks for
 
@@ -634,11 +635,11 @@ there. What catenae can do is be built so that this is possible and cheap. The p
   the plan as preconditions.
 - A deviation log from the first commit. Its opening entries, from the audit's reading of
   public summaries of the guidelines and unverified against the text (finding 52):
-  `#pragma once` against include guards; compiler extensions (`restrict`, inlining control,
+  compiler extensions (`restrict`, inlining control,
   reading the floating-point control register), which go in one header so that each is one
   deviation; `memcpy`-based bit casts; the signed right shift; early returns against a
   single exit point; `-Wunsafe-buffer-usage` off. An overloaded `|` is not expected to need
-  one.
+  one, and include guards (D40) remove the entry the audit listed for `#pragma once`.
 - Positions an assessor reads off ISO 26262-6's tables at ASIL B, recorded now because they
   touch every function (finding 51): guard-clause early returns are the project's style,
   with its rationale as a deviation; a complexity ceiling per function, kernels included,

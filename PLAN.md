@@ -1,8 +1,8 @@
-# catenae — plan (draft 5)
+# catenae — plan (draft 6)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
-A C++17 header-only library of audio processing *stages*, the *chain* that composes them,
+A C++17 library of audio processing *stages*, the *chain* that composes them,
 and the *junctions* that join chains across threads and clocks. A stage has a contract stated
 as numbers (ratio, channels, layout, sample types, latency, tail); a chain is a type the
 caller writes from stages, and it composes those numbers; a junction has a contract of the
@@ -10,11 +10,11 @@ same kind for the place where two call sites meet.
 
 Status: draft for the maintainer's review. Nothing here is built. Each decision in section 1
 is marked **settled** (the maintainer said so) or **proposed** (this draft's recommendation,
-open until confirmed). Section 9 lists the questions that gate the first milestone.
+open until confirmed). Section 10 lists the questions that gate the first milestone.
 
 Evidence: the layout spike of November 2026 (DspTap and SampleRateTap branches
 `ccr-ef01ff18-nxz8n4`; DspTap `bench.yml` runs 153, 157, 161) and the write-up
-"Interleaved or Planar: A Short Book for the Tap Chain". Section 8 says what those two
+"Interleaved or Planar: A Short Book for the Tap Chain". Section 9 says what those two
 libraries have changed since and what that does to the evidence.
 
 ---
@@ -35,8 +35,8 @@ starts from the wider contract instead, in C++17, with no compatibility debt.
 | D1 | The name is `catenae`; the repository is `tap/catenae`. | settled |
 | D2 | The language is C++17, strictly: one code path, and every header compiles to the same thing at `-std=c++17`, 20 and 23. No C++20 feature appears in any header, not even behind a feature test. Where the standard library only has a type from C++20 on, catenae writes its own (`catenae::span` first). | settled |
 | D3 | DspTap and SampleRateTap are sources of material, not dependencies: no submodule, no link. Code is carried in by copy, ported to C++17, and recorded in `NOTICE.md` with the commit it came from. | settled |
-| D4 | Header-only, standard library only, MIT. | proposed (the Tap libraries' rule) |
-| D5 | The chain's native layout is interleaved, with the channel count a compile-time number. | proposed (measured: section 8) |
+| D4 | Standard library only, MIT. Not header-only: templates whose compile-time numbers matter stay in headers, and everything else is compiled once into a static library, `catenae` (section 7). The FFT is behind one compiled interface, its back end chosen by a CMake option when the library is built. | proposed (the maintainer pushed back on header-only, 2026-11-24; the split is this draft's answer) |
+| D5 | The chain's native layout is interleaved, with the channel count a compile-time number. | proposed (measured: section 9) |
 | D6 | A stage declares its input and output separately. Each side is a *port*: sample type, channel count, layout and signal kind (D17). | proposed |
 | D7 | Planar is a typed region inside a chain: converter stages at its ends, a wrapper for convenience. The chain never accepts either layout at a joint. | proposed |
 | D8 | Byte order and packing exist only in wire stages at the ends of a chain. Inside, every sample is native. | proposed |
@@ -97,7 +97,7 @@ constexpr members and member types, read through `stage_traits<T>`.
 
 The first four rows describe a port. A stage has two, in one call on one thread.
 
-Open inside the contract (section 9): the planar `process` signature, how a frame of
+Open inside the contract (section 10): the planar `process` signature, how a frame of
 coefficients is laid out, and whether run-time parameter changes are part of the contract or
 a per-stage matter.
 
@@ -167,13 +167,57 @@ choosing a type.
 
 Latency across a junction composes as nominal only: chain, junction, chain.
 
-## 7. Milestones
+## 7. What is a header and what is compiled
+
+The rule, by what a piece of code is parameterized on:
+
+| Parameterized on | Where it lives | Examples |
+|---|---|---|
+| A compile-time number measured to matter (channel count, section count, ratio), or a loop that must inline into a stage's per-sample loop | Header template | The stages, the chain, `feeding` / `fed_by`, the FIR dot kernels, the biquad block kernel, `span`, the traits |
+| Only the sample type (a closed set: `double`, `float`, Q15, Q31) and run-time sizes | Compiled, explicitly instantiated for the four types | The FFT engines, wire `pack` / `unpack` for the bulk formats, the asynchronous converter's servo, the analysis instruments |
+| Nothing (design-time arithmetic in `double`) | Compiled | The Kaiser and Nyquist designers, the Butterworth and biquad designs, the flush-window computation, group delay, `raise` |
+
+What this buys, in the order of how sure the claim is:
+
+1. **One definition per image, by construction.** The spike hit the header-only failure
+   twice: two translation units built with different floating-point contraction flags
+   shared one inline kernel and the linker kept one copy, breaking a bit-exact test; and
+   DspTap needs an inline-namespace ABI tag on every class that embeds the FFT, so that two
+   units configured for different back ends cannot meet. A compiled FFT with an opaque
+   handle has one back end per library build and needs no tag. A stage holds the handle,
+   allocated at construction; the call per block is not inlined, which costs nothing
+   measurable at block rate.
+2. **The numeric contract becomes the library's, not the consumer's flags.** The compiled
+   core is built with catenae's own contraction policy, so its bit pins hold whatever the
+   consumer passes, `-ffast-math` included. Header templates still compile under the
+   consumer's flags, and the contract says so.
+3. **ROM.** Header-only does not by itself duplicate code across translation units (the
+   linker folds identical inline functions). The real costs are a large kernel inlined at
+   several call sites, and design-time code in `double` dragging software floating point
+   and `libm` into an image on a core without a double FPU. Compiled code is one copy, can
+   be built for size while the consumer builds for speed, and is dropped when unused
+   (`-ffunction-sections`, `--gc-sections`). The second cost has a second remedy: every
+   stage with a designer also accepts precomputed coefficients, so a fixed design links no
+   designer at all.
+4. **Consumer compile time.**
+
+What it costs: the consumer builds source files, not just an include path. With CMake that
+is `add_subdirectory` and one target; the library is always built from source in the
+consumer's build, with the consumer's target flags (CPU, float ABI, exceptions, RTTI), and
+never shipped prebuilt. For build systems that are not CMake, a single amalgamated
+`catenae.cpp` is generated in CI.
+
+Claim 3 is a prediction, so it is measured: each component that could go either way gets a
+size probe in both forms on the embedded targets (`.text` and `.rodata`, the ceilings script
+carried from SampleRateTap), and the table above is corrected where a probe disagrees.
+
+## 8. Milestones
 
 Each ends with its battery green on every CI leg and its numbers recorded.
 
 | | Milestone | Contents |
 |---|---|---|
-| C0 | Skeleton | Repository layout, license, `NOTICE.md`, style files, CI: hosted builds at `-std=c++17` (and at 20 and 23, to prove nothing depends on 17's absence of a feature), the no-exceptions/no-RTTI build, the Cortex-M and Hexagon QEMU legs. `span`, `expects`/`raise`, `sample_traits`, the port, `stage_traits` and `junction_traits`, the contract documents for both. |
+| C0 | Skeleton | Repository layout, license, `NOTICE.md`, style files, CI: hosted builds at `-std=c++17` (and at 20 and 23, to prove nothing depends on 17's absence of a feature), the no-exceptions/no-RTTI build, the Cortex-M and Hexagon QEMU legs. `span`, `expects`/`raise`, `sample_traits`, the port, `stage_traits` and `junction_traits`, the contract documents for both. The `catenae` static library target with its first compiled unit, the amalgamation, and a size probe per embedded target. The compile-fail battery: one test per architectural rule (a planar stage after an interleaved one does not compile; nor mismatched sample types or channel counts at a joint; nor a time-domain stage after an analysis; nor a junction inside a chain), each asserting on its `static_assert` message. The battery is the executable form of sections 3 to 6 and grows with them. |
 | C1 | The chain on trivial stages | `chain`, `gain`, integer `delay`, `interleave`/`deinterleave`, sample converters (`to<float>`, `to<int16_t>`). The instruction-count harness and the layout benchmark, carried from the spike. `handoff`, with `feeding` and `fed_by`. This milestone proves D6, D7, D9, D10 and D19 on the simplest instances, before any filter or converter depends on them. |
 | C2 | The edges | Wire `pack`/`unpack` (16, 24-packed, 24-in-32, 32; either byte order), TPDF dither, the mix matrix. |
 | C3 | Filters | The biquad block kernel, the biquad family and the Butterworth, a direct-form FIR, the FIR decimators and L/M stages. |
@@ -184,11 +228,17 @@ Each ends with its battery green on every CI leg and its numbers recorded.
 | C8 | The asynchronous converter (D16) | `async`, as a junction (D19). |
 | C9 | Freeze | The 1.0 contract freeze, once C7 and C8 have shown the architecture holds all of it. |
 
+Optional, after C1: a time-boxed experiment (an hour or two) modelling port, stage, junction
+and chain in SysML v2's textual notation, compared against the working code and the
+compile-fail battery. It is kept only if it exposes something they missed. SysML is not
+otherwise part of the plan: the contracts are `static_assert`s, so the compiler already
+checks the model.
+
 C7 and C8 do not start until the maintainer calls the architecture stable. What C0 and C1 owe
 them is narrower: a stage contract `rational` and `bridge` fit, and a junction contract, proven
 on `handoff`, that `async` fits.
 
-## 8. What is carried in, and what moved
+## 9. What is carried in, and what moved
 
 ### Carried from DspTap (ported to C++17, each with its tests)
 
@@ -230,7 +280,7 @@ Consequence for the evidence: the spike's Butterworth layout rows describe two k
 are both superseded. The FIR, FFT FIR, converter and gain rows stand. The Butterworth's
 layout must be measured again on the block kernel, which C3 does as a matter of course.
 
-## 9. Open questions
+## 10. Open questions
 
 Decided on 2026-11-24 and moved to section 1: catenae's identity (D14), its relationship
 to SampleRateTap (D15), strict C++17 (D2), and that catenae will in time duplicate all of
@@ -259,3 +309,6 @@ Gating later milestones:
 6. **Fixed point.** Q15/Q31 from each stage's first version, or as a C6 pass?
 7. **The FFT.** Carry the srdif engine and its fixed-point profiles whole, or only the
    floating engine the FFT FIR needs?
+8. **Build systems.** Which consumers are not CMake (vendor IDEs, Arduino, Zephyr, Bazel)?
+   The amalgamated source covers them in principle; naming the real ones decides what CI
+   has to prove.

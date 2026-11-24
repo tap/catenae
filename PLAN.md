@@ -1,4 +1,4 @@
-# catenae — plan (draft 25)
+# catenae — plan (draft 26)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -84,7 +84,7 @@ open.
 ### 1.1 Decisions the audit asks for
 
 Each row is a problem the audit confirmed, the options, and this draft's recommendation.
-D34, D36 and D39 were accepted on 2026-11-24. The rest are **proposed**. D35 and D37 change
+D34, D36, D38 and D39 were accepted on 2026-11-24. The rest are **proposed**. D35 and D37 change
 the contract headers, so they are settled before C0b (section 10). D34, D35 and D37 are
 written out as compiled code in `docs/sketches/config-state/`, with the measurement of where the
 memory lands: for the overdrive chain on a Cortex-M33, no flash for its data, 6,184 bytes of
@@ -96,7 +96,7 @@ memory lands: for the overdrive chain on a Cortex-M33, no flash for its data, 6,
 | D35 | **A 1:1 ratio is not n frames out for n in.** `stft \| ... \| istft` with a hop of 128, fed 64 frames, returns 0 then 128; a by-3 down then up returns 66, 63, 63. The fixed-extent entry cannot compile for such a chain, a callback that must return n for n cannot use it, and `fed_by` overshoots: a chain by 16 asked for 100 frames writes 112. SampleRateTap's `pull(out, k)` stops at exactly k; the stage contract has no such form. (Findings 23, 33, 37.) | **State it, and provide the two adapters.** (1) A stage publishes `is_frame_synchronous` (`outputs_for(n)` is always n L/M); the fixed-extent entry and an n-for-n callback require it. (2) `steady<Chain>` wraps a bursting chain with a member FIFO and presents a frame-synchronous stage with its true, larger latency (511 frames for the 512/128 region, not 384); it is how a spectral region meets an audio callback. (3) `fed_by` owns a holdover array of the chain's worst overshoot, a `constexpr` number from the traits, and so delivers exactly k: that is where SampleRateTap's `pull` lands. `frames_needed(k)` is defined as the smallest n with `outputs_for(n) >= k`. | Add an output-bounded `run` to every stage (it may leave input unconsumed), and redo the chain's scratch proof for banked outputs. More general; it complicates every stage for the sake of two adapters. |
 | D36 (accepted) | **The float default runs in software double on two targets.** The carried FIR arithmetic accumulates a `float` filter in `double`, on purpose and with explicit casts no warning sees. On the Cortex-M4F and M33 (single-precision FPUs) every FIR, `up2` / `down2`, L/M stage and converter would do a software-double multiply-add per tap; DspTap's own header records about 19 times Q15's instruction count on the M33. That contradicts D24 and the purpose section 7.2 gives for the double-promotion warning. (Findings 1, 26.) | **The `float` profile accumulates in `float`.** It is the profile for cores with a single-precision FPU, so it must not leave it. Its noise floor is measured and stated per stage (lower than the carried one; `_f64` stays the golden model and the choice for a host). C7's comparison with SampleRateTap is then to a tolerance for `float` and bit for bit only where the arithmetic is unchanged (`double`, Q15, Q31). A link-stage gate enforces it: a `float`-profile image on those cores may not reference a software-double routine. | Keep `double` accumulation as carried, record it as an exception, and tell M4F and M33 users to use fixed point, which pulls the fixed-point profiles forward from C6. |
 | D37 | **A design is more than "a small value".** (1) A design's validity depends on the sample format: a cutoff that is stable in `double` can lose a pole in `float`, and the tail is computed from the rounded coefficients. A format-free design cannot give the infallible constructor section 3.3 promises. (2) `bridge` and `async` design tables of 12 to 164 KB from run-time arguments, using up to 328 KB of `double` scratch; such a table cannot be returned by value, and its tap count sizes the stage's storage. (3) `latency()` as one report recomputes a 1,025-point group-delay scan that DspTap split out for its cost (28 M instructions on the M33). (Findings 5, 11, 12, 13, 35, 55.) | **Designs carry their format, hold their numbers, and come in two kinds.** `butterworth_design<S, N>`: `make()` validates for that `S` and stores coefficients already in the kernel's coefficient type, with the tail and the latency numbers computed once. So a stage built from a ROM design links no `double` and no `libm`, and `latency()` returns stored numbers; `group_delay(f)` is a design-time free function, not a stage member. *Small* designs are returned by value. *Table* designs are generated ROM tables with a bit pin, or are built by `make(spec, table, workspace)` into storage the caller supplies, with `constexpr` size functions. Where a profile fixes a tap count that sizes storage, the profile is a template argument. A design is a class with a `constexpr` constructor, not an open aggregate, so only `make()` and the table generator can produce one. | Keep format-free designs and let the stage constructor validate and fail, which gives up "a stage cannot fail". |
-| D38 | **Fixed-point resynthesis does not survive fixed scaling in 16 bits, and is limited in 32.** A fixed-scaling forward transform followed by its inverse returns the signal about log2 N + 1 bits down (Q15) or log2 N + 3 (Q31). Measured in the audit on DspTap's engine at N = 512, as signal-to-noise for a full-scale signal and one 20 dB below it: Q15 36 dB and 17 dB; Q31 112 dB and 92 dB. The floor is fixed, so the ratio falls dB for dB with the signal's level and with every doubling of N (Q15 at 2048: 24 dB and 3 dB). This is a property of fixed scaling, not of a back end: CMSIS-DSP's fixed-point transforms have only that kind (its Q31 round trip was not measured). The one remedy that exists is catenae's own engine's block-floating policy, which measured 81 to 88 dB in Q15 and about 150 dB in Q31, and which needs an exponent to travel with every frame. `float` and `double` are unaffected on every back end. (Finding 25.) | **At 1.0: Q15 spectra are for analysis only; Q31 resynthesis is offered under fixed scaling with its floor stated per length.** A Q15 or Q31 `stft` feeds analyzers and magnitude consumers, its format in the spectrum's type (D29), on the own engine or CMSIS-DSP. A Q31 `istft` is allowed, on either, with the bits it loses stated as a contract number for each length and the level dependence said plainly; a Q15 `istft` does not compile. Block floating, which only the own engine has, waits for a design of where the exponent travels and what a spectral stage does when two frames' exponents differ. | (a) Fixed-point transform regions are analysis only in both widths, the simplest rule. (b) Carry block floating now, own engine only, and settle the exponent's place in the frame. |
+| D38 (accepted) | **Fixed-point resynthesis does not survive fixed scaling in 16 bits, and is limited in 32.** A fixed-scaling forward transform followed by its inverse returns the signal about log2 N + 1 bits down (Q15) or log2 N + 3 (Q31). Measured in the audit on DspTap's engine at N = 512, as signal-to-noise for a full-scale signal and one 20 dB below it: Q15 36 dB and 17 dB; Q31 112 dB and 92 dB. The floor is fixed, so the ratio falls dB for dB with the signal's level and with every doubling of N (Q15 at 2048: 24 dB and 3 dB). This is a property of fixed scaling, not of a back end: CMSIS-DSP's fixed-point transforms have only that kind (its Q31 round trip was not measured). The one remedy that exists is catenae's own engine's block-floating policy, which measured 81 to 88 dB in Q15 and about 150 dB in Q31, and which needs an exponent to travel with every frame. `float` and `double` are unaffected on every back end. (Finding 25.) | **At 1.0: Q15 spectra are for analysis only; Q31 resynthesis is offered under fixed scaling with its floor stated per length.** A Q15 or Q31 `stft` feeds analyzers and magnitude consumers, its format in the spectrum's type (D29), on the own engine or CMSIS-DSP. A Q31 `istft` is allowed, on either, with the bits it loses stated as a contract number for each length and the level dependence said plainly; a Q15 `istft` does not compile. Block floating, which only the own engine has, waits for a design of where the exponent travels and what a spectral stage does when two frames' exponents differ. | (a) Fixed-point transform regions are analysis only in both widths, the simplest rule. (b) Carry block floating now, own engine only, and settle the exponent's place in the frame. |
 | D39 (accepted) | **Latency needs an exact form, and a 4x oversampler is half a sample out.** A linear-phase half-band's delay is odd at its own rate, so `up2 \| up2 \| ... \| down2 \| down2` has a latency of k + 1/2 base-rate frames (18.5 and 23.5 measured on SampleRateTap's chains), and "delay the dry path by the nominal latency" cannot be done with an integer delay. A pair of doubles also cannot pin "this latency is exactly 80/3". (Findings 27, 55.) | **An exact stage reports an exact rational.** `latency()` returns `{nominal, deviation}` as numbers for every stage, and a stage with `has_exact_latency` also has `exact_latency()`, a reduced rational, which is what a chain of exact stages composes and what a test pins. `oversample<Factor, Stage>` builds the up and down stages with the one-frame delay at the inner rate that makes its latency a whole number of base-rate frames; bare `up2` / `down2` beyond 2x are documented as fractionally delayed. | Doubles only, with the oversampler's delay left to the caller. |
 
 ## 2. Charter
@@ -212,8 +212,8 @@ is adding rows to the battery, which for a linear stage is the derived row above
 The same tag carries a fixed-point spectrum's format: an FFT with the fixed scaling policy
 grows its output by a known number of bits for a given length (log2 N for Q15, log2 N + 1
 for Q31 in the carried engine), so the format is the spectrum's type and no exponent travels
-with the frame. That serves analysis. It does not serve resynthesis, which D38 leaves to
-`float` and `double`.
+with the frame. That serves analysis in both widths and, in Q31, a resynthesis with a
+stated loss of bits (D38). A Q15 inverse transform does not compile.
 
 ### 3.2 What a stage declares
 
@@ -367,8 +367,8 @@ channel 1:  re[0] im[0]  re[1] im[1]  ...  re[N/2] im[N/2]
   convention and the accelerated back ends'. DspTap's engine uses `exp(+i)`; the carried
   engine is conjugated in its post-pass. An analysis and synthesis pair states its overall
   gain (1) and its reconstruction error as numbers.
-- **Fixed point.** A Q15 or Q31 spectrum's format is in its type and it is for analysis
-  (D29, D38).
+- **Fixed point.** A Q15 or Q31 spectrum's format is in its type (D29). Q15 spectra are for
+  analysis; a Q31 one can also be resynthesised, at a floor stated per length (D38).
 - **A frame's time.** A spectrum frame is stamped by the first sample of its window; the
   region's latency is stated against that.
 - **The alternative, split complex** (all real parts, then all imaginary: vDSP's native
@@ -469,7 +469,7 @@ What this buys:
 |---|---|---|---|
 | catenae's own floating engine (DspTap's srdif engine, ported) | `float`, `double` | everywhere; the default | source in this repository |
 | catenae's own fixed-point engine (DspTap's, ported) | Q15, Q31 | everywhere; the default | source in this repository |
-| CMSIS-DSP | `float`, Q15 and Q31. The `float` adapter for Helium (Cortex-M55) first; the fixed-point ones with C6, for analysis (D38); a Neon adapter is a separate one, written when a consumer needs it | Arm, opt-in | the consumer's copy, as a CMake target that carries its include directories and its compile definitions. CI fetches one pinned release by hash. |
+| CMSIS-DSP | `float`, Q15 and Q31. The `float` adapter for Helium (Cortex-M55) first; the fixed-point ones with C6 (Q15 for analysis, Q31 also for resynthesis: D38); a Neon adapter is a separate one, written when a consumer needs it | Arm, opt-in | the consumer's copy, as a CMake target that carries its include directories and its compile definitions. CI fetches one pinned release by hash. |
 | vDSP (Accelerate) | `float` first | Apple, opt-in | the system framework; nothing to bring in |
 
 - **Own engines are the reference.** They are the only FFT code in the repository, the only
@@ -945,8 +945,8 @@ Each ends with its battery green on every CI leg and its numbers recorded.
 | C2 | The edges | `unpack` / `pack` (16, 24-packed, 24-in-32, 32; either byte order), TPDF dither, the mix matrix. |
 | C3 | Filters | The biquad block kernel, the biquad family and the Butterworth with their designs, a direct-form FIR, `up2` / `down2` and the L/M stage machine with one pinned design (profiles and named chains are C7's), `oversample`. The overdrive chain of 9.3 as a tested example. The Butterworth's layout measured again. |
 | C4 | Blocks | The FFT behind its compiled interface with its ROM tables, the overlap-save FFT FIR, `planar_section`. The split-complex measurement, and D25 frozen. |
-| C5 | Analysis and the transform domain | Meters, auto- and cross-correlation over `tap`. `stft` / `istft` in `float` and `double` and a spectral gain: the gate of 9.4, inside `steady`, as a tested example. |
-| C6 | Profiles | Q15, Q31 and Q4.27 for the stages that take them, with the section-scaling design a fixed-point biquad needs. The accelerated back ends (vDSP, CMSIS-DSP Helium) behind the golden contract; the fixed-point CMSIS-DSP adapters for analysis. The C ABI as CF shaped it, and the executed notebooks. |
+| C5 | Analysis and the transform domain | Meters, auto- and cross-correlation over `tap`. `stft` / `istft` in `float` and `double` (their fixed-point forms are C6's, under D38) and a spectral gain: the gate of 9.4, inside `steady`, as a tested example. |
+| C6 | Profiles | Q15, Q31 and Q4.27 for the stages that take them, with the section-scaling design a fixed-point biquad needs. The accelerated back ends (vDSP, CMSIS-DSP Helium) behind the golden contract; the fixed-point CMSIS-DSP adapters, with their Q31 round trip measured (D38). The C ABI as CF shaped it, and the executed notebooks. |
 | C7 | The synchronous converters (D16) | `rational`'s stages, named chains and profiles; `bridge`. Each is checked against vectors committed from SampleRateTap (fidelity of the port, to a tolerance where D36 changed the arithmetic) and against a reference independent of both libraries, as SampleRateTap checks itself. |
 | C8 | The asynchronous converter (D16) | `async`, as a junction. |
 | C9 | Freeze | The 1.0 contract freeze, once C7 and C8 have shown the architecture holds all of it. |
@@ -1214,7 +1214,7 @@ nothing from the plan; the license waits for the code (D33).
 Gating C0b, because each defines a contract header (the audit's finding 2 moved the first
 three here from "gating C1"):
 
-1. **Section 1.1: D35, D37 and D38.**
+1. **Section 1.1: D35 and D37.**
 2. **The planar signature.** Recommended: a span per channel. One span with the channels end
    to end cannot be cut into blocks, which the chain's block-at-a-time `process` and a
    nested chain both need (finding 63).
@@ -1268,7 +1268,7 @@ are that file's.
 | Per-call behaviour, pull, overshoot | 23, 33, 37, 50 | D35 (proposed); sections 3.2, 3.3, 6; the same sketch |
 | The float accumulator | 1, 26, 31 | D36 (accepted); the link-stage gate in 7.2 |
 | What a design is | 5, 11, 12, 13, 35, 55 | D37 (proposed) |
-| Fixed point | 3, 9, 16, 24, 25, 49, 58 | D38 (proposed); D29 and section 3.1; the sketch of 9.5 |
+| Fixed point | 3, 9, 16, 24, 25, 49, 58 | D38 (accepted); D29 and section 3.1; the sketch of 9.5 |
 | Latency | 27, 55 | D39 (accepted) |
 | One level per image | 15, 28, 41, 57 | Section 3.3: an explicit option, an inline namespace, no default handler |
 | The stage and chain contracts | 6, 42, 43, 45, 54, 56, 63 | Sections 3.2, 3.3 and 4; question 2 |

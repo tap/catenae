@@ -1,4 +1,4 @@
-# catenae — plan (draft 14)
+# catenae — plan (draft 15)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -186,7 +186,12 @@ ill-typed member.
   never errors. What they require of the caller is a precondition.
 - **Design is where failure lives.** Anything computed from run-time numbers (a cutoff, a
   set of taps) is a *design*: a small value type produced by `T::make(args)`, which returns
-  `result<T>` (a value or a `status`; no heap, C++17). A stage is constructed from a design
+  `result<T>`: the value or a `status`, held by value like `std::optional` (no pointer, no
+  heap, C++17). It is read through `has_value()`, `value()` and `status()`; it has no
+  `operator*` or `operator bool`, so nothing about it looks like a pointer. `value()` on an
+  empty result is a violated precondition (the handler), never undefined behaviour. `result`
+  and `status` are `[[nodiscard]]`, so an ignored failure is a warning and, under D31, an
+  error. A stage is constructed from a design
   and cannot fail. A design can equally be a `constexpr` table in ROM, in which case no
   designer is linked at all.
 
@@ -510,9 +515,8 @@ namespace catenae {
 
         // Trusted: the chain has already proven the spans' sizes (section 3.3).
         std::size_t run(span<const S> in, span<S> out) noexcept {
-            for (std::size_t i = 0; i < in.size(); ++i) {
-                out[i] = in[i] * m_gain;
-            }
+            const S g = m_gain;
+            std::transform(in.begin(), in.end(), out.begin(), [g](S x) noexcept { return x * g; });
             return in.size() / Ch;
         }
 
@@ -533,17 +537,33 @@ namespace catenae {
 } // namespace catenae
 ```
 
+**Algorithms or loops.** A stage that maps each sample on its own (gain, `map`, `convert`,
+a fill of silence) is written with a standard algorithm, as above: there is no index to
+get wrong, the intent is in the name, and `std::transform` may write over its own input,
+which is what `is_in_place` promises. `gain` is in effect `map` with a multiply, and may
+simply be defined as that, leaving one audited loop for all of them. A kernel with state
+carried from sample to sample, or a pattern across channels (a biquad, an FIR dot product,
+a per-channel gain over interleaved frames), stays a plain indexed loop inside its kernel
+function: no algorithm expresses it, and those loops are the seams for the vector back
+ends. The kernels are then the only places with index arithmetic, which keeps what must be
+reviewed for it small. Two conditions: the ratchet confirms on every target that the
+algorithm form counts the same as the loop (it compiles to the same loop, but that is a
+measurement, not an assumption), and nothing meant to be evaluated at compile time uses
+one, because the standard algorithms are not `constexpr` before C++20.
+
 ### 9.2 A stage with a design: Butterworth
 
 The design can fail and runs in `double`; the stage cannot fail and runs in its sample type.
 
 ```cpp
-// At start-up, outside the audio path:
-const auto design = catenae::butterworth_design<4>::make(0.1);   // result<butterworth_design<4>>
-if (!design) {
-    return design.status();                                      // status::cutoff_out_of_range
+// At start-up, outside the audio path. A result is a value, like std::optional with a reason
+// for being empty: no pointer, no heap. It is spelled out, not `auto`, and read by name.
+const catenae::result<catenae::butterworth_design<4>> designed =
+    catenae::butterworth_design<4>::make(0.1);
+if (!designed.has_value()) {
+    return designed.status();                                    // status::cutoff_out_of_range
 }
-catenae::butterworth<4, 2> lowpass(*design);                     // order 4, stereo, float; noexcept
+catenae::butterworth<4, 2> lowpass(designed.value());            // order 4, stereo, float; noexcept
 
 // Or with no designer in the image: the same value type as a table in ROM.
 constexpr catenae::butterworth_design<4> k_lowpass_design = { /* generated, bit-pinned */ };

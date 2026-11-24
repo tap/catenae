@@ -1,4 +1,4 @@
-# catenae — plan (draft 28)
+# catenae — plan (draft 29)
 
 **catenae**: Chainable Audio Transforms for Embedded, Native & Accelerated Environments.
 
@@ -80,6 +80,7 @@ open.
 | D33 | The license is not chosen. It is decided after the coding is complete, and until then the repository carries no license file and no SPDX line. Files carry the copyright banner of D14 only. `NOTICE.md` still records where every carried file came from and the license it was under there (DspTap and SampleRateTap are MIT), so that whatever is chosen can honour it. | settled |
 | D40 | Headers use include guards in the style of the C++ Core Guidelines (SF.8), not `#pragma once`: `#ifndef CATENAE_<PATH>_<FILE>_H`, `#define`, and a closing `#endif // CATENAE_<PATH>_<FILE>_H`, the name spelled from the header's path under the include root so that it is unique. A check in the tidy job from C0a derives the expected name from the path and fails on a mismatch, a missing guard or a `#pragma once`. | settled |
 | D41 | The guide is written for one reader: an experienced software engineer who has not worked on embedded hardware, and it is their tutorial (section 11.4). The reference, not the guide, is where an embedded engineer who already knows why looks things up. | proposed (the maintainer's suggestion, 2026-11-24; this draft recommends it) |
+| D42 | The channel count is a compile-time number in both layouts. A planar port is `Ch` spans, one per channel, passed as an array of `Ch` of them; one span with the channels end to end is not offered, because it cannot be cut into blocks. Run-time channel counts are outside the library. A caller who learns the count at run time has two idioms, neither of which needs anything new: choose among the configurations it instantiated (mono, stereo, 5.1), or, for planar audio, run one mono configuration over as many states as there are channels (D34 makes a state per channel the natural form; the spike measured a run-time count there at under 2 %). | settled |
 
 ### 1.1 Decisions the audit asks for
 
@@ -131,7 +132,7 @@ A port is a type. Two stages join when the types are the same, so the joint rule
 | Port | Carries | A frame is |
 |---|---|---|
 | `port<S, Ch, layout::interleaved>` (the default layout) | time-domain audio in sample format `S`: `float`, `double`, or a fixed-point format (below) | `Ch` samples |
-| `port<S, Ch, layout::planar>` | the same, a channel at a time | `Ch` samples, each channel's run contiguous within a call |
+| `port<S, Ch, layout::planar>` | the same, a channel at a time: `Ch` spans, one per channel, passed as an array of them (D42) | `Ch` samples, one from each span |
 | `spectrum<S, Ch, Bins>` | transform coefficients (D25) | `Ch * Bins` values of `complex<S>` |
 | `wire_port<Format, Ch>` | bytes on their way in or out; the formats are in namespace `wire` (`wire::s16le`, `wire::s24le_packed`, `wire::s24be_in_32`, ...) | `Ch * bytes_per_sample` bytes |
 
@@ -728,7 +729,7 @@ class gain {
 Two rules follow from the split. A state's reset value is all zeros, so anything with another
 starting value belongs in the configuration (a dither's seed) or behind a flag like
 `started`. And a setter is not synchronised: it is called on the thread that runs the chain,
-between calls (section 13, question 3, for the other case).
+between calls (section 13, question 1, for the other case).
 
 **Algorithms or loops.** A stage that maps each sample on its own (gain, `map`, `convert`,
 a fill of silence) is written with a standard algorithm, as above: there is no index to
@@ -1242,16 +1243,11 @@ Butterworth's layout again on the block kernel.
 Decided on 2026-11-24: D23 is a precaution with nothing claimed and no checker; cobra needs
 nothing from the plan; the license waits for the code (D33).
 
-Gating C0b, because each defines a contract header (the audit's finding 2 moved the first
-three here from "gating C1"):
+Decided on 2026-11-24 and now D42: the planar signature and compile-time channel counts.
 
-1. **The planar signature.** Recommended: a span per channel. One span with the channels end
-   to end cannot be cut into blocks, which the chain's block-at-a-time `process` and a
-   nested chain both need (finding 63).
-2. **Run-time channel counts.** In the charter at all? The spike says to serve them through
-   planar stages, where a run-time count costs under 2 %. D22 means a maximum count would
-   still be a template argument.
-3. **Changing a running chain, and reading from one.** With D34 a parameter is part of the
+Gating C0b, because each defines a contract header:
+
+1. **Changing a running chain, and reading from one.** With D34 a parameter is part of the
    configuration, so a stage's configuration has the accessor and the setter (`level()`,
    `set_level()`), a chain reaches a stage by position (`chain.stage<I>()`), and a
    configuration that changes at run time is an ordinary small object where a fixed one is a
@@ -1263,14 +1259,14 @@ three here from "gating C1"):
    junction or a thing of its own, and is "when it takes effect, whether it is smoothed"
    part of the stage contract? (Finding 61; this replaces the earlier questions on run-time
    parameters and on analyzer results across threads.)
-4. **Groups of channels.** Is `parallel<ChainA, ChainB>`, which runs two chains on two
+2. **Groups of channels.** Is `parallel<ChainA, ChainB>`, which runs two chains on two
    groups of one port's channels with their latencies aligned, part of C1's chain work? It
    is what a dry path beside a wet one, and later a side chain, would be built from
    (finding 62).
 
 Gating CF:
 
-5. **The C ABI's shape.** SampleRateTap's C ABIs choose chain, profile, format and channel
+3. **The C ABI's shape.** SampleRateTap's C ABIs choose chain, profile, format and channel
    count at run time behind a heap-allocated handle, which D13, D21 and D22 forbid.
    Recommended: a manifest, fixed when the library is built, of named instantiations, each
    exported under its name with storage the caller supplies (finding 38). It also decides
@@ -1278,11 +1274,11 @@ Gating CF:
 
 Gating later milestones:
 
-6. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass? D36's
+4. **Fixed point.** Q15 and Q31 from each stage's first version, or as the C6 pass? D36's
    alternative would pull it forward.
-7. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
+5. **The FFT.** Carry both of DspTap's engines at C4, or the floating one first and the
    fixed-point one with C6?
-8. **Documentation tooling.** mdBook for the guide and Doxygen for the reference, as
+6. **Documentation tooling.** mdBook for the guide and Doxygen for the reference, as
    proposed, or Doxygen alone with Markdown pages (one tool, a plainer guide)? Is a print
    edition of the guide wanted, as SampleRateTap has? And should some notebooks arrive
    before the C ABI at C6, through a small command-line tool that writes data for them?
@@ -1301,9 +1297,9 @@ are that file's.
 | Fixed point | 3, 9, 16, 24, 25, 49, 58 | D38 (accepted); D29 and section 3.1; the sketch of 9.5 |
 | Latency | 27, 55 | D39 (accepted) |
 | One level per image | 15, 28, 41, 57 | Section 3.3: an explicit option, an inline namespace, no default handler |
-| The stage and chain contracts | 6, 42, 43, 45, 54, 56, 63 | Sections 3.2, 3.3 and 4; question 1 |
+| The stage and chain contracts | 6, 42, 43, 45, 54, 56, 63 | Sections 3.2, 3.3 and 4; D42 |
 | Junctions | 22, 50 | Section 6: `report()`, the sanitizer and hardware legs, staging |
-| Missing contracts | 7, 38, 61, 62 | `flush` in section 4; analyzers in 6.1; questions 3, 4 and 5 |
+| Missing contracts | 7, 38, 61, 62 | `flush` in section 4; analyzers in 6.1; questions 1, 2 and 3 |
 | Back ends | 4, 14, 32, 53 | Sections 5.2 and 7.1 |
 | Warnings and tools | 30, 31, 46, 47, 59 | Section 7.2; D2, D30 |
 | The safety posture | 18, 19, 20, 21, 51, 52 | Section 8 |

@@ -2,13 +2,9 @@
 // A junction as an operand of |: feeding and fed_by join a chain to one (D19).
 // Verifies CAT-CHAIN-001.
 // Expect: catenae: a junction is never inside a chain
+#define CF_OPT_IN
 #include "catenae/gain.h"
 #include "cf_junction.h"
-
-namespace catenae {
-    template <>
-    struct is_junction<cf::junction> : std::true_type {};
-} // namespace catenae
 
 void formed() noexcept;
 void formed() noexcept {

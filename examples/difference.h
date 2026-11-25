@@ -23,17 +23,19 @@ namespace example {
     // ANCHOR: card
     /// @brief The first difference, y[n] = x[n] - x[n - 1], as a 1:1 stage.
     ///
-    /// | Contract   |                                                                     |
-    /// |------------|---------------------------------------------------------------------|
-    /// | Ports      | `port<float, Ch>` in and out                                        |
-    /// | Ratio      | 1:1, in place, input group 1 (frame-synchronous: no trail, no lead) |
-    /// | Configured | by nothing                                                          |
-    /// | State      | the last frame; at rest all zero (`rests_at_zero`)                  |
-    /// | Workspace  | none                                                                |
-    /// | Latency    | exactly 1/2 frame: linear phase, antisymmetric                      |
-    /// | Tail       | 1 frame; no residue                                                 |
-    /// | Formats    | `float`                                                             |
-    /// | Method     | a two-tap FIR (Oppenheim and Schafer, sec. 5.7.3)                   |
+    /// | Contract   |                                                                         |
+    /// |------------|-------------------------------------------------------------------------|
+    /// | Ports      | `port<float, Ch>` in and out                                            |
+    /// | Ratio      | 1:1, in place, input group 1 (frame-synchronous: no trail, no lead)     |
+    /// | Configured | by nothing                                                              |
+    /// | State      | the last frame; at rest all zero (`rests_at_zero`)                      |
+    /// | Workspace  | none                                                                    |
+    /// | Latency    | exactly 1/2 frame: linear phase, antisymmetric                          |
+    /// | Tail       | 1 frame; no residue                                                     |
+    /// | Formats    | `float`                                                                 |
+    /// | Limits     | out peaks at twice in (gain 2 at Nyquist); a NaN or inf spoils 2 frames |
+    /// | Method     | a two-tap FIR (Oppenheim and Schafer, sec. 5.7.3)                       |
+    /// | Rationale  | D10, D34, D35, D49                                                      |
     // ANCHOR_END: card
     // ANCHOR: stage
     template <std::size_t Ch>

@@ -3,6 +3,7 @@
 // Copyright 2026 Timothy Place and the catenae contributors
 //
 //   CF_OMIT_<MEMBER>  CLOCKING, CAPACITY, STATE
+//   CF_OPT_IN         specialise is_junction for it, before the traits below first read it
 //   CF_TYPES          nested types, before the members that name them
 //   CF_MEMBERS        members, after the rest
 #ifndef CATENAE_TESTS_COMPILE_FAIL_CF_JUNCTION_H
@@ -10,6 +11,7 @@
 
 #include <cstddef>
 #include <cstdint>
+#include <type_traits>
 
 #include "catenae/junction_traits.h"
 #include "catenae/port.h"
@@ -69,6 +71,15 @@ namespace cf {
     };
 
 } // namespace cf
+
+#ifdef CF_OPT_IN
+// Here, and not in a case: the traits below instantiate is_junction<cf::junction>, and a
+// specialisation after that is ill-formed (MSVC refuses it, C2908).
+namespace catenae {
+    template <>
+    struct is_junction<cf::junction> : std::true_type {};
+} // namespace catenae
+#endif
 
 static_assert(catenae::junction_traits<cf::junction>::capacity_frames >= 1, "the traits instantiate");
 

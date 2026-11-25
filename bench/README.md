@@ -103,6 +103,7 @@ symbol: the gate cannot see it there, and a test pins that limit.
 | What | From |
 |---|---|
 | `baselines.json`, every key; `ceilings.json`, every key but `host` | Bench run [45614209215](https://github.com/tap/catenae/actions/runs/45614209215) at `1cd47fa` (the run names `c4d0c87`, the same tree before the C0a pull request was rebased onto `main`), 2026-11-25: its `measured-<key>` artifacts, copied unchanged, the ceilings computed by `scripts/ceilings.py`'s rule |
+| `baselines.json`: `strip_chain` and `strip_graph`, every key | Bench run [45653902512](https://github.com/tap/catenae/actions/runs/45653902512) at `66debaa`, 2026-11-25: its `measured-<key>` artifacts, copied unchanged; every other count in that run equal to its baseline |
 
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
 (Ubuntu's `gcc-arm-none-eabi` 15:13.2.rel1-2) and `qemu-system-arm` 8.2.2 for the Arm keys;
@@ -123,3 +124,32 @@ development container with the same packages.
 The whole-run counts are almost all start-up and the semihosted `printf`: the thousand calls
 to `catenae::version()` cost 9 instructions each, a call and a return. They are the harness
 proving itself on the first compiled unit, not a cost of the library.
+
+### The strip, as a chain and as a graph
+
+`strip_chain` runs the examples' strip (`examples/strip.h`: a ramping gain, a 32-frame delay
+and a halving map, stereo) as a chain over 1000 blocks of 64 frames. `strip_graph` runs the
+same arithmetic as three virtual nodes joined at run time (`examples/run_time_graph.h`), the
+shape a framework without compile-time joints takes. Both feed the same pseudo-random input and
+fold the same two samples of each block into a checksum, and on every key both print
+`9edaac15a16f6c7f`: the same output, bit for bit, which `bench/icount/agree.cmake` also pins on
+the host. Every key counted C++20 and C++23 equal to C++17. The compilers are those of the
+first run above (GCC 13.2.1 for the Arm keys and 13.3.0 for `host`, as the run's configure
+steps print them; CodeLinaro clang 19.1.5, pinned by its SHA256, for `hexagon`).
+
+| Key | `strip_chain` | `strip_graph` | chain less graph |
+|---|--:|--:|--:|
+| `m4-softfp` | 24,160,128 | 23,574,864 | +585,264 (+2.5 %) |
+| `m4f` | 3,796,665 | 3,840,400 | -43,735 (-1.1 %) |
+| `m33` | 3,860,694 | 3,841,430 | +19,264 (+0.5 %) |
+| `m55` | 2,375,698 | 2,472,434 | -96,736 (-3.9 %) |
+| `hexagon` | 1,172,150 packets | 1,299,888 packets | -127,738 (-9.8 %) |
+| `host` | 2,777,174 | 3,203,166 | -425,992 (-13.3 %) |
+
+A QEMU key's count is the whole run, start-up, input, checksum and `printf` included; the
+`host` count is the loop alone (`catenae_host_counted()`). Those parts are the same in both
+binaries, so the difference is the strip's alone. On the Cortex-M cores the two cost about
+the same, within 4 % either way; on Hexagon and the host the chain is the cheaper. What the
+graph gives up is not speed: a node whose channel count differs from the one before it is
+found when it is connected, as the program runs (`graph::connect` returns false), where the
+chain refuses it when its type is formed, before the program exists.

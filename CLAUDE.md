@@ -142,9 +142,9 @@ and the header checks each time; the measurements are of the shipping level, `bo
 The `constinit_dynamic` case is GCC's and Clang's only: on MSVC the macro is empty (DEV-001).
 The battery is built with contraction off (`catenae_contraction`), as the compiled core is: the
 numeric contracts are pinned there, and a header template under a consumer's flags may differ
-by what a fused multiply-add moves. A stage of another namespace joins a chain through
-`catenae::chain(a) | b` or `using catenae::operator|;`: argument-dependent lookup does not
-reach catenae's `|` from it.
+by what a fused multiply-add moves. Two stages of another namespace join through
+`catenae::chain(a) | b` or `using catenae::operator|;`: argument-dependent lookup finds
+catenae's `|` only when one operand is a catenae type.
 
 The harness (`bench/README.md`): `-DCATENAE_BUILD_BENCH=ON` builds the ratchet's workloads,
 the size and stack probes and the link-gate fixtures; `scripts/icount.py` counts and gates

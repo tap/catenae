@@ -52,10 +52,12 @@ jobs:
             name: Linux GCC 13
             os: ubuntu-24.04
             cxx: g++-13
+            fit: -DCATENAE_BUILD_FIT=ON
           - compiler: clang
             name: Linux Clang 18
             os: ubuntu-24.04
             cxx: clang++-18
+            fit: -DCATENAE_BUILD_FIT=ON
           - compiler: apple
             std: "17 20 23"
             label: "17, 20 and 23"
@@ -81,7 +83,7 @@ jobs:
           if [ -n "${{ matrix.cxx }}" ]; then export CXX="${{ matrix.cxx }}"; fi
           for std in ${{ matrix.std }}; do
             echo "::group::CMake, C++$std, boundary"
-            cmake -S . -B "build-$std-boundary" -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=$std -DCATENAE_CHECKS=boundary
+            cmake -S . -B "build-$std-boundary" -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=$std -DCATENAE_CHECKS=boundary ${{ matrix.fit }}
             cmake --build "build-$std-boundary" --config Release -j 4
             ctest --test-dir "build-$std-boundary" -C Release ${{ env.CTEST_COMMON }}
             echo "::endgroup::"
@@ -93,7 +95,7 @@ jobs:
           if [ -n "${{ matrix.cxx }}" ]; then export CXX="${{ matrix.cxx }}"; fi
           for std in ${{ matrix.std }}; do
             echo "::group::CMake, C++$std, audit"
-            cmake -S . -B "build-$std-audit" -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=$std -DCATENAE_CHECKS=audit
+            cmake -S . -B "build-$std-audit" -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=$std -DCATENAE_CHECKS=audit ${{ matrix.fit }}
             cmake --build "build-$std-audit" --config Release -j 4
             ctest --test-dir "build-$std-audit" -C Release ${{ env.CTEST_COMMON }}
             echo "::endgroup::"
@@ -232,7 +234,7 @@ jobs:
             extra: -DCATENAE_M4_FPU=ON
           - name: Cortex-M33
             toolchain: cmake/arm-cortex-m33-mps2.cmake
-            extra: ""
+            extra: -DCATENAE_BUILD_FIT=ON
           - name: Cortex-M55
             toolchain: cmake/arm-cortex-m55-mps3.cmake
             extra: ""

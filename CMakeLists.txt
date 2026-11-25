@@ -17,6 +17,7 @@ option(CATENAE_BUILD_EXAMPLES "Build the examples the guide includes" ${PROJECT_
 option(CATENAE_BUILD_BENCH "Build the ratchet's workloads, the size probes and the link-gate fixtures" OFF)
 option(CATENAE_COVERAGE "Instrument every target for Clang's source-based coverage" OFF)
 option(CATENAE_AMALGAMATION "Build the compiled core from the amalgamated catenae.cpp (scripts/amalgamate.py)" OFF)
+option(CATENAE_BUILD_FIT "Build the fit milestone's throwaway skeletons and their tests (fit/, PLAN.md CF)" OFF)
 
 # The standard of catenae's own build: 17, 20 or 23 (D2: the same files at each). A consumer's
 # own setting wins; the library itself asks for C++17 and nothing later.
@@ -105,4 +106,10 @@ if(CATENAE_BUILD_EXAMPLES)
 endif()
 if(CATENAE_BUILD_BENCH)
     add_subdirectory(bench)
+endif()
+if(CATENAE_BUILD_FIT)
+    if(NOT CATENAE_BUILD_TESTS)
+        message(FATAL_ERROR "CATENAE_BUILD_FIT needs CATENAE_BUILD_TESTS: the skeletons' tests use the battery's harness")
+    endif()
+    add_subdirectory(fit)
 endif()

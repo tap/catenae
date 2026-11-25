@@ -113,7 +113,7 @@ namespace {
     }
 
     /// `v`, `frames` frames of `width` values later, after silence; as long as `v`.
-    std::vector<float> later(const std::vector<float>& v, std::size_t width, std::size_t frames) {
+    std::vector<float> delayed_by(const std::vector<float>& v, std::size_t width, std::size_t frames) {
         std::vector<float> moved(v.size(), 0.0f);
         for (std::size_t i = frames * width; i < v.size(); ++i) {
             moved[i] = v[i - frames * width];
@@ -155,7 +155,7 @@ namespace {
         const auto a   = run_in_calls(chain(catenae::delay<1, 5>{}), channels(in, 3, 0, 1), 500);
         const auto b   = run_in_calls(chain(catenae::gain<2>{0.5f, 0}), channels(in, 3, 1, 2), 500);
         EXPECT_TRUE(catenae_test::bit_equal(channels(out, 3, 0, 1), a));
-        EXPECT_TRUE(catenae_test::bit_equal(channels(out, 3, 1, 2), later(b, 2, 5)));
+        EXPECT_TRUE(catenae_test::bit_equal(channels(out, 3, 1, 2), delayed_by(b, 2, 5)));
 
         // Arms that are chains, and the other arm ahead.
         constexpr auto slow = catenae::gain<1>{2.0f, 0} | catenae::delay<1, 9>{};
@@ -165,7 +165,7 @@ namespace {
         const auto o2  = run_in_calls(chain(both), in2, 11);
         const auto a2  = run_in_calls(chain(catenae::delay<1, 2>{}), channels(in2, 2, 0, 1), 300);
         const auto b2  = run_in_calls(chain(slow), channels(in2, 2, 1, 1), 300);
-        EXPECT_TRUE(catenae_test::bit_equal(channels(o2, 2, 0, 1), later(a2, 1, 7)));
+        EXPECT_TRUE(catenae_test::bit_equal(channels(o2, 2, 0, 1), delayed_by(a2, 1, 7)));
         EXPECT_TRUE(catenae_test::bit_equal(channels(o2, 2, 1, 1), b2));
     }
 
@@ -252,10 +252,10 @@ namespace {
         // Planar in, interleaved out: the round trip is the input.
         constexpr auto     together = chain(parallel{catenae::interleave<2>{}, catenae::interleave<1>{}});
         auto               m2       = std::make_unique<catenae::memory_of<decltype(together)>>();
-        std::vector<float> round(3 * 100, 0.0f);
+        std::vector<float> rejoined(3 * 100, 0.0f);
         together.reset(m2->state);
-        ASSERT_EQ(together.process(*m2, back, catenae::span<float>(round)), 100u);
-        EXPECT_TRUE(catenae_test::bit_equal(round, in));
+        ASSERT_EQ(together.process(*m2, back, catenae::span<float>(rejoined)), 100u);
+        EXPECT_TRUE(catenae_test::bit_equal(rejoined, in));
     }
 
 } // namespace

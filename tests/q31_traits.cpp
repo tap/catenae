@@ -13,7 +13,9 @@
 #include "catenae/convert.h"
 #include "catenae/delay.h"
 #include "catenae/gain.h"
+#include "catenae/handoff.h"
 #include "catenae/interleave.h"
+#include "catenae/junction_traits.h"
 #include "catenae/map.h"
 #include "catenae/parallel.h"
 #include "catenae/stage_traits.h"
@@ -45,5 +47,7 @@ namespace {
     static_assert(contract<catenae::parallel<catenae::deinterleave_q31<2>, catenae::deinterleave_q31<1>,
                                              catenae::align::by_caller>>(),
                   "parallel in q31, planar out, aligned by the caller");
+    static_assert(catenae::junction_traits<catenae::handoff<catenae::q31, 2, 256, 64, 64>>::opted_in,
+                  "a handoff of q31 frames: the junction's contract");
 
 } // namespace

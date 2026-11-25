@@ -35,15 +35,17 @@ env:
 jobs:
   # Hosted GCC, Clang, MSVC and Apple at C++17, 20 and 23 (D2: the same files at each), every
   # warning an error. Each leg builds and runs the battery with CMake and again with waf, and
-  # both compile each public header alone (a consumer's view).
+  # both compile each public header alone (a consumer's view). `std` is the standards a job
+  # builds, one after another: one each for Linux and Windows, all three in one macOS job,
+  # since hosted macOS runners are scarce and a job queued for one too long is cancelled.
   hosted:
-    name: ${{ matrix.name }}, C++${{ matrix.std }}
+    name: ${{ matrix.name }}, C++${{ matrix.label || matrix.std }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 45
+    timeout-minutes: 60
     strategy:
       fail-fast: false
       matrix:
-        compiler: [gcc, clang, apple, msvc]
+        compiler: [gcc, clang, msvc]
         std: ["17", "20", "23"]
         include:
           - compiler: gcc
@@ -55,6 +57,8 @@ jobs:
             os: ubuntu-24.04
             cxx: clang++-18
           - compiler: apple
+            std: "17 20 23"
+            label: "17, 20 and 23"
             name: macOS AppleClang
             os: macos-latest
             cxx: clang++
@@ -75,17 +79,25 @@ jobs:
         shell: bash
         run: |
           if [ -n "${{ matrix.cxx }}" ]; then export CXX="${{ matrix.cxx }}"; fi
-          cmake -S . -B build-boundary -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=${{ matrix.std }} -DCATENAE_CHECKS=boundary
-          cmake --build build-boundary --config Release -j 4
-          ctest --test-dir build-boundary -C Release ${{ env.CTEST_COMMON }}
+          for std in ${{ matrix.std }}; do
+            echo "::group::CMake, C++$std, boundary"
+            cmake -S . -B "build-$std-boundary" -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=$std -DCATENAE_CHECKS=boundary
+            cmake --build "build-$std-boundary" --config Release -j 4
+            ctest --test-dir "build-$std-boundary" -C Release ${{ env.CTEST_COMMON }}
+            echo "::endgroup::"
+          done
 
       - name: Configure, build and test (CMake, audit)
         shell: bash
         run: |
           if [ -n "${{ matrix.cxx }}" ]; then export CXX="${{ matrix.cxx }}"; fi
-          cmake -S . -B build-audit -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=${{ matrix.std }} -DCATENAE_CHECKS=audit
-          cmake --build build-audit --config Release -j 4
-          ctest --test-dir build-audit -C Release ${{ env.CTEST_COMMON }}
+          for std in ${{ matrix.std }}; do
+            echo "::group::CMake, C++$std, audit"
+            cmake -S . -B "build-$std-audit" -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=$std -DCATENAE_CHECKS=audit
+            cmake --build "build-$std-audit" --config Release -j 4
+            ctest --test-dir "build-$std-audit" -C Release ${{ env.CTEST_COMMON }}
+            echo "::endgroup::"
+          done
 
       - name: Fetch waf and GoogleTest (pinned)
         shell: bash
@@ -103,11 +115,13 @@ jobs:
           if [ -n "${{ matrix.cxx }}" ]; then export CXX="${{ matrix.cxx }}"; fi
           py=python3
           if [ "$RUNNER_OS" = Windows ]; then py=python; fi
-          for level in boundary audit; do
-            echo "::group::waf, $level"
-            "$py" waf configure --std=${{ matrix.std }} --checks=$level --gtest="$RUNNER_TEMP/googletest"
-            "$py" waf build --alltests
-            echo "::endgroup::"
+          for std in ${{ matrix.std }}; do
+            for level in boundary audit; do
+              echo "::group::waf, C++$std, $level"
+              "$py" waf configure --std=$std --checks=$level --gtest="$RUNNER_TEMP/googletest"
+              "$py" waf build --alltests
+              echo "::endgroup::"
+            done
           done
 
   # The address and undefined-behaviour sanitizers at C++17 (a later standard defines shifts

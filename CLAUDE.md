@@ -99,6 +99,7 @@ python3 -m unittest discover -s scripts/tests                # the scripts' own 
 python3 scripts/check_naming.py -p build-tidy                # D30 (needs a Clang compile database)
 python3 scripts/check_shifts.py -p build-tidy                # raw signed shifts
 python3 scripts/check_guards.py                              # D40
+python3 scripts/check_slots.py                               # CAT-MAILBOX-003, DEV-013
 python3 scripts/check_suppressions.py                        # D31, against docs/deviations.md
 python3 scripts/check_requirements.py                        # the @req trace
 python3 scripts/check_budgets.py                             # the length budgets
@@ -139,6 +140,8 @@ and the header checks each time; the measurements are of the shipping level, `bo
 | Coverage | Clang 18 | 17 | CMake, Release | boundary |
 | The ratchet and the ceilings (`bench.yml`, six keys) | each key's | 17, 20, 23 (counts); 17 (sizes) | Release; MinSizeRel | boundary |
 
+macOS builds its three standards one after another in one job: hosted macOS runners are scarce,
+and a job queued for one too long is cancelled without running.
 The `constinit_dynamic` case is GCC's and Clang's only: on MSVC the macro is empty (DEV-001).
 The battery is built with contraction off (`catenae_contraction`), as the compiled core is: the
 numeric contracts are pinned there, and a header template under a consumer's flags may differ
@@ -156,9 +159,13 @@ Where things are: `include/catenae/` and `src/` are the library (`src/handler/` 
 handler); `tests/` the battery, with `tests/fixtures/` (the fixture stages, junction and
 analyzer) and `tests/support/` (the check trap and the generic harness every stage runs);
 `examples/` what the guide includes (its strip, a stage of the reader's own with its battery,
-the run-time graph the guide measures the chain against, and a block stage bare and in
+the run-time graph the guide measures the chain against, a block stage bare and in
 `steady<>`, whose trace `scripts/figure_steady.py` draws `guide/src/figures/steady.svg` from, a
-CTest check failing when the committed figure is not what they draw); `bench/` the harness's workloads
+CTest check failing when the committed figure is not what they draw, and a mailbox and a
+`handoff` between threads; `racy_level.cpp`, the race they replace, is built and run only
+under the thread sanitizer, by a check that passes only on its report); `tests/bare_metal/`
+what only the Cortex-M legs build (a timer interrupt as the mailbox's poster and the
+junction's producer); `bench/` the harness's workloads
 and records; `cmake/` and `platform/` the targets; `tools/warnings/` the warning sets, read by
 both builds; `scripts/` the checks and the harness; `guide/` the mdBook source and
 `docs/Doxyfile` the reference's, over the headers and `docs/contracts/` (the stage, chain,

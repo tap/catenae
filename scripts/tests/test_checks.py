@@ -208,6 +208,20 @@ class Budgets(Tree):
                            "README.md: 1001 words", "guide/src/page.md: 1501 words", "include/catenae/h.h:1: a header comment of 61 lines")
 
 
+class Slots(Tree):
+    def test_an_assignment_into_a_slot_is_refused(self):
+        write(self.root, {"include/catenae/box.h":
+                          "::new (static_cast<void*>(m_slots[m_poster].bytes)) T(value);\n"
+                          "apply(*std::launder(static_cast<const T*>(static_cast<const void*>(m_slots[i].bytes))));\n"
+                          "// m_slots[0] = v;  a comment is not code\n"
+                          "if (m_slots[0].bytes[0] == 1) {}\n"})
+        self.assertPasses(run("check_slots.py", "--root", str(self.root)))
+        write(self.root, {"include/catenae/box.h": "m_slots[m_poster] = value;\n"
+                                                   "std::memcpy(m_slots[1].bytes, &value, sizeof value);\n"})
+        self.assertRefuses(run("check_slots.py", "--root", str(self.root)),
+                           "box.h:1: an assignment into a mailbox slot", "box.h:2: a copy into a mailbox slot")
+
+
 class SteadyFigure(unittest.TestCase):
     TRACE = ("call,frames_in,bare_out,fifo_held,steady_out\n"
              "1,64,0,63,64\n2,64,128,127,64\n"

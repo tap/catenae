@@ -26,7 +26,7 @@ own records (DspTap's `platform/README.md` and file headers) give that chain.
 | `STYLE.md` | `STYLE.md` | Restated for catenae's decisions: constants by access (D30), include guards (D40), the banner without a license line (D14, D33), the safety idioms of D2, D21, D22 and D27 |
 | `cmake/arm-cortex-m4-mps2.cmake`, `cmake/arm-cortex-m33-mps2.cmake`, `cmake/arm-cortex-m55-mps3.cmake` | the same paths | Names (`CATENAE_M4_FPU`, `CATENAE_BARE_METAL`); `-Wno-psabi` removed (a suppression is a recorded deviation, D31, and nothing here needs it); DspTap's FFT test-size setting removed |
 | `cmake/hexagon-linux-musl.cmake` | `cmake/hexagon-linux-musl.cmake` | Names; `-ffunction-sections -fdata-sections` and `--gc-sections` added (PLAN.md section 7.1) |
-| `platform/cortexm_startup.c` | `platform/cortexm_startup.c` | The fault marker is `CATENAE_TESTS_FAULT` |
+| `platform/cortexm_startup.c` | `platform/cortexm_startup.c` | The fault marker is `CATENAE_TESTS_FAULT`; a weak `SysTick_Handler` in the vector table, which the battery's timer-interrupt test defines |
 | `platform/mps2_an386.ld`, `platform/mps2_an505.ld`, `platform/mps3_an547.ld` | the same paths | `.rodata` in its own output section, so the size probes read `.text` and `.rodata` apart |
 | `tools/qemu_insn_plugin/insn_count.c` | `tools/qemu_insn_plugin/insn_count.c` | The marker symbols and output lines renamed (`catenae_call_begin`, `CATENAE_INSN_COUNT`, `CATENAE_CALL_MAX`) |
 | `tests/bare_metal_main.cpp` | `tests/bare_metal_main.cpp` | Names (`CATENAE_BARE_METAL_FILTER`, `CATENAE_TESTS_COMPLETE`) |
@@ -40,6 +40,7 @@ own records (DspTap's `platform/README.md` and file headers) give that chain.
 
 | Here | There | What changed |
 |---|---|---|
+| `include/catenae/handoff.h` (the ring) | `async/include/tap/sr/async/spsc_ring.h` | The mechanism kept: two indices that run free and wrap by a power-of-two mask, the producer's stored with release after it writes and loaded with acquire by the consumer before it reads, and the reverse for the consumer's. Now frames of a compile-time port in a plain-storage state (D50), the indices plain 32-bit words under `detail::atomic_*` (D19, DEV-004), no cached copy of the other side's index, the capacity a template argument and no allocation; the fill policy, `serves`, `restart` and `report` written new (PLAN.md section 12) |
 | `scripts/icount.py` | `scripts/icount.py` | catenae's keys (DspTap's set and `host`), markers and binary prefix; DspTap's `--record`; one engine |
 | `scripts/ceilings.py` | `scripts/ceilings.py` | The map and call-graph readers, the disassembly bound and the ceiling rule kept; the figures are C0a's (`.text`, `.rodata`, `.data`, `.bss` apart, the start-up functions and stack, each call's static and painted stack) on every Arm key; call graphs merged across the probe and the compiled core |
 | `scripts/apt_install.sh` | `scripts/apt_install.sh` | The banner only |

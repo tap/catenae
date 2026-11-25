@@ -25,6 +25,6 @@ last column, and in a comment citing the entry where it is.
 | DEV-010 | vDSP's allocation | Accelerate's FFT setup allocates; it is made in a design's `make()`, outside the audio path | — | from C4 |
 | DEV-011 | Static storage for states, configurations, workspaces and mailboxes | no heap (D22); a caller's arena is the alternative the guide shows | — | an integrator's |
 | DEV-012 | Implicit conversions of `span` and `expected` | the standard's interface has them | — | `catenae/span.h`, `catenae/expected.h` |
-| DEV-013 | Placement new and `std::launder` in the mailbox | a post constructs the value in its slot, a take reads it through the laundered pointer | — | from C1 |
+| DEV-013 | Placement new and `std::launder` in the mailbox | a post constructs the value in its slot, a take reads it through the laundered pointer | — | `catenae/mailbox.h`; `scripts/check_slots.py` refuses an assignment into a slot (CAT-MAILBOX-003) |
 | DEV-014 | Two members `stage_traits` looks for | to insist that a stage declares exactly one way to rest, it detects both `reset` and `rests_at_zero` | — | `catenae/stage_traits.h` |
 | DEV-015 | MSVC's C4611 off around the battery's one `setjmp` | a failed check reaches a `[[noreturn]]` handler, and only `setjmp` and `longjmp` bring it back to the test that expected it on every leg without exceptions (D21); MSVC warns at any `setjmp` in C++, and this one's frame holds nothing to destroy | 1 | `tests/support/catenae_test/check_trap.cpp` |

@@ -4,12 +4,15 @@
 // Copyright 2026 Timothy Place and the catenae contributors
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <cstdio>
 #include <type_traits>
 
 #include "block_region.h"
 #include "catenae/chain.h"
 #include "catenae/compiler.h"
+#include "catenae/fed_by.h"
+#include "catenae/handoff.h"
 #include "catenae/steady.h"
 
 namespace {
@@ -42,6 +45,19 @@ namespace {
     // ANCHOR_END: callback
 
     CATENAE_CONSTINIT catenae::memory_of<region_t> s_region{};
+
+    // ANCHOR: pull
+    // The same region on the far side of a junction, whose producer pushes 64 frames at a time.
+    // The pull side fills each 64-frame request exactly, with at most one pull: what the region
+    // writes beyond the request waits in its holdover for the next one.
+    constexpr catenae::handoff<float, 1, 1024, 256, 64> link{};
+    CATENAE_CONSTINIT catenae::state_of<decltype(link)> s_link{};
+    CATENAE_CONSTINIT catenae::fed_by_state<region_t> s_pull{};
+    CATENAE_CONSTINIT catenae::fed_by_workspace<region_t, 64> s_pull_work{};
+
+    static_assert(catenae::fed_by_workspace<region_t, 64>::largest_pull == 191, "64, and the 127 it can trail by");
+    static_assert(decltype(link)::serves(191, 1), "the target is at least 191 + 64 - 1");
+    // ANCHOR_END: pull
 
 } // namespace
 
@@ -81,6 +97,21 @@ int main() {
     for (std::size_t i = 0; i < smooth_all.size(); ++i) {
         const float owed = i < 127 ? 0.0f : bare_all[i - 127];
         ok               = ok && !(smooth_all[i] < owed || smooth_all[i] > owed);
+    }
+    // The pull side: the junction holds its target, 256 frames; four requests of 64 follow, and
+    // the fill it gives up to each is that request's pull.
+    reset(region, s_pull);
+    std::array<float, 64> pushed{};
+    for (int i = 0; i < 4; ++i) {
+        static_cast<void>(link.push(s_link, catenae::span<const float>(pushed)));
+    }
+    std::array<float, 64> request{};
+    for (unsigned n = 1; n <= 4; ++n) {
+        const std::uint32_t before = link.report(s_link).fill_frames;
+        static_cast<void>(catenae::fed_by(link, s_link, region, s_pull, s_pull_work, catenae::span<float>(request)));
+        const std::uint32_t pulled = before - link.report(s_link).fill_frames;
+        std::printf("pull,%u,%u\n", n, static_cast<unsigned>(pulled));
+        ok = ok && pulled == (n % 2 == 1 ? 128u : 0u);
     }
     std::printf("CATENAE_EXAMPLE_DONE ok=%d\n", ok ? 1 : 0);
     return ok ? 0 : 1;

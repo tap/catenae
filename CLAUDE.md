@@ -156,7 +156,9 @@ Where things are: `include/catenae/` and `src/` are the library (`src/handler/` 
 handler); `tests/` the battery, with `tests/fixtures/` (the fixture stages, junction and
 analyzer) and `tests/support/` (the check trap and the generic harness every stage runs);
 `examples/` what the guide includes (its strip, a stage of the reader's own with its battery,
-and the run-time graph the guide measures the chain against); `bench/` the harness's workloads
+the run-time graph the guide measures the chain against, and a block stage bare and in
+`steady<>`, whose trace `scripts/figure_steady.py` draws `guide/src/figures/steady.svg` from, a
+CTest check failing when the committed figure is not what they draw); `bench/` the harness's workloads
 and records; `cmake/` and `platform/` the targets; `tools/warnings/` the warning sets, read by
 both builds; `scripts/` the checks and the harness; `guide/` the mdBook source and
 `docs/Doxyfile` the reference's, over the headers and `docs/contracts/` (the stage, chain,

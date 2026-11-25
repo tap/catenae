@@ -15,6 +15,21 @@ catenae_add_example(print_version)
 catenae_add_example(stages_and_chains)
 catenae_add_example(writing_a_stage)
 target_include_directories(catenae_example_writing_a_stage PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+catenae_add_example(bursts_and_buffering)
+target_include_directories(catenae_example_bursts_and_buffering PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# Its figure (guide/src/figures/steady.svg) is drawn from its output: on a host with Python, the
+# figure is drawn again and must be the committed one.
+if(NOT CMAKE_CROSSCOMPILING)
+    find_package(Python3 COMPONENTS Interpreter)
+    if(Python3_Interpreter_FOUND)
+        add_test(NAME example.bursts_and_buffering_figure
+                 COMMAND "${CMAKE_COMMAND}" "-DEXAMPLE=$<TARGET_FILE:catenae_example_bursts_and_buffering>"
+                         "-DPYTHON=${Python3_EXECUTABLE}" "-DSCRIPT=${PROJECT_SOURCE_DIR}/scripts/figure_steady.py"
+                         "-DFIGURE=${PROJECT_SOURCE_DIR}/guide/src/figures/steady.svg"
+                         "-DWORK=${CMAKE_CURRENT_BINARY_DIR}" -P "${CMAKE_CURRENT_SOURCE_DIR}/figure_check.cmake")
+    endif()
+endif()
 
 # The guide's strawman: what one would naturally write instead of a chain. Its nodes are a
 # library of their own so that the ratchet's workload counts the same code.

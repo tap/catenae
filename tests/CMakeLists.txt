@@ -112,12 +112,14 @@ catenae_add_gtest_executable(catenae_tests
         test_interleave.cpp
         test_junction_traits.cpp
         test_map.cpp
+        test_parallel.cpp
         test_port.cpp
         test_ratio.cpp
         test_sample_format.cpp
         test_sample_traits.cpp
         test_span.cpp
         test_stage_traits.cpp
+        test_steady.cpp
         test_version.cpp
         # The guide's stage of its own (examples/difference.h): its battery runs with this one.
         ../examples/difference_battery.cpp)

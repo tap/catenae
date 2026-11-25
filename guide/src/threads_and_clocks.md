@@ -132,9 +132,9 @@ stays visible in your code as two calls.
 configuration is its template arguments. Its state is plain storage that rests at zero,
 so every object in the listing is static and built by constant initialisation.
 
-The producer's thread calls `feeding(link, s_link, input, s_into_link, s_into_link_work,
+The producer's thread calls `feeding(ring, s_ring, input, s_into_ring, s_into_ring_work,
 in)`, which runs the chain and pushes what it wrote. The consumer's thread calls
-`fed_by(link, s_link, output, s_from_link, s_from_link_work, out)`, which fills `out`
+`fed_by(ring, s_ring, output, s_from_ring, s_from_ring_work, out)`, which fills `out`
 with exactly the frames asked for, in at most one pull on the junction.
 
 Bursts and buffering ended with a queue whose two numbers were derived. A ring between

@@ -45,15 +45,15 @@ namespace {
     // The junction: a configuration with no data, and a state at rest as it stands. It is fed 64
     // frames at a time and serves requests of up to 256, so its target is 320 (256 + 64 - 1,
     // rounded up): it fills to 320 frames before it pays out, and 320 frames is its latency.
-    constexpr catenae::handoff<float, 2, 1024, 320, 64> link{};
-    CATENAE_CONSTINIT catenae::state_of<decltype(link)> s_link{};
-    CATENAE_CONSTINIT catenae::feeding_state<decltype(input)> s_into_link{};
-    CATENAE_CONSTINIT catenae::feeding_workspace<decltype(input)> s_into_link_work{};
+    constexpr catenae::handoff<float, 2, 1024, 320, 64> ring{};
+    CATENAE_CONSTINIT catenae::state_of<decltype(ring)> s_ring{};
+    CATENAE_CONSTINIT catenae::feeding_state<decltype(input)> s_into_ring{};
+    CATENAE_CONSTINIT catenae::feeding_workspace<decltype(input)> s_into_ring_work{};
 
     // The consumer's thread, the same clock: requests of up to 256 frames, each at most one pull.
     constexpr auto    output = catenae::chain(catenae::gain<2>{2.0f, 0});
-    CATENAE_CONSTINIT catenae::fed_by_state<decltype(output)> s_from_link{};
-    CATENAE_CONSTINIT catenae::fed_by_workspace<decltype(output), 256> s_from_link_work{};
+    CATENAE_CONSTINIT catenae::fed_by_state<decltype(output)> s_from_ring{};
+    CATENAE_CONSTINIT catenae::fed_by_workspace<decltype(output), 256> s_from_ring_work{};
     // ANCHOR_END: junction
 
 } // namespace
@@ -81,8 +81,8 @@ int main() {
     ok = ok && s_strip.stage<0>().level() > 0.999f;
 
     // The junction: one thread feeds numbered frames in, another reads them out.
-    input.reset(s_into_link);
-    reset(output, s_from_link);
+    input.reset(s_into_ring);
+    reset(output, s_from_ring);
     constexpr std::size_t      k_frames = 64 * 4000;
     std::atomic<bool>          fed{false};
     std::thread                producer([&fed] {
@@ -92,7 +92,7 @@ int main() {
                 block[2 * i]     = static_cast<float>(next + i);
                 block[2 * i + 1] = -block[2 * i];
             }
-            static_cast<void>(catenae::feeding(link, s_link, input, s_into_link, s_into_link_work,
+            static_cast<void>(catenae::feeding(ring, s_ring, input, s_into_ring, s_into_ring_work,
                                                               catenae::span<const float>(block)));
             std::this_thread::yield();
         }
@@ -105,7 +105,7 @@ int main() {
     std::size_t                size  = 37;
     while (!fed.load()) {
         size = size * 7 % 256 + 1; // requests of varied sizes, up to 256
-        static_cast<void>(catenae::fed_by(link, s_link, output, s_from_link, s_from_link_work,
+        static_cast<void>(catenae::fed_by(ring, s_ring, output, s_from_ring, s_from_ring_work,
                                           catenae::span<float>(got.data(), size * 2)));
         for (std::size_t i = 0; i < size; ++i) {
             if (got[2 * i] > 0.0f) { // a real frame: later than the one before, and whole
@@ -118,7 +118,7 @@ int main() {
     producer.join();
     ok = ok && real > 0 && wrong == 0;
     std::printf("level %.3f; %zu frames through the junction, %zu out of order or torn; %zu input frames starved\n",
-                static_cast<double>(s_strip.stage<0>().level()), real, wrong, s_from_link.starved);
+                static_cast<double>(s_strip.stage<0>().level()), real, wrong, s_from_ring.starved);
     std::printf("CATENAE_EXAMPLE_DONE ok=%d\n", ok ? 1 : 0);
     return ok ? 0 : 1;
 }

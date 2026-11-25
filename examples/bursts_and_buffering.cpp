@@ -50,13 +50,13 @@ namespace {
     // The same region on the far side of a junction, whose producer pushes 64 frames at a time.
     // The pull side fills each 64-frame request exactly, with at most one pull: what the region
     // writes beyond the request waits in its holdover for the next one.
-    constexpr catenae::handoff<float, 1, 1024, 256, 64> link{};
-    CATENAE_CONSTINIT catenae::state_of<decltype(link)> s_link{};
+    constexpr catenae::handoff<float, 1, 1024, 256, 64> ring{};
+    CATENAE_CONSTINIT catenae::state_of<decltype(ring)> s_ring{};
     CATENAE_CONSTINIT catenae::fed_by_state<region_t> s_pull{};
     CATENAE_CONSTINIT catenae::fed_by_workspace<region_t, 64> s_pull_work{};
 
     static_assert(catenae::fed_by_workspace<region_t, 64>::largest_pull == 191, "64, and the 127 it can trail by");
-    static_assert(decltype(link)::serves(191, 1), "the target is at least 191 + 64 - 1");
+    static_assert(decltype(ring)::serves(191, 1), "the target is at least 191 + 64 - 1");
     // ANCHOR_END: pull
 
 } // namespace
@@ -103,13 +103,13 @@ int main() {
     reset(region, s_pull);
     std::array<float, 64> pushed{};
     for (int i = 0; i < 4; ++i) {
-        static_cast<void>(link.push(s_link, catenae::span<const float>(pushed)));
+        static_cast<void>(ring.push(s_ring, catenae::span<const float>(pushed)));
     }
     std::array<float, 64> request{};
     for (unsigned n = 1; n <= 4; ++n) {
-        const std::uint32_t before = link.report(s_link).fill_frames;
-        static_cast<void>(catenae::fed_by(link, s_link, region, s_pull, s_pull_work, catenae::span<float>(request)));
-        const std::uint32_t pulled = before - link.report(s_link).fill_frames;
+        const std::uint32_t before = ring.report(s_ring).fill_frames;
+        static_cast<void>(catenae::fed_by(ring, s_ring, region, s_pull, s_pull_work, catenae::span<float>(request)));
+        const std::uint32_t pulled = before - ring.report(s_ring).fill_frames;
         std::printf("pull,%u,%u\n", n, static_cast<unsigned>(pulled));
         ok = ok && pulled == (n % 2 == 1 ? 128u : 0u);
     }

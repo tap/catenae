@@ -264,7 +264,7 @@ ctest --test-dir build-size -L link_gate
 | What | From |
 |---|---|
 | `baselines.json`, every key; `ceilings.json`, every key but `host` | Bench run [45614209215](https://github.com/tap/catenae/actions/runs/45614209215) at `1cd47fa` (the run names `c4d0c87`, the same tree before the C0a pull request was rebased onto `main`), 2026-11-25: its `measured-<key>` artifacts, copied unchanged, the ceilings computed by `scripts/ceilings.py`'s rule |
-| `baselines.json`: `strip_chain` and `strip_graph`, every key | Bench run [45653902512](https://github.com/tap/catenae/actions/runs/45653902512) at `66debaa`, 2026-11-25: its `measured-<key>` artifacts, copied unchanged; every other count in that run equal to its baseline |
+| `baselines.json`: `strip_chain` and `strip_graph`, every key | Bench run [45706225434](https://github.com/tap/catenae/actions/runs/45706225434) at `f344455`, 2026-11-25: the counts its six jobs printed, copied unchanged; every other count in that run equal to its baseline. Re-recorded because `gain` now applies its steady level from a local in runs of 16 samples, and the graph's gain node was given the same loops: both strips moved on every key, beyond tolerance on four (`m33`, `m4f`, `hexagon`, and `strip_graph` on `host`). They were first recorded from run [45653902512](https://github.com/tap/catenae/actions/runs/45653902512) at `66debaa` |
 | `ceilings.json`: the probe sets `strip`, `strip_object` and `c1`, and `code.version`, every key but `host`; the layout table above | Bench run [45704804502](https://github.com/tap/catenae/actions/runs/45704804502) at `fed09b6`, 2026-11-25 (`workflow_dispatch` on the C1 branch): each figure as its "Sizes, start-up and stack" step printed it, the ceilings computed by `scripts/ceilings.py`'s rule; every figure recorded before it measured equal, every ratchet count equal to its baseline, the link-stage gate's three tests passing on each Arm key; the same toolchain packages as the first run |
 
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
@@ -301,17 +301,17 @@ steps print them; CodeLinaro clang 19.1.5, pinned by its SHA256, for `hexagon`).
 
 | Key | `strip_chain` | `strip_graph` | chain less graph |
 |---|--:|--:|--:|
-| `m4-softfp` | 24,160,128 | 23,574,864 | +585,264 (+2.5 %) |
-| `m4f` | 3,796,665 | 3,840,400 | -43,735 (-1.1 %) |
-| `m33` | 3,860,694 | 3,841,430 | +19,264 (+0.5 %) |
-| `m55` | 2,375,698 | 2,472,434 | -96,736 (-3.9 %) |
-| `hexagon` | 1,172,150 packets | 1,299,888 packets | -127,738 (-9.8 %) |
-| `host` | 2,777,174 | 3,203,166 | -425,992 (-13.3 %) |
+| `m4-softfp` | 23,888,126 | 23,446,864 | +441,262 (+1.9 %) |
+| `m4f` | 3,592,666 | 3,453,400 | +139,266 (+4.0 %) |
+| `m33` | 3,656,695 | 3,453,430 | +203,265 (+5.9 %) |
+| `m55` | 2,339,702 | 2,440,434 | -100,732 (-4.1 %) |
+| `hexagon` | 1,030,150 packets | 1,135,888 packets | -105,738 (-9.3 %) |
+| `host` | 2,711,175 | 3,051,166 | -339,991 (-11.1 %) |
 
 A QEMU key's count is the whole run, start-up, input, checksum and `printf` included; the
 `host` count is the loop alone (`catenae_host_counted()`). Those parts are the same in both
 binaries, so the difference is the strip's alone. On the Cortex-M cores the two cost about
-the same, within 4 % either way; on Hexagon and the host the chain is the cheaper. What the
+the same, within 6 % either way; on Hexagon and the host the chain is the cheaper. What the
 graph gives up is not speed: a node whose channel count differs from the one before it is
 found when it is connected, as the program runs (`graph::connect` returns false), where the
 chain refuses it when its type is formed, before the program exists.

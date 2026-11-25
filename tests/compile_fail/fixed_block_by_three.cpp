@@ -20,7 +20,7 @@ namespace catenae {
     struct is_stage<cf::down3> : std::true_type {};
 } // namespace catenae
 
-constexpr auto c = catenae::chain(cf::down3{});
+constexpr auto k_chain = catenae::chain(cf::down3{});
 
 #ifdef CATENAE_CF_CONTROL
 constexpr std::size_t k_frames = 63;
@@ -28,9 +28,9 @@ constexpr std::size_t k_frames = 63;
 constexpr std::size_t k_frames = 64;
 #endif
 
-std::size_t by_three(catenae::memory_of<decltype(c)>& m, const std::array<float, k_frames>& in,
+std::size_t by_three(catenae::memory_of<decltype(k_chain)>& m, const std::array<float, k_frames>& in,
                      std::array<float, 32>& out) noexcept;
-std::size_t by_three(catenae::memory_of<decltype(c)>& m, const std::array<float, k_frames>& in,
+std::size_t by_three(catenae::memory_of<decltype(k_chain)>& m, const std::array<float, k_frames>& in,
                      std::array<float, 32>& out) noexcept {
-    return c.process(m, in, out);
+    return k_chain.process(m, in, out);
 }

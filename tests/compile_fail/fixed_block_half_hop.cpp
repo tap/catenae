@@ -7,7 +7,7 @@
 #include "catenae/chain.h"
 #include "catenae_fixtures/stages.h"
 
-constexpr auto c = catenae::chain(catenae_fixtures::block_stage<1, 128>{});
+constexpr auto k_chain = catenae::chain(catenae_fixtures::block_stage<1, 128>{});
 
 #ifdef CATENAE_CF_CONTROL
 constexpr std::size_t k_frames = 128;
@@ -15,9 +15,9 @@ constexpr std::size_t k_frames = 128;
 constexpr std::size_t k_frames = 64;
 #endif
 
-std::size_t half_hop(catenae::memory_of<decltype(c)>& m, const std::array<float, k_frames>& in,
+std::size_t half_hop(catenae::memory_of<decltype(k_chain)>& m, const std::array<float, k_frames>& in,
                      std::array<float, 256>& out) noexcept;
-std::size_t half_hop(catenae::memory_of<decltype(c)>& m, const std::array<float, k_frames>& in,
+std::size_t half_hop(catenae::memory_of<decltype(k_chain)>& m, const std::array<float, k_frames>& in,
                      std::array<float, 256>& out) noexcept {
-    return c.process(m, in, out);
+    return k_chain.process(m, in, out);
 }

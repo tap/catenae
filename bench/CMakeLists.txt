@@ -9,6 +9,8 @@
 #   catenae_stack_<set>         the stack probes (scripts/ceilings.py)
 #   catenae_gate_<fixture>      the link-stage gate's own fixtures, on the Arm legs
 #                               (scripts/link_gate.py)
+#   catenae_layout_<scenario>   the layout benchmark's workloads, counted but never gated
+#                               (scripts/icount.py --prefix catenae_layout_ --report-only)
 #
 # "Host-class" is decided by CMAKE_SYSTEM_NAME (Generic is bare metal), never by
 # CMAKE_CROSSCOMPILING: Hexagon is a cross build of a hosted target.
@@ -68,6 +70,9 @@ if(NOT _catenae_bare_metal)
     set_tests_properties(bench.strip_chain_and_graph_agree PROPERTIES LABELS bench)
 endif()
 
+# --- The layout benchmark: interleaved against planar, informational (bench/layout/) --------
+add_subdirectory(layout)
+
 # --- The size and stack probes -----------------------------------------------------------
 function(catenae_add_probe set source)
     set(_size catenae_probe_${set})
@@ -84,10 +89,21 @@ function(catenae_add_probe set source)
 endfunction()
 
 catenae_add_probe(version probe/version_probe.cpp)
+# C1's: the example chain (examples/strip.h), whose memory, start-up and stack are pinned; the
+# same strip as a desktop program writes it, one object on the heap, which the guide's "Where
+# memory lives" measures against it; and every C1 stage in one float path, the link-stage
+# gate's first probe image.
+catenae_add_probe(strip probe/strip_probe.cpp)
+catenae_add_probe(strip_object probe/strip_object_probe.cpp)
+catenae_add_probe(c1 probe/c1_probe.cpp)
+foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip)
+    target_include_directories(${_probe} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
+endforeach()
 
-# --- The link-stage gate's own test (D36) ------------------------------------------------
-# The gate itself is scripts/link_gate.py over a named probe image; the first probe is C1's.
-# Here it proves itself on two fixtures on every Arm leg: an image of float arithmetic passes,
+# --- The link-stage gate (D36) -----------------------------------------------------------
+# The gate is scripts/link_gate.py over a named probe image, one per float stage family; the
+# first is C1's, catenae_probe_c1, and it must pass on every Arm leg. The gate also proves
+# itself on two fixtures on every Arm leg: an image of float arithmetic passes,
 # and one with a single product in double is refused where double is software (the M4, the
 # M4F, the M33). Where the FPU has double precision (GCC's default for -mcpu=cortex-m55) a
 # double product is an instruction and no routine, so the gate cannot see it: that limit is
@@ -106,6 +122,9 @@ int main() { return 0; }" CATENAE_HARDWARE_DOUBLE)
     add_test(NAME link_gate.FloatImagePasses
              COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
                      $<TARGET_FILE:catenae_gate_float_only>)
+    add_test(NAME link_gate.C1ImageHasNoSoftwareDouble
+             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
+                     $<TARGET_FILE:catenae_probe_c1>)
     if(CATENAE_HARDWARE_DOUBLE)
         add_test(NAME link_gate.HardwareDoubleIsInvisible
                  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py

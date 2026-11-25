@@ -52,6 +52,12 @@ namespace {
         EXPECT_EQ(to427::value(15.5f), 2080374784);
         EXPECT_EQ(to427::value(16.0f), 2147483647); // Q4.27 saturates at +16
         EXPECT_EQ(to427::value(-16.0f), -2147483647 - 1);
+        // The largest values below saturation, whose whole part fills 31 bits: the truncation
+        // is to 32 bits (a 64-bit one runs in software double on the Cortex-M, D36).
+        EXPECT_EQ(to31::value(0x1.fffffep-1f), 2147483520);
+        EXPECT_EQ(to31::value(-0x1.fffffep-1f), -2147483520);
+        EXPECT_EQ(to427::value(0x1.fffffep3f), 2147483520);
+        EXPECT_EQ(to427::value(-0x1.fffffep3f), -2147483520);
     }
 
     // Verifies CAT-CONVERT-003.

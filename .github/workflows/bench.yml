@@ -1,8 +1,9 @@
 # Copyright 2026 Timothy Place and the catenae contributors
 #
 # The harness (PLAN.md section 10, C0a; bench/README.md): the instruction-count ratchet, the
-# size and stack probes with their ceilings, and the link-stage gate's own test. Carried from
-# DspTap's bench.yml and SampleRateTap's ratchet jobs (NOTICE.md).
+# size and stack probes with their ceilings, the link-stage gate, and the layout benchmark's
+# informational counts. Carried from DspTap's bench.yml and SampleRateTap's ratchet jobs
+# (NOTICE.md).
 #
 # Per key: the workloads are built at C++17, 20 and 23 (Release). The C++17 counts are gated
 # two-sided at +-3 % against bench/baselines.json; the C++20 and C++23 counts must equal the
@@ -179,6 +180,18 @@ jobs:
               --compare-json "measured-$KEY.json" | tee -a icount.txt
           done
 
+      # The layout benchmark (bench/layout/, bench/README.md): interleaved against planar,
+      # counted at C++17 and printed, never gated, whatever the ratchet's verdict.
+      - name: Layout counts (informational, never a gate)
+        if: ${{ !cancelled() }}
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          plugin=""
+          if [ "$KEY" != host ]; then plugin="--plugin $PLUGIN"; fi
+          python3 scripts/icount.py --key "$KEY" --build-dir build-17 $plugin --prefix catenae_layout_ --report-only \
+            --record "layout-$KEY.json" | tee layout.txt
+
       - name: Build the probes (MinSizeRel)
         if: ${{ !cancelled() && matrix.key != 'host' }}
         run: |
@@ -191,14 +204,15 @@ jobs:
           set -o pipefail
           python3 scripts/ceilings.py measure --key "$KEY" --build-dir build-size \
             --record "ceilings-measured-$KEY.json" | tee ceilings.txt
-      - name: The link-stage gate's own test
+      # The gate on C1's probe image, and on its own two fixtures (D36, bench/CMakeLists.txt).
+      - name: The link-stage gate
         if: ${{ !cancelled() && matrix.key != 'host' && matrix.key != 'hexagon' }}
         run: ctest --test-dir build-size -L link_gate --no-tests=error -V
 
       - name: Summary
         if: ${{ !cancelled() }}
         run: |
-          { echo "### $KEY"; echo '```'; for f in icount.txt ceilings.txt; do if [ -f "$f" ]; then cat "$f"; fi; done
+          { echo "### $KEY"; echo '```'; for f in icount.txt layout.txt ceilings.txt; do if [ -f "$f" ]; then cat "$f"; fi; done
             echo '```'; } >> "$GITHUB_STEP_SUMMARY"
       - name: Upload what was measured
         if: ${{ !cancelled() }}
@@ -208,4 +222,5 @@ jobs:
           path: |
             measured-${{ matrix.key }}.json
             ceilings-measured-${{ matrix.key }}.json
+            layout-${{ matrix.key }}.json
           if-no-files-found: ignore

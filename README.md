@@ -18,7 +18,9 @@ the layout converters and `convert` among `float`, `q15`, `q31` and Q4.27. `stea
 stage that works in blocks frame-synchronous, and `parallel` runs two chains on two groups of
 a port's channels. `handoff` joins two threads of one clock with a fill policy stated as
 numbers, `feeding` and `fed_by` run a chain on either side of it, and a `mailbox` carries a
-value from one thread to another; none of them waits.
+value from one thread to another; none of them waits. The example chain's memory, start-up
+and stack are pinned numbers ([`bench/README.md`](bench/README.md)), and on the Cortex-M the
+link-stage gate finds no software `double` in a `float` image of these stages.
 The design, its decisions and the milestones are in [`PLAN.md`](PLAN.md); the guide and the
 reference are published at <https://tap.github.io/catenae/>.
 

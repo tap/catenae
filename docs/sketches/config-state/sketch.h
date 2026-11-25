@@ -2,8 +2,8 @@
 //
 // A THROWAWAY SKETCH for PLAN.md. It exists to show what the code would look like and to
 // measure where the memory lands. It is not the library: the rate changers are toys (a
-// linear-interpolating up2, a pair-averaging down2), there is one sample type and one layout,
-// and nothing here is a contract. README.md lists what it covers and what it does not.
+// linear-interpolating up2, a two-tap down2), there is one sample type and one layout, and
+// nothing here is a contract. README.md lists what it covers and what it does not.
 #ifndef CATENAE_SKETCHES_CONFIG_STATE_SKETCH_H
 #define CATENAE_SKETCHES_CONFIG_STATE_SKETCH_H
 
@@ -17,9 +17,18 @@
 #include <limits>
 #include <new>
 #include <numeric>
-#include <tuple>
 #include <type_traits>
 #include <utility>
+
+// Fails the build if a static object's initialiser is not a constant: no start-up code, by
+// the compiler's word. (C++20's constinit, spelled the way each compiler offers it at C++17.)
+#if defined(__clang__)
+#define CATENAE_SKETCH_CONSTINIT [[clang::require_constant_initialization]]
+#elif defined(__GNUC__)
+#define CATENAE_SKETCH_CONSTINIT __constinit
+#else
+#define CATENAE_SKETCH_CONSTINIT
+#endif
 
 namespace catenae {
 
@@ -67,8 +76,8 @@ namespace catenae {
         const std::size_t g = std::gcd(u, d);
         return ratio{u / g, d / g};
     }
-    constexpr ratio lesser(ratio a, ratio b) noexcept {
-        return a.up * b.down < b.up * a.down ? a : b;
+    constexpr ratio operator/(ratio a, ratio b) noexcept {
+        return a * ratio{b.down, b.up};
     }
     /// The smallest whole number not below r.
     constexpr std::size_t ceiling(ratio r) noexcept {
@@ -121,39 +130,64 @@ namespace catenae {
     // D34. A stage is a CONFIGURATION: a small constant value. What it remembers between
     // calls is a separate STATE: plain storage, with no constructor and no initialisers, so a
     // static one is in .bss. The configuration RESETS the state before its first use; storage
-    // that is all zero means "not yet reset", not "at rest". A stage whose rest state is all
-    // zero writes no reset: the default zeroes the state in place. What a stage needs only
-    // while a call runs is a WORKSPACE, which carries nothing between calls and so is shared
-    // by every state run on one thread (most stages have none); it needs no reset.
+    // that is all zero means "not yet reset", not "at rest". A stage says how its state comes
+    // to rest, one way or the other: it writes reset(state&) const noexcept, or it declares
+    // rests_at_zero = true and the state is zeroed in place. What a stage needs only while a
+    // call runs is a WORKSPACE, which carries nothing between calls and so is shared by every
+    // state run on one thread (most stages have none); it needs no reset.
     //
-    // D35. A stage also publishes two numbers about how its output arrives:
-    //   input_group    the smallest n for which calls of whole multiples of n frames, from the
-    //                  reset state, always write exactly n L/M: 1 for a stage that keeps pace
-    //                  frame by frame, M for a decimator, the hop for a stage that works in blocks;
-    //   max_shortfall  the most output frames by which its output can trail n L/M, from any
-    //                  state (a ratio, since half an output frame is a real answer for down2).
+    // D35. A stage also publishes how its output arrives, counted from the reset state. With
+    // N frames in so far and O(N) frames out, its output is "owed" N L/M:
+    //   input_group     the smallest n for which O(k n) is exactly k n L/M for every k: 1 for a
+    //                   stage that keeps pace frame by frame, M for a decimator, the hop for a
+    //                   stage that works in blocks;
+    //   max_shortfall   the most output frames by which O(N) trails N L/M, over every N;
+    //   max_lead        the most by which O(N) runs ahead of N L/M, over every N. Both are
+    //                   ratios, since half an output frame is a real answer for a decimator;
+    //   output_quantum  its output count is always a whole multiple of this: 1, unless it
+    //                   writes whole blocks.
+    // A stage that writes a group's output when the group's LAST frame arrives only trails; one
+    // that writes it when the FIRST arrives only leads (the decimators catenae carries do this).
+    // When frames reach a stage in whole multiples of q, it trails or leads by at most its
+    // number scaled by (group - gcd(q, group)) / (group - 1): a stage of 128 fed in 96s is
+    // never more than 96 behind. A leaf stage must honour that law; a chain is composed
+    // exactly, carrying q from stage to stage.
     // =====================================================================================
 
     /// A stage with no scratch says so with this.
     struct no_workspace {};
 
+    /// Plain storage: what a state, a workspace and a junction's state all are. It has no
+    /// constructor to run, so a static one costs no start-up code at C++17, 20 or 23.
+    template <typename T>
+    inline constexpr bool is_plain =
+        std::is_trivially_copyable_v<T> && std::is_standard_layout_v<T> && std::is_trivially_default_constructible_v<T>;
+
     namespace detail {
-        // The one member a stage may leave out: reset. This is the only place that looks.
+        // How a stage says its state comes to rest. Nothing is inferred from a missing member:
+        // these two are read only to insist that a stage declares exactly one of them.
         template <typename Stage, typename = void>
-        struct has_reset : std::false_type {};
+        struct declares_rest_at_zero : std::false_type {};
         template <typename Stage>
-        struct has_reset<Stage, std::void_t<decltype(std::declval<const Stage&>().reset(
-                                    std::declval<typename Stage::state&>()))>> : std::true_type {};
+        struct declares_rest_at_zero<Stage, std::void_t<decltype(Stage::rests_at_zero)>> : std::bool_constant<Stage::rests_at_zero> {};
+        template <typename Stage, typename = void>
+        struct writes_reset : std::false_type {};
+        template <typename Stage>
+        struct writes_reset<Stage, std::void_t<decltype(std::declval<const Stage&>().reset(
+                                       std::declval<typename Stage::state&>()))>> : std::true_type {};
     } // namespace detail
 
-    /// Puts a state at rest, in place: the stage's own reset() where it has one, zeros where
-    /// it has not. No temporary the size of the state is ever built.
+    /// Puts a state at rest, in place: the stage's own reset(), or zeros for a stage that
+    /// declares it rests at zero. No temporary the size of the state is ever built.
     template <typename Stage>
     void reset_state(const Stage& stage, typename Stage::state& st) noexcept {
-        static_assert(std::is_trivially_copyable_v<typename Stage::state> && std::is_standard_layout_v<typename Stage::state>,
-                      "catenae: a state is a plain aggregate (trivially copyable, standard layout)");
+        static_assert(is_plain<typename Stage::state>,
+                      "catenae: a state is a plain aggregate (trivially copyable, standard layout, no constructor)");
+        static_assert(detail::declares_rest_at_zero<Stage>::value != detail::writes_reset<Stage>::value,
+                      "catenae: a stage writes reset(state&) const noexcept, or declares rests_at_zero = true: exactly one");
         static_assert(std::numeric_limits<float>::is_iec559, "catenae: zero bytes are a zero float");
-        if constexpr (detail::has_reset<Stage>::value) {
+        if constexpr (detail::writes_reset<Stage>::value) {
+            static_assert(noexcept(stage.reset(st)), "catenae: reset(state&) const is noexcept");
             stage.reset(st);
         }
         else {
@@ -171,6 +205,9 @@ namespace catenae {
         static constexpr ratio       rate_ratio{1, 1};
         static constexpr std::size_t input_group = 1;
         static constexpr ratio       max_shortfall{0, 1};
+        static constexpr ratio       max_lead{0, 1};
+        static constexpr std::size_t output_quantum = 1;
+        static constexpr bool        rests_at_zero  = true;
 
         struct state {};
         using workspace = no_workspace;
@@ -214,6 +251,8 @@ namespace catenae {
         static constexpr ratio       rate_ratio{1, 1};
         static constexpr std::size_t input_group = 1;
         static constexpr ratio       max_shortfall{0, 1};
+        static constexpr ratio       max_lead{0, 1};
+        static constexpr std::size_t output_quantum = 1;
 
         struct state {
             float         current;   // the level being applied now
@@ -381,6 +420,9 @@ namespace catenae {
         static constexpr ratio       rate_ratio{1, 1};
         static constexpr std::size_t input_group = 1;
         static constexpr ratio       max_shortfall{0, 1};
+        static constexpr ratio       max_lead{0, 1};
+        static constexpr std::size_t output_quantum = 1;
+        static constexpr bool        rests_at_zero  = true; // an empty history
 
         struct state {
             std::array<std::array<float, 2>, Ch> z; // transposed direct form II, per channel
@@ -429,9 +471,12 @@ namespace catenae {
         static constexpr ratio       rate_ratio{2, 1};
         static constexpr std::size_t input_group = 1;
         static constexpr ratio       max_shortfall{0, 1};
+        static constexpr ratio       max_lead{0, 1};
+        static constexpr std::size_t output_quantum = 2;
+        static constexpr bool        rests_at_zero  = true; // silence before the stream
 
         struct state {
-            std::array<float, Ch> previous; // at rest: silence before the stream, so the default reset serves
+            std::array<float, Ch> previous;
         };
         using workspace = no_workspace;
 
@@ -456,8 +501,10 @@ namespace catenae {
     template <std::size_t Ch>
     struct is_stage<up2<Ch>> : std::true_type {};
 
-    /// Half the rate, by averaging pairs (a toy). It remembers a held frame and a phase. Its
-    /// input group is a pair, and with one frame held it is half an output frame behind.
+    /// Half the rate (a toy: each output is the mean of a frame and the one before it). It
+    /// writes an output when the FIRST frame of a pair arrives, as the decimators catenae
+    /// carries do: one frame in from rest gives one frame out. So it never trails, and with
+    /// one frame of a pair taken it is half an output frame ahead.
     template <std::size_t Ch>
     class down2 {
       public:
@@ -465,7 +512,58 @@ namespace catenae {
         using output_port = port<float, Ch>;
         static constexpr ratio       rate_ratio{1, 2};
         static constexpr std::size_t input_group = 2;
+        static constexpr ratio       max_shortfall{0, 1};
+        static constexpr ratio       max_lead{1, 2};
+        static constexpr std::size_t output_quantum = 1;
+        static constexpr bool        rests_at_zero  = true; // silence before the stream, a pair about to start
+
+        struct state {
+            std::array<float, Ch> previous;
+            std::size_t           taken; // 0 or 1 frames of the present pair already in
+        };
+        using workspace = no_workspace;
+
+        constexpr down2() noexcept = default;
+
+        std::size_t run(state& st, workspace& /*unused*/, span<const float> in, span<float> out) const noexcept {
+            const std::size_t frames = in.size() / Ch;
+            std::size_t       made   = 0;
+            for (std::size_t i = 0; i < frames; ++i) {
+                if (st.taken == 0) {
+                    for (std::size_t c = 0; c < Ch; ++c) {
+                        out[made * Ch + c] = 0.5f * (st.previous[c] + in[i * Ch + c]);
+                    }
+                    ++made;
+                }
+                for (std::size_t c = 0; c < Ch; ++c) {
+                    st.previous[c] = in[i * Ch + c];
+                }
+                st.taken = 1 - st.taken;
+            }
+            return made;
+        }
+        static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return (n + 1) / 2; }
+        static constexpr std::size_t outputs_for(const state& st, std::size_t n) noexcept { return (n + 1 - st.taken) / 2; }
+        static constexpr std::size_t frames_needed(const state& st, std::size_t k) noexcept {
+            return k == 0 ? 0 : 2 * k - 1 + st.taken;
+        }
+    };
+    template <std::size_t Ch>
+    struct is_stage<down2<Ch>> : std::true_type {};
+
+    /// The other convention, kept to test the composition against both: it writes a pair's
+    /// output when its LAST frame arrives, so it never leads and can be half a frame behind.
+    template <std::size_t Ch>
+    class down2_late {
+      public:
+        using input_port  = port<float, Ch>;
+        using output_port = port<float, Ch>;
+        static constexpr ratio       rate_ratio{1, 2};
+        static constexpr std::size_t input_group = 2;
         static constexpr ratio       max_shortfall{1, 2};
+        static constexpr ratio       max_lead{0, 1};
+        static constexpr std::size_t output_quantum = 1;
+        static constexpr bool        rests_at_zero  = true;
 
         struct state {
             std::array<float, Ch> held;
@@ -473,7 +571,7 @@ namespace catenae {
         };
         using workspace = no_workspace;
 
-        constexpr down2() noexcept = default;
+        constexpr down2_late() noexcept = default;
 
         std::size_t run(state& st, workspace& /*unused*/, span<const float> in, span<float> out) const noexcept {
             const std::size_t frames = in.size() / Ch;
@@ -502,12 +600,13 @@ namespace catenae {
         }
     };
     template <std::size_t Ch>
-    struct is_stage<down2<Ch>> : std::true_type {};
+    struct is_stage<down2_late<Ch>> : std::true_type {};
 
     /// Works on whole blocks of Hop frames: nothing comes out until a block is in, then Hop
     /// frames come out at once. This is how stft | spectral stage | istft behaves per call,
     /// and it stands in for that region here (mono, f applied to each sample of the block).
-    /// Its input group is the hop, and it can be Hop - 1 frames behind.
+    /// Its input group is the hop, it can be Hop - 1 frames behind, and it only ever writes
+    /// whole blocks.
     template <std::size_t Hop, typename F>
     class blockwise {
       public:
@@ -516,6 +615,9 @@ namespace catenae {
         static constexpr ratio       rate_ratio{1, 1};
         static constexpr std::size_t input_group = Hop;
         static constexpr ratio       max_shortfall{Hop - 1, 1};
+        static constexpr ratio       max_lead{0, 1};
+        static constexpr std::size_t output_quantum = Hop;
+        static constexpr bool        rests_at_zero  = true; // an empty block
 
         struct state {
             std::array<float, Hop> block;
@@ -573,19 +675,25 @@ namespace catenae {
     template <typename Config>
     using memory_of = memory<std::remove_cv_t<Config>>;
 
+    template <typename... Stages>
+    class chain;
+
     namespace detail {
 
-        // The states of a chain's stages, one after another: a plain recursive aggregate
-        // (std::tuple is neither trivially copyable nor standard layout).
+        // Things held one after another: a plain recursive aggregate. A chain keeps its
+        // stages' configurations, states and workspaces this way (std::tuple is neither
+        // trivially copyable nor standard layout, and its constructor zero-fills).
         template <typename... Ts>
         struct pack;
+        template <>
+        struct pack<> {};
         template <typename T>
         struct pack<T> {
             T first;
         };
         template <typename T, typename U, typename... Rest>
         struct pack<T, U, Rest...> {
-            T                 first;
+            T                first;
             pack<U, Rest...> rest;
         };
         template <std::size_t I, typename T, typename... Rest>
@@ -606,6 +714,22 @@ namespace catenae {
                 return item<I - 1>(p.rest);
             }
         }
+        template <typename T>
+        constexpr pack<T> packed(const T& only) noexcept {
+            return pack<T>{only};
+        }
+        template <typename T, typename U, typename... Rest>
+        constexpr pack<T, U, Rest...> packed(const T& head, const U& next, const Rest&... rest) noexcept {
+            return pack<T, U, Rest...>{head, packed(next, rest...)};
+        }
+        template <std::size_t I, typename... Ts>
+        struct pack_element;
+        template <std::size_t I, typename T, typename... Rest>
+        struct pack_element<I, T, Rest...> : pack_element<I - 1, Rest...> {};
+        template <typename T, typename... Rest>
+        struct pack_element<0, T, Rest...> {
+            using type = T;
+        };
 
         // One joint: a stage's output port is the next stage's input port. The chain derives
         // from joints<>, so every joint is checked when the chain's type is formed, whether or
@@ -638,29 +762,59 @@ namespace catenae {
             return n;
         }
 
-        // Each stage's worst shortfall, carried to the chain's output rate, and summed: a bound
-        // on the chain's, sufficient and not always tight.
-        template <typename... Stages>
-        constexpr ratio composed_shortfall() noexcept {
-            const ratio shortfalls[] = {Stages::max_shortfall...};
-            const ratio ratios[]     = {Stages::rate_ratio...};
-            ratio       sum{0, 1};
-            ratio       after{1, 1}; // the ratio from this stage's output to the chain's output
-            for (std::size_t i = sizeof...(Stages); i > 0; --i) {
-                sum   = sum + shortfalls[i - 1] * after;
-                after = ratios[i - 1] * after;
+        // How far a configuration's output can trail and lead what it is owed, and in what
+        // multiples it is written, when frames reach it in whole multiples of q.
+        struct pace {
+            ratio       shortfall;
+            ratio       lead;
+            std::size_t quantum;
+        };
+
+        // A leaf stage: its published numbers, by the law stated above D35's list.
+        template <typename Stage>
+        struct arrival {
+            static constexpr pace at(std::size_t q) noexcept {
+                const std::size_t group = Stage::input_group;
+                const ratio       rate  = Stage::rate_ratio;
+                if (q % group == 0) { // whole groups in: exactly what is owed comes out
+                    return pace{ratio{0, 1}, ratio{0, 1}, (q / group) * (group * rate.up / rate.down)};
+                }
+                const ratio scale{group - std::gcd(q, group), group - 1};
+                return pace{Stage::max_shortfall * scale, Stage::max_lead * scale, Stage::output_quantum};
             }
-            return sum;
+        };
+
+        // A chain: each stage's numbers at the quantum that reaches it, carried to the chain's
+        // output rate and summed. Sufficient always, and exact for two block stages.
+        template <typename Stage, typename... Rest>
+        constexpr pace composed_pace(std::size_t q) noexcept {
+            const pace mine = arrival<Stage>::at(q);
+            if constexpr (sizeof...(Rest) == 0) {
+                return mine;
+            }
+            else {
+                const ratio after = (Rest::rate_ratio * ...); // from this stage's output to the chain's
+                const pace  rest  = composed_pace<Rest...>(mine.quantum);
+                return pace{mine.shortfall * after + rest.shortfall, mine.lead * after + rest.lead, rest.quantum};
+            }
         }
+        template <typename... Stages>
+        struct arrival<chain<Stages...>> {
+            static constexpr pace at(std::size_t q) noexcept { return composed_pace<Stages...>(q); }
+        };
 
     } // namespace detail
 
     template <typename... Stages>
     class chain : private detail::joints<0, Stages...> {
         static_assert(sizeof...(Stages) > 0, "catenae: a chain has at least one stage");
+        static_assert(((Stages::input_group != 1 ||
+                        (Stages::max_shortfall == ratio{0, 1} && Stages::max_lead == ratio{0, 1})) &&
+                       ...),
+                      "catenae: a stage whose input group is 1 neither trails nor leads");
         static constexpr std::size_t k_count = sizeof...(Stages);
         template <std::size_t I>
-        using stage_t = std::tuple_element_t<I, std::tuple<Stages...>>;
+        using stage_t = typename detail::pack_element<I, Stages...>::type;
 
         // The most frames stage I can write while the chain works on one block.
         template <std::size_t I>
@@ -679,7 +833,7 @@ namespace catenae {
         struct scratch_of;
         template <std::size_t... I>
         struct scratch_of<std::index_sequence<I...>> {
-            using type = std::tuple<scratch_t<I>...>;
+            using type = detail::pack<scratch_t<I>...>;
         };
 
       public:
@@ -691,11 +845,12 @@ namespace catenae {
         static constexpr ratio       rate_ratio  = (Stages::rate_ratio * ...);
         static constexpr std::size_t input_group = detail::composed_group<Stages...>();
         /// Derived, never declared: n frames in always write exactly n L/M, for any n.
-        static constexpr bool  is_frame_synchronous = input_group == 1;
-        /// The smaller of two bounds: the stages' shortfalls summed, and one frame short of an
-        /// input group (the output has caught up exactly at every whole group).
-        static constexpr ratio max_shortfall =
-            lesser(detail::composed_shortfall<Stages...>(), ratio{input_group - 1, 1} * rate_ratio);
+        static constexpr bool is_frame_synchronous = input_group == 1;
+        /// How far the chain's output can trail and lead what it is owed, counted from reset,
+        /// and the multiples it is written in: composed from the stages' numbers.
+        static constexpr ratio       max_shortfall  = detail::composed_pace<Stages...>(1).shortfall;
+        static constexpr ratio       max_lead       = detail::composed_pace<Stages...>(1).lead;
+        static constexpr std::size_t output_quantum = detail::composed_pace<Stages...>(1).quantum;
 
         /// What one instance remembers: its stages' histories and nothing else. Plain storage,
         /// so a static one is in .bss: no flash, no start-up code. reset() makes it ready.
@@ -704,25 +859,33 @@ namespace catenae {
             std::uint32_t                           ready; // k_ready once reset; always present, checked at the audit level
         };
         /// What a call needs and no instance keeps: the buffers between the stages, and the
-        /// stages' own scratch. One per thread serves every state of this chain type.
+        /// stages' own scratch. One per thread serves every state of this chain type. Plain
+        /// storage too: nothing fills it, wherever it is.
         struct workspace {
-            std::tuple<typename Stages::workspace...>                             stages;
+            detail::pack<typename Stages::workspace...>                      stages;
             typename scratch_of<std::make_index_sequence<k_count - 1>>::type scratch;
         };
 
         explicit constexpr chain(const Stages&... stages) noexcept
-            : m_stages(stages...) {}
-
-        constexpr const std::tuple<Stages...>& stages() const noexcept { return m_stages; }
+            : m_stages(detail::packed(stages...)) {}
 
         /// One stage's configuration, by its position in the chain.
         template <std::size_t I>
         constexpr const stage_t<I>& stage() const noexcept {
-            return std::get<I>(m_stages);
+            return detail::item<I>(m_stages);
         }
         template <std::size_t I>
         constexpr stage_t<I>& stage() noexcept {
-            return std::get<I>(m_stages);
+            return detail::item<I>(m_stages);
+        }
+        /// One stage's part of a state, by the same position: where a meter's reading is read.
+        template <std::size_t I>
+        static constexpr const state_of<stage_t<I>>& stage_state(const state& st) noexcept {
+            return detail::item<I>(st.stages);
+        }
+        template <std::size_t I>
+        static constexpr state_of<stage_t<I>>& stage_state(state& st) noexcept {
+            return detail::item<I>(st.stages);
         }
 
         /// Puts a state at rest: each stage resets its own part, in place. Before the first
@@ -731,6 +894,7 @@ namespace catenae {
             reset_each<0>(st);
             st.ready = k_ready;
         }
+        static constexpr bool is_reset(const state& st) noexcept { return st.ready == k_ready; }
 
         /// Non-decreasing in n, as every stage's is: scratch and FIFOs are sized from it.
         static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return fold_max<0>(n); }
@@ -741,6 +905,7 @@ namespace catenae {
 
         /// The trusted form: what an enclosing chain or an adapter calls.
         std::size_t run(state& st, workspace& ws, span<const sample_in> in, span<sample_out> out) const noexcept {
+            static_assert(is_plain<workspace>, "catenae: a workspace is a plain aggregate (no constructor fills it)");
             const std::size_t width  = input_port::width;
             const std::size_t frames = in.size() / width;
             std::size_t       done   = 0;
@@ -759,7 +924,7 @@ namespace catenae {
                                           span<sample_out> out) const noexcept {
             expects(in.size() % input_port::width == 0, 1);
             expects(out.size() >= outputs_for(st, in.size() / input_port::width) * output_port::width, 2);
-            audits(st.ready == k_ready, 10); // reset() was never called on this state
+            audits(is_reset(st), 10); // reset() was never called on this state
             return run(st, ws, in, out);
         }
         [[nodiscard]] std::size_t process(memory<chain>& both, span<const sample_in> in,
@@ -778,7 +943,7 @@ namespace catenae {
                           "catenae: a fixed block must be a whole number of the chain's input groups; wrap the chain in steady<>");
             static_assert(M >= max_outputs_for(N / input_port::width) * output_port::width,
                           "catenae: the output block is too small for this input block");
-            audits(st.ready == k_ready, 10);
+            audits(is_reset(st), 10);
             return run(st, ws, span<const sample_in>(in), span<sample_out>(out));
         }
         template <std::size_t N, std::size_t M>
@@ -792,7 +957,7 @@ namespace catenae {
 
         template <std::size_t I>
         void reset_each(state& st) const noexcept {
-            reset_state(std::get<I>(m_stages), detail::item<I>(st.stages));
+            reset_state(detail::item<I>(m_stages), detail::item<I>(st.stages));
             if constexpr (I + 1 < k_count) {
                 reset_each<I + 1>(st);
             }
@@ -800,14 +965,14 @@ namespace catenae {
         template <std::size_t I>
         std::size_t step(state& st, workspace& ws, span<const typename stage_t<I>::input_port::value_type> in,
                          span<sample_out> out) const noexcept {
-            const auto& stage = std::get<I>(m_stages);
+            const auto& stage = detail::item<I>(m_stages);
             auto&       mine  = detail::item<I>(st.stages);
-            auto&       work  = std::get<I>(ws.stages);
+            auto&       work  = detail::item<I>(ws.stages);
             if constexpr (I + 1 == k_count) {
                 return stage.run(mine, work, in, out);
             }
             else {
-                auto&             buffer = std::get<I>(ws.scratch);
+                auto&             buffer = detail::item<I>(ws.scratch);
                 const std::size_t made   = stage.run(mine, work, in, span<typename scratch_t<I>::value_type>(buffer));
                 audits(made <= bound<I>(), 7);
                 return step<I + 1>(
@@ -826,7 +991,7 @@ namespace catenae {
         }
         template <std::size_t I>
         constexpr std::size_t fold_out(const state& st, std::size_t n) const noexcept {
-            const std::size_t made = std::get<I>(m_stages).outputs_for(detail::item<I>(st.stages), n);
+            const std::size_t made = detail::item<I>(m_stages).outputs_for(detail::item<I>(st.stages), n);
             if constexpr (I + 1 == k_count) {
                 return made;
             }
@@ -836,7 +1001,7 @@ namespace catenae {
         }
         template <std::size_t I>
         constexpr std::size_t fold_need(const state& st, std::size_t k) const noexcept {
-            const std::size_t n = std::get<I>(m_stages).frames_needed(detail::item<I>(st.stages), k);
+            const std::size_t n = detail::item<I>(m_stages).frames_needed(detail::item<I>(st.stages), k);
             if constexpr (I == 0) {
                 return n;
             }
@@ -845,7 +1010,9 @@ namespace catenae {
             }
         }
 
-        std::tuple<Stages...> m_stages; // the configurations: this is all a chain object holds
+        // The configurations: this is all a chain object holds. A plain aggregate, so a chain's
+        // configuration is trivially copyable when its stages' are, and can travel in a mailbox.
+        detail::pack<Stages...> m_stages;
     };
     template <typename... Stages>
     chain(Stages...) -> chain<Stages...>;
@@ -858,9 +1025,10 @@ namespace catenae {
     struct is_chain<chain<Stages...>> : std::true_type {};
 
     namespace detail {
-        template <typename... Stages>
-        constexpr chain<Stages...> chain_from(const std::tuple<Stages...>& stages) noexcept {
-            return std::apply([](const Stages&... each) { return chain<Stages...>(each...); }, stages);
+        template <typename... As, typename... Bs, std::size_t... I, std::size_t... J>
+        constexpr chain<As..., Bs...> joined(const chain<As...>& a, const chain<Bs...>& b, std::index_sequence<I...> /*unused*/,
+                                             std::index_sequence<J...> /*unused*/) noexcept {
+            return chain<As..., Bs...>(a.template stage<I>()..., b.template stage<J>()...);
         }
         template <typename T>
         inline constexpr bool is_lone_stage = is_stage<T>::value && !is_chain<T>::value;
@@ -868,21 +1036,21 @@ namespace catenae {
 
     // a | b | c composes CONFIGURATIONS, which are a few bytes each. No history moves. It
     // always flattens, whichever side a chain is on: (a | b) | (c | d) is chain<a, b, c, d>.
+    template <typename... As, typename... Bs>
+    constexpr chain<As..., Bs...> operator|(const chain<As...>& a, const chain<Bs...>& b) noexcept {
+        return detail::joined(a, b, std::index_sequence_for<As...>{}, std::index_sequence_for<Bs...>{});
+    }
     template <typename A, typename B, std::enable_if_t<detail::is_lone_stage<A> && detail::is_lone_stage<B>, int> = 0>
     constexpr chain<A, B> operator|(const A& a, const B& b) noexcept {
         return chain<A, B>(a, b);
     }
     template <typename... As, typename B, std::enable_if_t<detail::is_lone_stage<B>, int> = 0>
     constexpr chain<As..., B> operator|(const chain<As...>& a, const B& b) noexcept {
-        return detail::chain_from(std::tuple_cat(a.stages(), std::tuple<B>(b)));
+        return a | chain<B>(b);
     }
     template <typename A, typename... Bs, std::enable_if_t<detail::is_lone_stage<A>, int> = 0>
     constexpr chain<A, Bs...> operator|(const A& a, const chain<Bs...>& b) noexcept {
-        return detail::chain_from(std::tuple_cat(std::tuple<A>(a), b.stages()));
-    }
-    template <typename... As, typename... Bs>
-    constexpr chain<As..., Bs...> operator|(const chain<As...>& a, const chain<Bs...>& b) noexcept {
-        return detail::chain_from(std::tuple_cat(a.stages(), b.stages()));
+        return chain<A>(a) | b;
     }
     // One side a stage and the other not: say so, instead of the compiler's "no match".
     template <typename A, typename B, std::enable_if_t<is_stage<A>::value != is_stage<B>::value, int> = 0>
@@ -897,14 +1065,16 @@ namespace catenae {
     /// Wraps a 1:1 configuration that writes in bursts and presents a frame-synchronous one:
     /// n frames out for every n in. The price is a FIFO and the inner configuration's worst
     /// shortfall as added latency, both stated. Its reset primes the FIFO with that many frames
-    /// of silence, so it can always pay out n frames however far behind the inner output is.
+    /// of silence, so it can always pay out n frames however far behind the inner output is;
+    /// and the FIFO has room for the inner output's worst lead as well as its largest burst.
     template <typename Inner>
     class steady {
         static_assert(Inner::rate_ratio == (ratio{1, 1}), "catenae: steady<> is for a 1:1 configuration");
         using sample = typename Inner::output_port::value_type;
         static constexpr std::size_t k_width    = Inner::output_port::width;
-        static constexpr std::size_t k_primed   = ceiling(Inner::max_shortfall);
-        static constexpr std::size_t k_capacity = k_primed + Inner::max_outputs_for(k_block);
+        static constexpr std::size_t k_primed   = ceiling(detail::arrival<Inner>::at(1).shortfall);
+        static constexpr std::size_t k_ahead    = ceiling(detail::arrival<Inner>::at(1).lead);
+        static constexpr std::size_t k_capacity = k_primed + k_ahead + Inner::max_outputs_for(k_block);
 
       public:
         using input_port  = typename Inner::input_port;
@@ -912,6 +1082,8 @@ namespace catenae {
         static constexpr ratio       rate_ratio           = Inner::rate_ratio;
         static constexpr std::size_t input_group          = 1;
         static constexpr ratio       max_shortfall{0, 1};
+        static constexpr ratio       max_lead{0, 1};
+        static constexpr std::size_t output_quantum       = 1;
         static constexpr std::size_t added_latency_frames = k_primed;
 
         struct state {
@@ -947,13 +1119,15 @@ namespace catenae {
                     st.inner, ws.inner,
                     span<const typename input_port::value_type>(in.data() + done * input_port::width, n * input_port::width),
                     span<sample>(ws.burst));
+                // The inner output is never further ahead than its max_lead, so what the FIFO
+                // holds and this burst fit; and never further behind than its max_shortfall, so
+                // the FIFO then holds the n frames this call pays out. Both at the audit level.
+                audits(st.held + made <= k_capacity, 11);
+                audits(st.held + made >= n, 5);
                 const std::size_t write = (st.read + st.held) % k_capacity;
                 for (std::size_t i = 0; i < made * k_width; ++i) {
                     st.fifo[(write * k_width + i) % (k_capacity * k_width)] = ws.burst[i];
                 }
-                // The inner configuration never falls further behind than its max_shortfall, so
-                // the FIFO always holds the n frames this call pays out. Checked at the audit level.
-                audits(st.held + made >= n, 5);
                 for (std::size_t i = 0; i < n * k_width; ++i) {
                     out[done * k_width + i] = st.fifo[(st.read * k_width + i) % (k_capacity * k_width)];
                 }
@@ -977,6 +1151,20 @@ namespace catenae {
 
     // ---- a junction, and the pull side that delivers exactly what was asked ---------------
 
+    namespace detail {
+        // A 32-bit word that two threads share. It is a plain word, read and written through
+        // the compiler's atomic operations, so the state that holds it is plain storage at
+        // every standard (std::atomic has a constructor from C++20 on, and a state with one
+        // gets start-up code). This is the one place the sketch uses a compiler extension.
+        struct word {
+            std::uint32_t value;
+        };
+        inline std::uint32_t load_relaxed(const word& w) noexcept { return __atomic_load_n(&w.value, __ATOMIC_RELAXED); }
+        inline std::uint32_t load_acquire(const word& w) noexcept { return __atomic_load_n(&w.value, __ATOMIC_ACQUIRE); }
+        inline void store_relaxed(word& w, std::uint32_t v) noexcept { __atomic_store_n(&w.value, v, __ATOMIC_RELAXED); }
+        inline void store_release(word& w, std::uint32_t v) noexcept { __atomic_store_n(&w.value, v, __ATOMIC_RELEASE); }
+    } // namespace detail
+
     /// What a third thread may read of a junction. Each field is read on its own.
     struct handoff_report {
         bool          running; // false while the ring fills to its target
@@ -987,88 +1175,113 @@ namespace catenae {
 
     /// A single-producer, single-consumer ring of frames (shared clock, two threads). Like a
     /// stage it is a configuration and a state; its configuration is its template arguments,
-    /// so the object is empty.
+    /// so the object is empty. Push is the producer's largest push.
     ///
-    /// Its fill policy, as numbers: pull delivers silence until the ring first holds Target
-    /// frames, then real frames; a pull the ring cannot fill is an underrun, delivers what
-    /// there is, and sends the ring back to filling; a push the ring cannot hold is an overrun
-    /// and drops the newest frames. So the fill a pull sees after start-up, or after an
-    /// underrun, is Target: that is the junction's nominal latency, whichever side ran first.
-    /// Target is at least the consumer's largest pull, and at most Capacity less the
-    /// producer's largest push.
-    template <std::size_t Ch, std::size_t Capacity, std::size_t Target>
+    /// Its fill policy, as numbers: pull delivers silence until the ring holds Target frames;
+    /// on that pull it discards the oldest frames above Target and starts paying out, so the
+    /// fill a pull sees when it starts, or starts again, is exactly Target whichever side ran
+    /// first and however long. A pull the ring cannot fill is an underrun: it delivers what
+    /// there is and sends the ring back to filling. A push the ring cannot hold is an overrun
+    /// and drops the newest frames. While it runs, the fill a pull sees stays within one push
+    /// of Target; that is the junction's latency, nominal Target. If the consumer stalls while
+    /// the producer runs, the fill and the latency rise by what was missed and stay there
+    /// until an overrun or restart().
+    ///
+    /// For the fill never to run out, Target is at least the largest pull, plus the largest
+    /// push, less a number that divides every push and every pull (1 if their sizes vary):
+    /// serves() says whether it is.
+    template <std::size_t Ch, std::size_t Capacity, std::size_t Target, std::size_t Push>
     class handoff {
         static_assert((Capacity & (Capacity - 1)) == 0, "catenae: a handoff's capacity is a power of two");
-        static_assert(Target > 0 && Target <= Capacity, "catenae: a handoff's target fill is within its capacity");
+        static_assert(Target > 0 && Push > 0, "catenae: a handoff's target fill and largest push are not zero");
+        static_assert(Target + Push <= Capacity, "catenae: a handoff's capacity holds its target and one push");
         static_assert(std::atomic<std::uint32_t>::is_always_lock_free, "catenae: a handoff needs a lock-free 32-bit atomic");
 
       public:
         using sink_port   = port<float, Ch>;
         using source_port = port<float, Ch>;
         static constexpr std::size_t capacity_frames = Capacity;
-        static constexpr std::size_t latency_frames  = Target; // nominal; it moves by what either side misses
+        static constexpr std::size_t target_frames   = Target;
+        static constexpr std::size_t largest_push    = Push;
+        static constexpr bool        rests_at_zero   = true; // an empty ring, filling, no counts
+
+        /// Whether the ring serves pulls of up to largest_pull frames without running out.
+        /// quantum divides every push and every pull; pass 1 when their sizes vary.
+        static constexpr bool serves(std::size_t largest_pull, std::size_t quantum) noexcept {
+            return Push % quantum == 0 && Target + quantum >= largest_pull + Push;
+        }
 
         struct state {
             std::array<float, Capacity * Ch> ring;
-            std::atomic<std::uint32_t>       head;      // written by the producer
-            std::atomic<std::uint32_t>       tail;      // written by the consumer
-            std::atomic<std::uint32_t>       running;   // written by the consumer; 0 is filling
-            std::atomic<std::uint32_t>       underruns; // written by the consumer
-            std::atomic<std::uint32_t>       overruns;  // written by the producer
+            detail::word                     head;      // written by the producer
+            detail::word                     tail;      // written by the consumer
+            detail::word                     running;   // written by the consumer; 0 is filling
+            detail::word                     underruns; // written by the consumer
+            detail::word                     overruns;  // written by the producer
         };
 
         constexpr handoff() noexcept = default;
 
-        /// Empties the ring and its counts. Only while neither side is running, and before the
-        /// first push or pull.
+        /// Empties the ring and its counts. Only while neither side is running. Its rest state
+        /// is all zeros, so a static state that was never reset is already at rest: a junction's
+        /// state carries no ready word.
         void reset(state& st) const noexcept {
-            st.head.store(0, std::memory_order_relaxed);
-            st.tail.store(0, std::memory_order_relaxed);
-            st.running.store(0, std::memory_order_relaxed);
-            st.underruns.store(0, std::memory_order_relaxed);
-            st.overruns.store(0, std::memory_order_release);
+            static_assert(is_plain<state>, "catenae: a junction's state is a plain aggregate");
+            detail::store_relaxed(st.head, 0);
+            detail::store_relaxed(st.tail, 0);
+            detail::store_relaxed(st.running, 0);
+            detail::store_relaxed(st.underruns, 0);
+            detail::store_release(st.overruns, 0);
         }
 
-        /// The producer's thread (exactly one). Returns the frames accepted.
+        /// The junction's latency in frames, nominal. A constant here; the state is an argument
+        /// because a junction that follows a clock moves its target as it runs.
+        constexpr std::size_t latency(const state& /*unused*/) const noexcept { return Target; }
+
+        /// The producer's thread (exactly one). At most Push frames. Returns the frames accepted.
         [[nodiscard]] std::size_t push(state& st, span<const float> in) const noexcept {
-            const std::uint32_t head   = st.head.load(std::memory_order_relaxed);
-            const std::uint32_t tail   = st.tail.load(std::memory_order_acquire);
+            const std::size_t asked = in.size() / Ch;
+            expects(asked <= Push, 12);
+            const std::uint32_t head   = detail::load_relaxed(st.head);
+            const std::uint32_t tail   = detail::load_acquire(st.tail);
             const std::size_t   room   = Capacity - static_cast<std::size_t>(head - tail);
-            const std::size_t   asked  = in.size() / Ch;
             const std::size_t   frames = std::min(asked, room);
             for (std::size_t i = 0; i < frames * Ch; ++i) {
                 st.ring[((static_cast<std::size_t>(head) % Capacity) * Ch + i) % (Capacity * Ch)] = in[i];
             }
-            st.head.store(head + static_cast<std::uint32_t>(frames), std::memory_order_release);
-            if (frames < asked) { // one writer, so a load and a store, not a fetch_add
-                st.overruns.store(st.overruns.load(std::memory_order_relaxed) + 1U, std::memory_order_relaxed);
+            detail::store_release(st.head, head + static_cast<std::uint32_t>(frames));
+            if (frames < asked) { // one writer, so a load and a store, not a fetch-and-add
+                detail::store_relaxed(st.overruns, detail::load_relaxed(st.overruns) + 1U);
             }
             return frames;
         }
 
-        /// The consumer's thread (exactly one other). Always fills out; what it could not
-        /// supply is silence. Returns the real frames.
+        /// The consumer's thread (exactly one other). At most Target frames. Always fills out;
+        /// what it could not supply is silence. Returns the real frames.
         [[nodiscard]] std::size_t pull(state& st, span<float> out) const noexcept {
-            const std::uint32_t tail = st.tail.load(std::memory_order_relaxed);
-            const std::uint32_t head = st.head.load(std::memory_order_acquire);
-            const std::size_t   fill = static_cast<std::size_t>(head - tail);
-            const std::size_t   want = out.size() / Ch;
-            if (st.running.load(std::memory_order_relaxed) == 0) {
+            const std::size_t want = out.size() / Ch;
+            expects(want <= Target, 13);
+            std::uint32_t       tail = detail::load_relaxed(st.tail);
+            const std::uint32_t head = detail::load_acquire(st.head);
+            std::size_t         fill = static_cast<std::size_t>(head - tail);
+            if (detail::load_relaxed(st.running) == 0) {
                 if (fill < Target) {
                     std::fill(out.begin(), out.end(), 0.0f);
                     return 0;
                 }
-                st.running.store(1, std::memory_order_relaxed);
+                tail = head - static_cast<std::uint32_t>(Target); // discard the oldest frames above the target
+                fill = Target;
+                detail::store_relaxed(st.running, 1);
             }
             const std::size_t frames = std::min(want, fill);
             for (std::size_t i = 0; i < frames * Ch; ++i) {
                 out[i] = st.ring[((static_cast<std::size_t>(tail) % Capacity) * Ch + i) % (Capacity * Ch)];
             }
             std::fill(out.begin() + frames * Ch, out.end(), 0.0f);
-            st.tail.store(tail + static_cast<std::uint32_t>(frames), std::memory_order_release);
+            detail::store_release(st.tail, tail + static_cast<std::uint32_t>(frames));
             if (frames < want) {
-                st.underruns.store(st.underruns.load(std::memory_order_relaxed) + 1U, std::memory_order_relaxed);
-                st.running.store(0, std::memory_order_relaxed); // fill to the target again
+                detail::store_relaxed(st.underruns, detail::load_relaxed(st.underruns) + 1U);
+                detail::store_relaxed(st.running, 0); // fill to the target again
             }
             return frames;
         }
@@ -1076,18 +1289,17 @@ namespace catenae {
         /// The consumer's thread, while the producer runs: discard what is buffered and fill
         /// to the target again. (reset() needs both sides at rest; this does not.)
         void restart(state& st) const noexcept {
-            st.tail.store(st.head.load(std::memory_order_acquire), std::memory_order_release);
-            st.running.store(0, std::memory_order_relaxed);
+            detail::store_release(st.tail, detail::load_acquire(st.head));
+            detail::store_relaxed(st.running, 0);
         }
 
         /// Any thread. The consumer's index is read first and the producer's second, so the
         /// difference can only over-estimate, and it is clamped to the capacity.
         handoff_report report(const state& st) const noexcept {
-            const std::uint32_t tail = st.tail.load(std::memory_order_acquire);
-            const std::uint32_t head = st.head.load(std::memory_order_acquire);
-            return handoff_report{st.running.load(std::memory_order_relaxed) != 0,
-                                  std::min(head - tail, static_cast<std::uint32_t>(Capacity)),
-                                  st.underruns.load(std::memory_order_relaxed), st.overruns.load(std::memory_order_relaxed)};
+            const std::uint32_t tail = detail::load_acquire(st.tail);
+            const std::uint32_t head = detail::load_acquire(st.head);
+            return handoff_report{detail::load_relaxed(st.running) != 0, std::min(head - tail, static_cast<std::uint32_t>(Capacity)),
+                                  detail::load_relaxed(st.underruns), detail::load_relaxed(st.overruns)};
         }
     };
 
@@ -1166,11 +1378,11 @@ namespace catenae {
     // ---- the pull side ------------------------------------------------------------------
 
     namespace detail {
-        // The most input frames a chain can need to write k output frames, from any state.
+        // The most input frames a chain can need to write k output frames, from any state:
+        // between two states its output can swing by its shortfall and its lead together.
         template <typename Chain>
         constexpr std::size_t max_frames_needed(std::size_t k) noexcept {
-            const ratio r = Chain::rate_ratio;
-            return ((k + ceiling(Chain::max_shortfall)) * r.down + r.up - 1) / r.up;
+            return ceiling((ratio{k, 1} + Chain::max_shortfall + Chain::max_lead) / Chain::rate_ratio);
         }
     } // namespace detail
 
@@ -1197,8 +1409,9 @@ namespace catenae {
     }
 
     /// What the pull side needs while a call runs: the chain's workspace and the staging for
-    /// one pull. MaxRequest is the largest request, in output frames: a request makes exactly
-    /// one pull on the junction, so the staging holds everything that request can need.
+    /// one pull. MaxRequest is the largest request, in output frames: a request makes at most
+    /// one pull on the junction, of at most k_max_pull frames, so the staging holds everything
+    /// that request can need.
     template <typename Chain, std::size_t MaxRequest>
     struct fed_by_scratch {
         static constexpr std::size_t k_in_width  = Chain::input_port::width;
@@ -1213,20 +1426,25 @@ namespace catenae {
     using fed_by_workspace = fed_by_scratch<std::remove_cv_t<Chain>, MaxRequest>;
 
     /// Fills `out` with exactly out.size() / width frames of the chain's output, pulling what
-    /// the chain needs from the junction in ONE pull: a junction may clock a servo or a fill
-    /// policy from its pulls, so a request is never split into several. Returns the frames
-    /// written, which is all of `out`; st.starved counts the input frames that were silence.
-    /// This is where SampleRateTap's pull(out, k) lands.
+    /// the chain needs from the junction in AT MOST ONE pull: a junction may clock a servo or
+    /// a fill policy from its pulls, so a request is never split into several. A request the
+    /// holdover covers makes none. Returns the frames written, which is all of `out`;
+    /// st.starved counts the input frames that were silence. The chain is a chain<>: wrap a
+    /// lone stage with chain(stage). This is where SampleRateTap's pull(out, k) lands.
     template <typename Junction, typename Chain, std::size_t MaxRequest>
     std::size_t fed_by(const Junction& junction, state_of<Junction>& junction_state, const Chain& chain, fed_by_memory<Chain>& st,
                        fed_by_scratch<Chain, MaxRequest>& ws, span<typename Chain::output_port::value_type> out) noexcept {
         using scratch_t         = fed_by_scratch<Chain, MaxRequest>;
+        static_assert(Junction::serves(scratch_t::k_max_pull, 1),
+                      "catenae: the junction's target is below this request's largest pull plus its largest push less one");
+        static_assert(is_plain<fed_by_memory<Chain>> && is_plain<scratch_t>, "catenae: the pull side's memory is plain storage");
         using sample_in         = typename Chain::input_port::value_type;
         using sample_out        = typename Chain::output_port::value_type;
         const std::size_t width = scratch_t::k_out_width;
         expects(out.size() % width == 0, 1);
         const std::size_t want = out.size() / width;
         expects(want <= MaxRequest, 8); // the boundary check on the request
+        audits(Chain::is_reset(st.chain), 10);
         std::size_t done = std::min(st.held, want);
         std::copy(st.holdover.begin(), st.holdover.begin() + static_cast<std::ptrdiff_t>(done * width), out.begin());
         std::copy(st.holdover.begin() + static_cast<std::ptrdiff_t>(done * width),

@@ -14,6 +14,14 @@ done
 arm-none-eabi-g++ -std=c++17 $target -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections -DWITH_DESIGNER \
     -c embedded_main.cpp -o "$out/embedded_main_designer.o"
 
+echo "--- start-up code: static constructors in embedded.o at each standard (every static is CATENAE_SKETCH_CONSTINIT)"
+for standard in 17 20 23; do
+    arm-none-eabi-g++ -std=c++$standard $target -fno-exceptions -fno-rtti -ffunction-sections -fdata-sections \
+        -c embedded.cpp -o "$out/embedded_$standard.o"
+    count=$(arm-none-eabi-size -A "$out/embedded_$standard.o" | grep -c -E "init_array|text\.startup" || true)
+    printf "C++%s: %d start-up sections\n" "$standard" "$count"
+done
+
 echo "--- data of the audio path (embedded.o)"
 arm-none-eabi-nm -S --size-sort -C "$out/embedded.o" | while read -r _ size kind name; do
     case "$kind" in

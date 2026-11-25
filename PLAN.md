@@ -57,20 +57,21 @@ Every decision in section 1 is the maintainer's, settled on or before 2026-11-25
 | D8 | Byte order and packing exist only in edge stages, `unpack` and `pack`, whose outer port is a `wire_port` that no other stage accepts. Inside a chain every sample is native. |
 | D18 | The stage contract is fixed-ratio: a compile-time L/M, and `outputs_for` exact. The ratio is the long-run one (D35). |
 | D34 | **Configuration apart from state.** A stage is a small constant value, its *configuration*. What it remembers is a separate *state*: plain storage with no constructor, so a static one lives in `.bss` with no flash and no start-up code. `a \| b \| c` composes configurations; `state_of<Chain>` is one instance's memory. One configuration serves many states. A parameter is part of the configuration. |
-| D49 | **Reset.** The configuration resets the state: `reset(state&) const`, in place, before the first call. Storage that is all zero means not yet reset, not at rest. A stage whose rest state is all zero writes no reset (the default zeroes the state); one whose rest state is not, or depends on its configuration, writes its own. A chain's reset calls each stage's on its own part of the state. A state is a plain aggregate, trivially copyable and standard-layout, with no default member initialisers. A missing reset is a broken precondition, checked at the `audit` level. |
+| D54 | **A configuration is small and trivially copyable** (asserted). A stage's own configuration is at most 512 bytes; anything larger is a table held by view. A chain holds its stages' configurations in a plain aggregate and is exempt from the size, so a chain's configuration can be copied, posted through a mailbox and constant-initialised like a stage's. |
+| D49 | **Reset.** The configuration resets the state, in place, before the first call. Storage that is all zero means not yet reset, not at rest. A stage says how its state comes to rest, one way or the other: it writes `reset(state&) const noexcept` (its rest state is not zero, or depends on its configuration), or it declares `rests_at_zero = true` and its state is zeroed in place. `stage_traits` asserts exactly one of the two, so a reset that is mistyped is an error and not a silent zeroing. A chain's reset calls each stage's on its own part of the state. A state is a plain aggregate: trivially copyable, standard-layout, no constructor, no default member initialisers. A missing reset is a broken precondition, checked at the `audit` level through a `ready` word in the chain's state. A junction's state and a mailbox rest at zero and carry no such word. |
 | D50 | **Workspace apart from state.** What a call needs and no instance keeps (the buffers between stages, a stage's scratch) is a *workspace*: one per thread, shared by every state of that chain type, never initialised, never reset. The entry is `process(state&, workspace&, in, out)`; `memory_of<Chain>` holds both for a single instance. |
-| D35 | **A 1:1 ratio is not n frames out for n in.** A stage publishes its `input_group`, the smallest block it always turns into exactly n L/M frames, and its `max_shortfall`, how far its output can trail. A chain composes both, and `is_frame_synchronous` is derived (`input_group == 1`), never declared. A fixed block must be a whole number of input groups. `steady<>` wraps a bursting 1:1 configuration with a FIFO primed by its shortfall and presents a frame-synchronous one with that latency stated. The pull side keeps a holdover and delivers exactly the frames asked for. |
+| D35 | **A 1:1 ratio is not n frames out for n in.** A stage publishes how its output arrives, counted from the reset state: its `input_group`, the smallest block it always turns into exactly n L/M frames; its `max_shortfall` and `max_lead`, how far its output can trail and run ahead of what it is owed; and its `output_quantum`, the multiples it writes in. A chain composes all four, and `is_frame_synchronous` is derived (`input_group == 1`), never declared. A fixed block must be a whole number of input groups. `steady<>` wraps a bursting 1:1 configuration with a FIFO that is primed by its shortfall and has room for its lead, and presents a frame-synchronous one with the shortfall as its stated latency. The pull side keeps a holdover and delivers exactly the frames asked for. |
 | D37 | **Designs.** Anything computed from run-time numbers is a *design*, made by `make()`, which can fail; a stage is built from a design and cannot. A design carries its sample format, holds its coefficients in the kernel's type, and stores its latency and tail as numbers. Small designs are returned by value; table designs are generated ROM tables or are built into storage the caller supplies. A design that fixes a size (a tap count) is a type, and a template argument of its stage. A design is a class, not an open aggregate: only `make()` and a checked `from_table()` produce one. |
 | D39 | **Latency.** Every stage reports `{nominal, deviation}`; a stage with `has_exact_latency` also publishes an exact rational, a constant of its type. `oversample<Factor, Stage>` adds the delay that makes an oversampler's latency a whole number of frames. |
-| D9 | One latency report per stage and one flush contract: a tail and a stated residue. Flushing is resumable: a call writes at most the buffer it is given. |
-| D10 | Capabilities are published constants read through `stage_traits<T>`; nothing probes for a member, with one exception: `reset`, which `stage_traits` supplies for a stage that does not write one (D49). A type opts in as a stage by specialising `is_stage<T>`. |
-| D27 | **Checks.** Joints inside a chain are proven at compile time and cost nothing at run time. A run-time *boundary* check exists only where the caller's buffers enter (`process`, `push`, `pull`, `fed_by`), is written once from the traits, and is on in every build; with fixed-size blocks it is compile-time too. An *audit* check, on the library's own promises, is an explicit build option. The level is part of an inline namespace that the handler's name carries too, so a file with a run-time check or a call into the compiled core does not link against another level. |
-| D19 | A *junction* is a first-class concept with its own contract, for the place where two threads or two clocks meet. Like a stage it is a configuration and a state. The asynchronous converter is one. A chain never contains one. |
-| D51 | `handoff` has a fill policy stated as numbers: a target fill, silence until it is first reached, filling again after an underrun, the newest frames dropped on an overrun. Its nominal latency is the target. Every junction has a consumer-side `restart` beside the at-rest `reset`. |
-| D52 | The exact pull makes one pull on its junction per request, because a junction may clock a servo or a fill policy from its pulls. The largest request is a template argument that sizes the staging. A two-step pull (declare the request, then take it in pieces) would need no staging and is deferred. |
+| D9 | One latency report per stage and one flush contract: a tail and a stated residue. Flushing is resumable: a call fills the buffer it is given, which holds at least one burst, and the flush is finished when `flush_remaining` is 0. |
+| D10 | Capabilities are published constants read through `stage_traits<T>`, and nothing is inferred from a member that is missing: a stage that rests at zero says so (D49). A type opts in as a stage by specialising `is_stage<T>`. |
+| D27 | **Checks.** Joints inside a chain are proven at compile time and cost nothing at run time. A run-time *boundary* check exists only where the caller's buffers enter (`process`, `flush`, `push`, `pull`, `feeding`, `fed_by`), is written once from the traits, and is on in every build; with fixed-size blocks it is compile-time too. An *audit* check, on the library's own promises, is an explicit build option. The level is part of an inline namespace that the handler's name carries too, so a file with a run-time check or a call into the compiled core does not link against another level. |
+| D19 | A *junction* is a first-class concept with its own contract, for the place where two threads or two clocks meet. Like a stage it is a configuration and a state, and its state is plain storage: the words its two sides share are plain 32-bit words read and written through atomic operations, not `std::atomic` members, so a static one has no start-up code at any standard. The asynchronous converter is one. A chain never contains one. |
+| D51 | `handoff` has a fill policy stated as numbers: a target fill; silence until the ring holds it; on the pull that starts paying out, the oldest frames above the target discarded; filling again after an underrun; the newest frames dropped on an overrun. So a pull that starts, or starts again, sees exactly the target whichever side began first and however early, and the target is the nominal latency. The target is at least the largest pull plus the largest push, less a number that divides every push and every pull (1 when their sizes vary); the library asserts it wherever it makes the pull itself. Every junction has a consumer-side `restart` beside the at-rest `reset`. |
+| D52 | The exact pull makes at most one pull on its junction per request, and none when its holdover covers the request, because a junction may clock a servo or a fill policy from its pulls. The largest request is a template argument that sizes the staging and fixes the largest pull, which is published. A two-step pull (declare the request, then take it in pieces) would need no staging and is deferred. |
 | D44 | A *mailbox* carries one value between two threads: one poster, one taker, the newest wins, nobody waits. A new configuration reaches the audio thread this way and a reading leaves it. A posted value owns everything it refers to. A change takes effect at the next call after it is collected; whether it is smoothed is the stage's matter. |
 | D11 | Read-only analysis is a sibling `analyzer` concept; `tap<Ch, Analyzer>` puts one in a chain and passes the audio through. |
-| D43 | `parallel<ChainA, ChainB>` runs two chains on two groups of one port's channels with their latencies aligned. Both arms are frame-synchronous, their ratios match, and each has an exact latency that is a whole number of frames and a constant of its type (all asserted), so the aligning delay is sized by the types. An arm with a designed recursive filter has no such latency: its delay is placed by hand. A form that re-aligns at run time is deferred. A stage with two audio inputs stays out of the charter. |
+| D43 | `parallel<ChainA, ChainB>` runs two chains on two groups of one port's channels with their latencies aligned. Both arms are frame-synchronous, their ratios match, and each has an exact latency that is a whole number of frames and a constant of its type (all asserted), so the aligning delay is sized by the types. An arm with a designed recursive filter has no such latency, and that pair is written `parallel<A, B, align::by_caller>`: the same two arms with only frame-synchrony and equal ratios asserted, no delay inserted and no exact latency reported, in which the caller places a `delay` in an arm by hand. A form that re-aligns at run time is deferred. A stage with two audio inputs stays out of the charter. |
 
 ### Numbers
 
@@ -154,11 +155,13 @@ A stage is a configuration (D34). It is read through `stage_traits<T>`, which fa
 | `input_port`, `output_port` | The two port types. |
 | `rate_ratio` | `ratio{up, down}`, reduced. For an analysis stage it is 1 / hop. |
 | `state` | A nested type holding everything one instance remembers: a plain aggregate, trivially copyable and standard-layout (asserted), with no default member initialisers, so a static one is in `.bss`. Storage that is all zero is not yet reset (D49). |
-| `workspace` | A nested type holding what the stage needs only while a call runs; `no_workspace` for a stage with none (D50). Never initialised and never reset. |
-| `reset(state&) const` | Puts the state at rest, in place: `noexcept`, cannot fail, builds no temporary. Optional, and the one member `stage_traits` supplies: zeros, for a stage whose rest state is all zero. A stage whose rest state is not zero, or depends on its configuration, writes it: a gain starts at its level, an L/M stage at its design's phase, `steady` with its FIFO primed. |
-| `is_in_place` | Whether `in.data() == out.data()` is allowed. Declarable only when the two ports are the same type and the ratio is 1:1 (asserted). |
-| `input_group` | The smallest n for which calls of whole multiples of n frames, from the reset state, each write exactly n L/M: 1 for a stage that keeps pace frame by frame, M for a decimator, the hop for a stage that works in blocks. `static constexpr`. |
-| `max_shortfall` | The most output frames by which the stage's output can trail n L/M, from any state, as a ratio: 0 where `input_group` is 1, 1/2 for a decimator by 2, hop - 1 for a block stage. `static constexpr`. |
+| `workspace` | A nested type holding what the stage needs only while a call runs; `no_workspace` for a stage with none (D50). A plain aggregate like the state (asserted), so nothing fills it wherever it is declared. Never reset. |
+| `reset(state&) const noexcept`, or `rests_at_zero = true` | How the state comes to rest (D49): exactly one of the two, asserted. A stage whose rest state is all zero declares `rests_at_zero` and its state is zeroed in place. One whose rest state is not zero, or depends on its configuration, writes `reset`: a gain starts at its level, an L/M stage at its design's phase, `steady` with its FIFO primed. Either way it is in place, cannot fail, and builds no temporary. |
+| `is_in_place` | Whether `in.data() == out.data()` is allowed. Declarable only when the two ports are the same type, `input_group` is 1 and `max_outputs_for(n)` is n (asserted): a stage that writes in bursts is not in place. |
+| `input_group` | With N frames in since reset and O(N) frames out, the smallest n for which O(k n) is exactly k n L/M for every k: 1 for a stage that keeps pace frame by frame, M for a decimator, the hop for a stage that works in blocks. `static constexpr`. |
+| `max_shortfall` | The most output frames by which O(N) trails N L/M, over every N, as a ratio. 0 where `input_group` is 1; 0 for a decimator that writes a group's output when its first frame arrives, which the carried ones do; (M - 1) / M for one that writes it when the last arrives; hop - 1 for a block stage. `static constexpr`. |
+| `max_lead` | The most by which O(N) runs ahead of N L/M, over every N, as a ratio. 0 where `input_group` is 1 and for a stage that only trails; (M - 1) / M for the carried decimators, which give one frame out for one frame in from rest. `static constexpr`. |
+| `output_quantum` | The stage's output count is always a whole multiple of this: 1, unless it writes whole blocks (the hop for a block stage). `static constexpr`. |
 | `is_frame_synchronous` | `input_group == 1`: every call of n frames writes exactly n L/M. Derived by `stage_traits`, never declared (D35). |
 | `has_exact_latency`, `exact_latency` | Whether the stage delays every frequency alike; if so, that delay as a reduced rational in output frames, a constant of the type (D39). |
 | `run(state&, workspace&, in, out) const` | The stage's work, trusted: spans of the ports' value types (for a planar port, an array of `Ch` spans), already known to be the right sizes; consumes all of `in`; returns the frames written. `noexcept`, no allocation, no failure, no boundary check. Called by a chain. |
@@ -178,6 +181,17 @@ called on it. C++17 cannot print a type in the message; the compiler's note nami
 
 A fixed-point port's value type is its storage: a `port<q31, 2>` stage runs on spans of
 `std::int32_t`, and the tag is only in the port.
+
+**Trailing, leading, and the law.** Both numbers are counted from reset, and a stage needs
+both. A stage that waits for a group's last frame only trails; one that writes on its first
+only leads, and the decimators and L/M stages catenae carries are of that kind (one frame in
+from rest gives one frame out). `steady<>` primes its FIFO by the shortfall and needs room
+for the lead; between any two states a stage's output can swing by the two together, which
+is what bounds the input a pull can need. When frames reach a stage in whole multiples of
+q, it trails or leads by at most its number scaled by (group - gcd(q, group)) / (group - 1),
+and by nothing when q is a whole number of groups: a block stage of 128 fed in 96s is never
+more than 96 behind. A stage must honour that law, and the harness's count test checks it
+for every divisor of the group.
 
 ### 3.3 Designs and failure
 
@@ -216,20 +230,24 @@ A fixed-point port's value type is its storage: a `port<q31, 2>` stage runs on s
   order. The carried tail computation keeps its matrices on the stack (480 bytes at order
   2, 1,432 at 4, 5,272 at 8, 20,640 at 16, Cortex-M33), so it stays a header template on the
   section count, and `make()` runs where the stack admits it, never in the audio callback.
-- **A configuration is small and constant.** `stage_traits` asserts that a stage is
-  trivially copyable and no larger than 256 bytes; anything larger is a table held by view,
-  and a view-taking constructor refuses a temporary. `|` takes its operands by reference and
-  builds the chain in one construction. A static configuration is declared with
-  `CATENAE_CONSTINIT`, so one that would be built by start-up code does not compile; a
-  function-scope constant is `static constexpr`.
+- **A configuration is small and constant** (D54). `stage_traits` asserts that a stage is
+  trivially copyable and, unless it is a chain, no larger than 512 bytes: the largest design
+  held by value, an order-16 Butterworth in `double`, is 320 bytes of coefficients. Anything
+  larger is a table held by view, and a view-taking constructor refuses a temporary. `|`
+  takes its operands by reference and builds the chain in one construction.
+- **No start-up code, by the compiler's word.** A static configuration, state, workspace,
+  junction state or mailbox is declared with `CATENAE_CONSTINIT`, so one that would be built
+  by start-up code does not compile; a function-scope constant is `static constexpr`. The
+  macro is the compiler's own spelling at C++17 (GCC's and Clang's); on MSVC it expands to
+  nothing and those two carry the check.
 
 ### 3.4 Where checks happen (D27)
 
 | Where | What is checked | When |
 |---|---|---|
 | A joint between two stages | The ports are the same type; the scratch between them holds `max_outputs_for` of a block | Compile time |
-| The caller's entry | `process`: the input is whole frames and the output holds `outputs_for(n)` frames. `push`, `pull`: whole frames. `fed_by`: whole frames, and the request within its `MaxRequest` | Once per call, in every build. Compile time for fixed-size blocks. |
-| Inside the library: indices, invariants, a stage exceeding its own `max_outputs_for`, a state that was never reset, `steady`'s FIFO running short, the host's flush-to-zero setting | The library's promises, and the host's | Only at the `audit` level |
+| The caller's entry | `process`: the input is whole frames and the output holds `outputs_for(n)` frames. `flush`: the output holds at least one burst, `max_outputs_for(1)` frames. `push`, `pull`: whole frames, and no more than the junction's largest push and its target. `feeding`: as `process`. `fed_by`: whole frames, and the request within its `MaxRequest` | Once per call, in every build. Compile time for fixed-size blocks, and for `fed_by`'s largest pull against its junction's target. |
+| Inside the library: indices, invariants, a stage exceeding its own `max_outputs_for`, a state that was never reset, `steady`'s FIFO running short or over, a pull above its staging, the host's flush-to-zero setting | The library's promises, and the host's | Only at the `audit` level |
 
 - **A stage has no checked entry.** The checked entry is the chain's `process`; a stage used
   alone is a chain of one. The boundary check is one function, written from the traits.
@@ -239,9 +257,12 @@ A fixed-point port's value type is its storage: a `port<q31, 2>` stage runs on s
   written as exactly N L/M frames as long as every call on that state is one. Only the
   dynamic-extent overload checks at run time.
 - **Reset is a precondition, checked at the audit level.** A chain's state always carries a
-  `ready` word that `reset` sets, so its layout does not depend on the level; `process`
-  tests it only at `audit`. At `boundary` a state that was never reset is a broken
-  precondition that nothing reports, and a stage whose rest state is not zero starts wrong.
+  `ready` word that `reset` sets, so its layout does not depend on the level; `process`,
+  `flush`, `feeding` and `fed_by` test it only at `audit` (the last two through the chain's
+  state they hold). At `boundary` a state that was never reset is a broken precondition that
+  nothing reports, and a stage whose rest state is not zero starts wrong. A junction's state
+  and a mailbox carry no such word: all zero is their rest state, so a static one is ready
+  as it stands, and their `reset` is for emptying them again.
 - **Counts are `[[nodiscard]]`**: on a junction the count is the only sign of an overrun.
 - **Content is not a precondition.** Any bytes are valid samples. A non-finite float poisons
   a recursive state until it is reset; a caller who cannot vouch for its input adds an
@@ -266,7 +287,9 @@ A fixed-point port's value type is its storage: a `port<q31, 2>` stage runs on s
   whichever side a chain is on, so the type lists the stages once and `stage<I>()` counts
   along it; a chain nested on purpose is written as a type. A non-stage operand is refused
   with catenae's own message. `chain(stage)` is a chain of one. `with_block<128>(a | b | c)`
-  sets the block length (64 frames by default) and is a different type. Class templates
+  sets the block length (64 frames by default) and returns a class template of its own with
+  a chain's members; as an operand of `|` it is one stage, not flattened, and keeps its
+  block. A combinator with a workspace works in the block of what it wraps. Class templates
   meant for deduction have explicit guides.
 - A chain is a stage: it has `state`, `workspace`, `reset`, `run`, the constants and the
   counts, so chains nest. Its state holds its stages' states and the `ready` word; its
@@ -274,42 +297,64 @@ A fixed-point port's value type is its storage: a `port<q31, 2>` stage runs on s
   `frames_needed`, latency and tail compose.
 - `input_group` composes as the smallest n for which the frames arriving at every stage are
   a whole number of that stage's groups: down by 2 then up by 2 is 2; up then down is 1.
-  `max_shortfall` composes as the smaller of two bounds: each stage's shortfall carried to
-  the chain's output rate and summed, and one frame short of an input group. It is a bound,
-  sufficient and not always tight (990 frames for a 480-frame block stage before a 512-frame
-  one, where 959 would do).
+- `max_shortfall` and `max_lead` compose by carrying along the chain the quantum q in which
+  frames reach each stage: 1 at the chain's input; after a stage fed whole groups, q L/M;
+  after any other, its `output_quantum`. Each stage's two numbers are taken at the q that
+  reaches it (the law of section 3.2), carried to the chain's output rate, and summed. The
+  result is never too small (brute force over 20,870 chains of a count model, with leading
+  and trailing decimators, L/M stages, interpolators and block stages, and over 30 chains of
+  real stages) and is exact for two block stages: 191 frames for a 96-frame block before a
+  128-frame one, 959 for 480 before 512. A nested chain is composed through, not treated as
+  a leaf. `output_quantum` composes as the q that leaves the last stage.
 - `process(state&, workspace&, in, out)` is the caller's entry: the one size check, then the
-  work a block at a time through each stage's `run`. A run of `is_in_place` stages shares a
-  buffer. `memory_of<Chain>` holds a state and a workspace for the common case of one
-  instance, and `process(memory, in, out)` takes it.
+  work a block at a time through each stage's `run`. `memory_of<Chain>` holds a state and a
+  workspace for the common case of one instance, and `process(memory, in, out)` takes it.
+- A run of `is_in_place` stages shares a buffer: a stage after the first that is in place
+  writes into the buffer its input is in, and a trailing run writes into the caller's `out`.
+  A shared buffer is as large as the largest bound among the stages that use it. A chain's
+  own `is_in_place` is true when every stage's is.
 - `reset(state&)` calls each stage's reset on its own part of the state and sets `ready`.
   It is called before the first `process`, and afterwards only between calls, on the thread
   that runs the chain.
-- `stage<I>()` reaches one stage's configuration by position.
-- `flush(state&, workspace&, out)` is the end of a stream, and it is resumable: each call
-  writes at most the frames `out` holds and returns the count, until it returns 0, and
-  `flush_remaining(const state&)` says how many are still to come. Its progress is in the
-  state and its zeros are written into the workspace. Each stage in order is fed its tail of
-  zeros through the stages after it: the practical tail unless the caller asks for the exact
-  one, which for a recursive stage at a low cutoff is 10^4 to 10^6 frames (an order-8
-  Butterworth: 14,736 at 0.01 of the sample rate, 149,085 at 0.001). A chain does not
+- `stage<I>()` reaches one stage's configuration by position, and `stage_state<I>(state)`
+  that stage's part of a state: it is how a meter's reading is read.
+- `flush(state&, workspace&, out)` is the end of a stream, and it is resumable. `out` holds
+  at least one burst (`max_outputs_for(1)` frames; a boundary check, compile-time for a
+  fixed block). Each call feeds zeros until `out` cannot take another burst or the tail is
+  done, and returns the frames written, which may be 0 while a block stage is still
+  filling. The flush is finished when `flush_remaining(state)` is 0, never by a 0 return.
+  Its progress is in the state and `reset` clears it; its zeros are written into the
+  workspace; `process` after a partial flush carries on from where the stream was, as after
+  that many zero frames. Each stage in order is fed its tail of zeros through the stages
+  after it: the practical tail by default, the exact one with `flush(state, workspace, out,
+  tail::exact)`, which for a recursive stage at a low cutoff is 10^4 to 10^6 frames (an
+  order-8 Butterworth: 14,736 at 0.01 of the sample rate, 149,085 at 0.001). A chain does not
   compose a residue: under flush-to-zero a recursion's residue is a standing limit cycle
   that later stages amplify by gains the contract does not carry, so flushing equals
   zero-padding the input and each stage's card states its own residue.
 - The combinators:
   - `steady<Config>` (D35) wraps a 1:1 configuration and presents `input_group` 1. Its FIFO
     is primed with the configuration's `max_shortfall`, rounded up to a frame, and that is
-    its added latency, a constant of the type.
+    its added latency, a constant of the type. The FIFO holds that priming, the
+    configuration's `max_lead` rounded up, and its largest burst. A configuration that only
+    leads (down by 2 then up by 2 with the carried decimator) costs no latency, only the
+    room.
   - `parallel<A, B>` (D43) runs two chains on two groups of a port's channels. It asserts
     that both are frame-synchronous, that their ratios match, and that each has an
     `exact_latency` that is a whole number of frames; the difference sizes its delay. An arm
-    whose latency is not exact (a designed recursive filter) is refused: its delay is placed
-    by hand with `delay`. It is what a side chain is later built from.
+    whose latency is not exact (a designed recursive filter) is refused there.
+    `parallel<A, B, align::by_caller>` takes any two frame-synchronous arms of equal ratio,
+    inserts no delay and reports no exact latency: it is where a hand-placed `delay` goes,
+    beside a recursive arm. `delay<S, Ch, Frames>` is a fixed delay, and its exact latency
+    is `Frames`, a constant of its type. Both forms are what a side chain is later built
+    from.
   - `planar_section<Stages...>` (D7) de-interleaves once per block, runs mono stages over
     contiguous channels, re-interleaves, and presents itself as an interleaved stage.
   - `oversample<Factor, Stage>` (D39) is up, the stage, down, with the delay that makes its
-    latency whole: one frame at the inner rate. Its inner rate changers are the relaxed
-    designs. A bare `up2 | ... | down2` chain beyond two times is fractionally delayed, and
+    latency whole: the fewest frames at an inner rate, computed from its parts' exact
+    latencies. With linear-phase half-bands of 4m - 1 taps that is none at two times (it is
+    already whole), and one frame at the doubled rate at four times, where the bare chain is
+    k + 1/2. Its inner rate changers are the relaxed designs. A bare `up2 | ... | down2` chain beyond two times is fractionally delayed, and
     its card says so.
 - Bit-identical for any chunking at contraction off. The compiled core is built that way; a
   header-template stage compiles under the consumer's flags, and its card says so.
@@ -330,7 +375,8 @@ What the spike measured, as planar cost over interleaved across 2, 6 and 12 chan
   no difference on the soft-float M4.
 - A stateless gain: 0.28 to 0.52 at 6 and 12 channels on the M55 and x86-64, planar cheaper
   where the vector unit is wide; 1.25 for stereo on the M55, whose pattern fits the vector's
-  lanes; 1.30 to 1.40 at 6 and 12 channels on the M4F and M33; within 5 % elsewhere.
+  lanes; 1.30 to 1.40 at 6 and 12 channels on the M4F and M33; 0.88 for stereo on x86-64;
+  within 5 % elsewhere.
 - A compile-time channel count: worth up to 12 times for interleaved and under 2 % for
   planar.
 
@@ -379,46 +425,72 @@ call sites meet. Like a stage it is a configuration and a state, and it is read 
 | `sink_port`, `source_port` | Port types. |
 | `clocking` | `clocks::shared` (two threads, one clock) or `clocks::independent`. |
 | `rate_ratio` | The nominal ratio between the sides. |
-| `state` | Plain storage, as a stage's: standard-layout, no initialisers, in `.bss` when static. It holds atomics, so it is not copied. A junction's configuration does not change while either side runs. |
+| `state` | Plain storage, as a stage's (asserted): in `.bss` when static, with no start-up code at C++17, 20 or 23. The words its two sides share are plain 32-bit words, read and written through atomic operations that live in the one compiler-extension header; a `std::atomic` member would give the state a constructor from C++20 on. Two threads use it, so it is not copied while either runs. All zero is its rest state. A junction's configuration does not change while either side runs. |
 | `tolerance_ppm()` | Independent clocks only: the offset and drift it absorbs. |
 | `push(state&, in) const` | Exactly one thread. Returns the frames accepted; what happens to the rest is stated. `noexcept`, wait-free. |
-| `pull(state&, out) const` | Exactly one other thread. Always fills `out`; what it could not supply is silence; returns how many frames were real. One pull is one consumer period: a junction may clock a servo or a fill policy from its pulls (D52). |
+| `pull(state&, out) const` | Exactly one other thread. Always fills `out`; what it could not supply is silence; returns how many frames were real. A junction may clock a servo or a fill policy from its pulls, so whoever pulls for a consumer makes at most one pull per consumer period (D52). |
+| `serves(largest_pull, quantum)` | `static constexpr`: whether the junction, as configured, serves pulls of up to that many frames without running out, where `quantum` divides every push and every pull (1 when their sizes vary). `fed_by` asserts it. |
 | `report(const state&) const` | Any thread. Each field (state, fill, underruns, overruns, a rate estimate; each junction has its own report type) is individually atomic and 32 bits wide; there is no snapshot across fields. A fill computed from two indices reads the consumer's first and the producer's second, so it can only over-estimate, and is clamped to the capacity; or the consumer publishes its fill as one word, which is `async`'s form. New design: the carried ring has no query a third thread may call. |
-| `latency()` | `{nominal, range}` in source frames: a junction's delay breathes with its fill. Callable from any thread; for independent clocks it may change between calls. |
+| `latency(const state&) const` | `{nominal, range}` in source frames: a junction's delay breathes with its fill. Callable from any thread. It takes the state because a junction that follows a clock moves its target as it runs; `handoff`'s is a constant. |
 | `capacity_frames` | A template argument, a power of two (asserted). |
-| `reset(state&) const` | Before the first push or pull, and afterwards only while neither side is running. |
+| `reset(state&) const` | Empties it, only while neither side is running. A static state needs none before first use. |
 | `restart(state&) const` | The consumer's thread, while the producer runs: discards what is buffered and starts filling again. |
 
-Instances: `handoff<S, Ch, Capacity, Target>`, a single-producer single-consumer ring
+Instances: `handoff<S, Ch, Capacity, Target, Push>`, a single-producer single-consumer ring
 (shared clock, two threads), which proves the contract; the asynchronous converter (D16);
 later, outside the charter, a jitter buffer.
 
-**`handoff`'s fill policy (D51).** `pull` delivers silence until the ring first holds
-`Target` frames, then real frames. A pull the ring cannot fill is an underrun: it delivers
-what there is, pads with silence, and the ring fills to the target again. A push the ring
-cannot hold is an overrun and drops the newest frames. So the fill a pull sees after
-start-up or after an underrun is the target, whichever side ran first, and that is the
-junction's nominal latency; between those points it moves only by what one side misses.
-`Target` is at least the consumer's largest pull and at most the capacity less the
-producer's largest push. `handoff`'s configuration is its template arguments, so its object
-is empty.
+**`handoff`'s fill policy (D51).** `Push` is the producer's largest push.
 
-**Cores.** A junction and a mailbox need lock-free 32-bit atomics (asserted): ARMv7-M,
-ARMv8-M, Hexagon and the hosted targets have them. ARMv6-M has no exclusive access and is
-out of scope until a consumer needs it, and then through one port hook the integrator
-supplies. Each atomic is a word of its own, and a counter with one writer is a load and a
-store.
+- `pull` delivers silence until the ring holds `Target` frames. On the pull that finds them
+  it discards the oldest frames above `Target` (the consumer owns that index) and starts
+  paying out. So a pull that starts sees exactly `Target`, whichever side began first and
+  however early: in the sketch, 128 with the producer 0, 1, 2 and 100 periods ahead, and
+  with the consumer ahead.
+- A pull the ring cannot fill is an underrun: it delivers what there is, pads with silence,
+  and the ring fills to the target again, with the same discard. A producer that was held
+  up and then delivers its backlog at once costs one underrun and returns to `Target`.
+- A push the ring cannot hold is an overrun and drops the newest frames.
+- While it runs, the fill a pull sees stays within one push of `Target`: that is the
+  latency's range, and `Target` its nominal value.
+- A consumer that stalls while the producer runs lets the fill, and so the latency, rise by
+  what it missed. It stays there until an overrun caps it at the capacity or the consumer
+  calls `restart`. `report` shows the fill.
+- For the fill never to run out, `Target` is at least the largest pull, plus `Push`, less a
+  number that divides every push and every pull (1 when their sizes vary); and the capacity
+  holds `Target` and one push (asserted). 64-frame pushes and pulls need 64; 480-frame
+  pushes beside 64-frame pulls need 512, and at 480 the sketch underruns. `serves()` is that
+  arithmetic. `fed_by` asserts it at compile time with its own largest pull and a quantum
+  of 1, since its pulls vary; `pull` checks only that a request is within `Target`. A
+  caller that pulls by hand in one fixed block may `static_assert(serves(block, quantum))`
+  itself.
+
+`handoff`'s configuration is its template arguments, so its object is empty.
+
+**Cores.** A junction and a mailbox need lock-free 32-bit atomic operations (asserted):
+ARMv7-M, ARMv8-M, Hexagon and the hosted targets have them. ARMv6-M has no exclusive access
+and is out of scope until a consumer needs it, and then through one port hook the integrator
+supplies. Each shared word is a word of its own, and a counter with one writer is a load and
+a store.
 
 `feeding(junction, junction_state, chain, state, workspace, in)` runs a chain and pushes
 what it wrote. `fed_by(junction, junction_state, chain, state, workspace, out)` fills `out`
-exactly, pulling what the chain needs in one pull (D52). Each has its own memory in the same
+exactly, pulling what the chain needs in at most one pull (D52): none when the holdover
+covers the request, and otherwise a size that varies from request to request (behind a
+128-frame block stage, 64-frame requests pull 128, none, 128, none; behind a chain by 4,
+102-frame requests pull 26, 25, 26, 25). SampleRateTap's asynchronous converter was driven
+with those patterns and behaves under each as under a regular pull of the same size,
+provided its ring is sized for the largest pull (`docs/audits/2026-11-25-plan-folded.md`,
+"Measured after the audit"); CF runs it again on catenae's own contracts. Each has its own memory in the same
 two parts as a chain's (`feeding_state<Chain>` and `feeding_workspace<Chain>` likewise):
 `fed_by_state<Chain>` holds the chain's state, the holdover (D35)
 and `starved`, the count of input frames the junction supplied as silence, which is how an
 underrun is seen, since `fed_by` always returns the frames asked for;
 `fed_by_workspace<Chain, MaxRequest>` holds the chain's workspace and the staging for one
-pull, sized from the largest request by the chain's ratio and shortfall. A request above
-`MaxRequest` is a boundary failure. There is no `|` across a junction: the thread boundary
+pull, and publishes its size as the largest pull: the largest request plus the chain's
+`max_shortfall` and `max_lead`, at the chain's input rate. A request above `MaxRequest` is
+a boundary failure, and a junction whose `serves()` is false for that largest pull does not
+compile. There is no `|` across a junction: the thread boundary
 stays visible in the caller's code. Latency across a junction composes as nominal only.
 
 A junction is instantiated at its full channel count and is never fanned out per channel
@@ -435,11 +507,12 @@ Read through `analyzer_traits<T>`.
 | `state`, `reset(state&) const` | As a stage's. |
 | `analyze(state&, in) const` | Trusted, as a stage's `run`. |
 | `result_type`, `result(const state&)` | The latest result: a value, or a view of storage in the state. |
-| `results_ready(const state&)` | How many results have completed since the last read. |
+| `results_ready(const state&)` | How many results have completed since reset: a running 32-bit count that wraps. The reader keeps the last count it saw and takes the difference, so reading changes nothing in the state. |
 
 `tap<Ch, Analyzer>` is the stage that holds one and passes its input through, 1:1, in place,
-with no latency. Results are read on the chain's thread and leave it through a mailbox; a
-result that is a view is copied into a reading that owns its data before it is posted.
+with no latency. Its part of a chain's state is reached with `stage_state<I>(state)`
+(section 4). Results are read on the chain's thread and leave it through a mailbox; a result
+that is a view is copied into a reading that owns its data before it is posted.
 
 ### 6.3 Mailboxes (D44)
 
@@ -573,8 +646,10 @@ Each set is `-Werror` (`/WX`) on every CI leg.
   ordered hardware (an arm64 runner): x86 cannot reorder as Arm does and QEMU does not help
   with ordering. One bare-metal QEMU test makes a timer interrupt the poster and the
   producer against the main loop, which is the single-core deployment the assumption of use
-  describes. The post's lifetime rule is seen by no sanitizer, so a C++20 leg posts and
-  takes a design inside a constant expression.
+  describes. The mailbox's lifetime rule (a post constructs with placement new; a take
+  reads through `std::launder`) is seen by no sanitizer and cannot be evaluated in a
+  constant expression at any standard D2 allows, so it is a stated requirement with an
+  identifier, a deviation-log entry, and a script that rejects an assignment into a slot.
 - **`clang-tidy`** findings are errors, with a per-function complexity ceiling among them. It
   checks the case of names; scripts in the same job check D30's prefix rule and D40's guards.
   The Tap rule that requires `k_` on every constant is switched off: `clang-tidy` cannot
@@ -588,7 +663,9 @@ Each set is `-Werror` (`/WX`) on every CI leg.
   rejects a raw one elsewhere, and a compile-time test evaluates the helpers with negative
   operands.
 - **Constructs to avoid**, valid in C++17 and different later: an aggregate with a
-  user-declared constructor, `[=]` capturing `this`, a default-initialised `std::atomic`,
+  user-declared constructor, `[=]` capturing `this`, a default-initialised `std::atomic`
+  (which is why a junction's state holds plain words, section 6.1, and the mailbox's atomic
+  has an initialiser),
   compound assignment to a `volatile`, arithmetic between different enumerations, an
   unqualified call with explicit template arguments.
 
@@ -617,6 +694,9 @@ The principle is D45's; the form below is tried at CF and fixed at C6.
 - **Sizes are per target.** A state's size and alignment differ between targets (the
   overdrive state's are not the same on x86-64 and on a Cortex-M33), so each entry exports
   both, and the C header's storage macro carries the alignment, not a bare size.
+- **An entry's storage is a state and a workspace** (D50), each exported with its size and
+  alignment. Entries of one chain type that run on one thread may share a workspace, and
+  the manifest says which do.
 - **`init` is `reset`, and it checks.** Each entry exports
   `init(configuration, configuration_size, state, state_size)`, which returns a status: C
   names do not carry the inline namespace of section 3.4, so this is where a header built
@@ -652,19 +732,21 @@ takes it from there. catenae is built so that this is possible and cheap.
   One thread per side of a junction or a mailbox; a state is reset before its first
   `process`, and afterwards only between calls on the thread that runs the chain; a
   workspace is used by one thread at a time; a posted value owns what it refers to; a
-  junction's configuration does not change while either side runs, and `handoff`'s target
-  is at least the consumer's largest pull; no aliasing of `in` and `out` unless
+  junction's configuration does not change while either side runs; a caller that pushes
+  and pulls a `handoff` by hand in fixed blocks has checked `serves()` for them (the library
+  asserts it where it makes the pull); no aliasing of `in` and `out` unless
   `is_in_place`; the host's flush-to-zero setting; the handler does not return; a setter is
   called between calls; the amalgamation is built with contraction off.
 - A deviation log. Its opening entries, from public summaries of the guidelines and
   unverified against the text: compiler extensions (`restrict`, inlining control, reading
-  the floating-point control register, `CATENAE_CONSTINIT`), which go in one header so that
-  each is one deviation; `memcpy`-based bit casts and the `memset` of the default reset; the
+  the floating-point control register, `CATENAE_CONSTINIT`, the atomic operations on a
+  junction's plain words), which go in one header so that each is one deviation; `memcpy`-based bit casts and the `memset` behind `rests_at_zero`; the
   signed right shift; guard-clause early returns against a single exit point;
   `-Wunsafe-buffer-usage` off; vDSP's allocation; static storage for states, configurations,
   workspaces and mailboxes, with a caller's arena as the alternative the guide shows; the
   implicit conversions that `span` and `expected` need to have the standard's interface;
-  the placement new in the mailbox; the one detection of an optional member, `reset`.
+  the placement new and `std::launder` in the mailbox; the two members `stage_traits` looks
+  for in order to insist that a stage declares exactly one way to rest.
 - Each junction and the mailbox carries a requirement that states its memory orders and the
   argument for them, since the guidelines say nothing a reviewer could check them against.
 - A complexity ceiling per function, kernels included; each `@req` states its equivalence
@@ -688,8 +770,9 @@ or numbered here; this section is checked against the text when a copy is availa
 
 Sections 9.1 to 9.4, the bare and steady forms of 9.5 on a stand-in block stage, the pull of
 9.6 and the junction are in `docs/sketches/config-state/`, which compiles without a warning
-on GCC 13 and Clang 18 at C++17, 20 and 23 and runs; every number quoted here is printed by
-its `measure.sh` (Cortex-M33, `-Os`). Its README lists what it does not cover: the traits
+on GCC 13 and Clang 18 at C++17, 20 and 23 and runs; every Cortex-M33 number in a table's
+last column here is printed by its `measure.sh` (`-Os`), and every behaviour quoted by its
+`verify.sh`. Its README lists what it does not cover: the traits
 headers, latency and `parallel`, `flush`, in-place buffer sharing, `with_block`,
 `oversample`, `feeding`, analyzers, and every port but interleaved `float`. Those are shown
 here as they will be written and are first compiled at the milestone that delivers them.
@@ -720,8 +803,10 @@ class gain {
     using input_port  = port<float, Ch>;
     using output_port = port<float, Ch>;
     static constexpr ratio       rate_ratio{1, 1};
-    static constexpr std::size_t input_group = 1;
-    static constexpr ratio       max_shortfall{0, 1};
+    static constexpr std::size_t input_group = 1;        // it keeps pace frame by frame:
+    static constexpr ratio       max_shortfall{0, 1};    // never behind,
+    static constexpr ratio       max_lead{0, 1};         // never ahead,
+    static constexpr std::size_t output_quantum = 1;     // a frame at a time
 
     struct state {
         float         current;    // the level being applied now
@@ -755,6 +840,10 @@ class gain {
 };
 ```
 
+This listing and the next are excerpts. A whole stage also declares `is_in_place`,
+`has_exact_latency` with `exact_latency`, `latency()` and its tails (section 3.2), which the
+sketch does not have; `stage_traits` reports each one that is missing.
+
 **Algorithms or loops.** A stage that maps each sample on its own (`map`, `convert`, a fill)
 uses a standard algorithm: no index to get wrong, and `std::transform` may write over its
 input. A kernel with state carried between samples or a pattern across channels (a biquad,
@@ -780,9 +869,11 @@ class lowpass_design {
 template <std::size_t Ch>
 class lowpass {
   public:
+    static constexpr bool rests_at_zero = true;   // an empty history: no reset to write
+
     struct state {
-        std::array<std::array<float, 2>, Ch> z;   // the filter's history, per channel: at rest, zero
-    };                                            // so it writes no reset
+        std::array<std::array<float, 2>, Ch> z;   // the filter's history, per channel
+    };
 
     explicit constexpr lowpass(const lowpass_design<float>& design) noexcept;
     constexpr void set_design(const lowpass_design<float>& design) noexcept;   // cannot fail
@@ -795,8 +886,8 @@ class lowpass {
 // A configuration whose parameters will change is a variable. It starts from a design that is
 // a table in ROM: no designer has run and none need be linked. There is one strip, so its
 // state and its workspace are kept together.
-static auto                         s_strip = lowpass<2>{k_lowpass_at_0_1} | gain<2>{1.0f, 96};
-static memory_of<decltype(s_strip)> s_strip_memory;
+CATENAE_CONSTINIT static auto                         s_strip = lowpass<2>{k_lowpass_at_0_1} | gain<2>{1.0f, 96};
+CATENAE_CONSTINIT static memory_of<decltype(s_strip)> s_strip_memory;
 
 s_strip.reset(s_strip_memory.state);                          // once, before the first callback
 static_cast<void>(s_strip.process(s_strip_memory, in, out));  // the audio callback
@@ -815,12 +906,13 @@ s_strip.stage<1>().set_level(0.25f);                          // ramps over 96 f
 | Its state (`.bss`) | 36 bytes |
 | Its workspace (`.bss`; the sketch does not share a buffer along in-place stages, the library does) | 516 bytes |
 | `reset` | 48 bytes of code, 8 bytes of stack |
+| Start-up code for any of it, at C++17, 20 and 23 | none |
 | The callback's own frame; the static worst case down its call path | 40 bytes; 96 bytes |
-| A linked image with table designs only | 3,084 bytes of text, no software-double symbol |
+| A linked image with table designs only | 3,080 bytes of text, no software-double symbol |
 | The same with `make()` reachable | 11,400 bytes of text, 21 software-double and `double`-`libm` symbols |
 
 The audio path's file calls no software floating point; the designer's calls `tan` and
-seven software-double routines and costs 8,316 bytes of flash, which an image whose designs
+seven software-double routines and costs 8,320 bytes of flash, which an image whose designs
 are all tables does not pay. A filter's redesign is a step under a live history (a small
 transient); smoothing it would be that stage's matter, as ramping is `gain`'s.
 
@@ -856,7 +948,8 @@ struct soft_clip {
     float operator()(float x) const noexcept { return std::tanh(drive * x); }
 };
 
-// The configuration: a constant. The type is the topology; the object is 8 bytes (the drive).
+// The configuration: a constant. The type is the topology; the object is 16 bytes (the drive,
+// and a byte for each stage that has no data of its own).
 constexpr auto overdrive = up2<2>{} | up2<2>{} | map<2, soft_clip>{soft_clip{4.0f}} | down2<2>{} | down2<2>{};
 
 static_assert(decltype(overdrive)::rate_ratio == (ratio{1, 1}));
@@ -881,19 +974,20 @@ void audio_callback(const std::array<float, 64 * 2>& in, std::array<float, 64 * 
 | Cortex-M33, `-Os` | One object per chain (the first audit's mock) | Configuration, state and workspace |
 |---|---:|---:|
 | Flash for the chain's data | 8,180 bytes | 0 |
-| The configuration (`.rodata`) | | 8 bytes |
+| The configuration (`.rodata`) | | 16 bytes |
 | RAM a voice: its state (`.bss`) | 8,180 bytes | 48 bytes |
 | RAM a thread: the workspace (`.bss`) | | 6,152 bytes |
 | Sixteen voices | | 6,920 bytes |
 | Start-up code or stack to construct it | none, or a 12 KB frame | none |
-| `reset` of two voices | | 36 bytes of code, 8 bytes of stack |
-| The callback's own frame; the static worst case down its call path | not measured | 40 bytes; 176 bytes, plus `tanhf` |
+| `reset` of two voices | | 44 bytes of code, 8 bytes of stack |
+| The callback's own frame; the static worst case down its call path | not measured | 40 bytes; 184 bytes, plus `tanhf` |
 
-The first column is from different mock stages; the flash row and the shape of the RAM rows
-are the comparison. With the scratch inside each state a voice was 6,184 bytes and sixteen
-were 98,944. The sketch's `up2` and `down2` are toys. With linear-phase half-bands, relaxed
-on the inner pair as SampleRateTap's chains are, the latency is k + 1/2 frames (18.5 and
-23.5 measured on its chains), which `oversample<4, ...>` makes whole (D39).
+The first column is from different mock stages, measured in the first audit; the flash row
+and the shape of the RAM rows are the comparison. With the scratch inside each state, as
+the sketch was before D50, a voice was 6,184 bytes and sixteen were 98,944. The sketch's
+`up2` and `down2` are toys. With linear-phase half-bands, relaxed on the inner pair as
+SampleRateTap's chains are, the latency is k + 1/2 frames (18.5 and 23.5 on its chains,
+from the second audit), which `oversample<4, ...>` makes whole (D39).
 
 ### 9.5 A transform-domain region, bare and steady
 
@@ -936,11 +1030,20 @@ the frame counts, not the work: the transform still runs on every second call. A
 callback is a whole number of hops, aligned to them, needs no `steady<>` and gets the
 compile-time entry.
 
-Two cases the sketch runs, since `rate_ratio` alone hides both. Down by 2 then up by 2 is
-1:1 with an input group of 2: three-frame calls return 2, 4, 2, 4; inside `steady<>` they
-return 3 each time, one frame later. Two block stages whose sizes do not nest need more than
-the largest burst: a 480-frame block before a 512-frame one is primed with 990 frames, 96
-before 128 with 222, and both reproduce their input exactly at that delay.
+Three cases the sketch runs, since `rate_ratio` alone hides them all.
+
+- Down by 2 then up by 2 is 1:1 with an input group of 2. With a decimator that writes on a
+  pair's first frame, as the carried ones do, three-frame calls return 4, 2, 4, 2: the chain
+  never trails what it is owed and can be a frame ahead. Inside `steady<>` they return 3
+  each time with no added latency, and the FIFO has room for that frame.
+- The same with a decimator that writes on a pair's last frame trails by a frame and never
+  leads: `steady<>` adds one frame of latency.
+- Two block stages whose sizes do not nest need more than the largest burst: a 480-frame
+  block before a 512-frame one is primed with 959 frames, 96 before 128 with 191.
+
+Each reproduces one straight run exactly at its stated delay, in every call pattern tried,
+"one odd call, then full blocks" among them: that pattern is what finds a FIFO one frame
+short.
 
 ### 9.6 Edges and a junction
 
@@ -950,10 +1053,11 @@ constexpr auto input = unpack<wire::s24le_packed, 2>{}   // wire_port<wire::s24l
                      | convert<q31, float, 2>{}          // port<q31, 2>                     -> port<float, 2>
                      | lowpass<2>{k_lowpass_at_0_1};
 
-// The junction: a configuration with no data, and a state. It fills to 128 frames before it
-// pays out, so 128 frames is its latency.
-constexpr handoff<float, 2, 1024, 128> link{};
-static state_of<decltype(link)>        s_link;
+// The junction: a configuration with no data, and a state. It is fed 64 frames at a time and
+// serves pulls of up to 256, so its target is 320 (256 + 64 - 1, rounded up): it fills to 320
+// frames before it pays out, and 320 frames is its latency.
+constexpr handoff<float, 2, 1024, 320, 64> link{};
+static state_of<decltype(link)>            s_link;
 
 static feeding_state<decltype(input)>     s_into_link;        // the chain's state
 static feeding_workspace<decltype(input)> s_into_link_work;   // its workspace and the frames in transit
@@ -966,23 +1070,31 @@ static fed_by_state<decltype(metering)>          s_from_link;        // chain st
 static fed_by_workspace<decltype(metering), 256> s_from_link_work;   // chain workspace, staging for one pull
 
 const std::size_t got = fed_by(link, s_link, metering, s_from_link, s_from_link_work, span<float>(mono_out));
+
+// The meter's reading, on the worker thread: the tap is the second stage of `metering`.
+const auto& meter = decltype(metering)::stage_state<1>(s_from_link.chain);
 ```
 
-Before either thread starts: `link.reset(s_link)`, `input.reset(...)` and
-`reset(metering, s_from_link)`.
+Before either thread starts: `input.reset(...)` and `reset(metering, s_from_link)`. The
+junction's state is static, so it is at rest as it stands. With a target of 128 here the
+pull side would not compile: 128 is below 256 + 64 - 1.
 
 The junction and the pull side are compiled in the sketch, the pull with a chain that raises
-the rate by 4. Asked for 102 frames it pulls 26, which make 104, delivers 102 and holds 2
-for the next call; asked for 700 it pulls 175 in one pull, though the chain's block is 64.
-The fill a pull sees is 128 frames whichever side runs first in a period, and is back at 128
-after an underrun. Cortex-M33: this junction's state is 8,212 bytes of `.bss`, its `push`
-and `pull` 100 and 148 bytes of code.
+the rate by 4. Asked for 102 frames it pulls 26, which make 104, delivers 102 and holds 2;
+asked for 2 more it makes no pull; asked for 700 it pulls 175 in one pull, though the
+chain's block is 64. A `handoff` with a target of 128 and 64-frame pushes and pulls shows a
+starting pull exactly 128 frames with the producer 0, 1, 2 and 100 periods ahead and with
+the consumer ahead, stays at 128, and returns to 128 after a producer held up for five
+periods delivers them at once (one underrun). Two threads put three million frames through
+it under the thread sanitizer with none torn or out of order. Cortex-M33: this junction's
+state is 8,212 bytes of `.bss`, with no start-up code at C++17, 20 or 23; its `push` and
+`pull` are 96 and 168 bytes of code.
 
 ### 9.7 Where the memory is, without a heap (D22)
 
 | Pattern | For | Example |
 |---|---|---|
-| A state sized by template arguments | Histories, FIFOs, holdovers: what one instance remembers | `struct state { std::array<S, MaxFrames * Ch> line; std::size_t write; };` in `delay<S, Ch, MaxFrames>`: plain storage, in `.bss` |
+| A state sized by template arguments | Histories, FIFOs, holdovers: what one instance remembers | `struct state { std::array<S, Frames * Ch> line; std::size_t write; };` in `delay<S, Ch, Frames>`, a fixed delay of exactly `Frames`: plain storage, in `.bss` |
 | A workspace sized by template arguments | Scratch between stages, staging, a transform's buffer: what one call needs | `workspace_of<Chain>`, one per thread |
 | A constant viewed, not copied | Taps, tables, designs | `constexpr std::array<float, 63> k_taps = {...};` in `.rodata`, and `fir<63, 2>{k_taps}` holds a view |
 | Storage the caller supplies | A size known only at run time, in the compiled core | `fft_plan<float>::make(1024, s_workspace)`, with `fft_workspace_size<float>(1024)` a `constexpr` |
@@ -999,12 +1111,12 @@ Each ends with its battery green on every CI leg and its numbers recorded.
 
 | | Milestone | Contents |
 |---|---|---|
-| C0a | Ground | Repository layout, `NOTICE.md`, style files. The CMake and waf builds, both in CI: hosted GCC, Clang, MSVC and Apple at C++17, 20 and 23; the Cortex-M and Hexagon QEMU legs; the sanitizer legs; the warning sets, `clang-tidy`, and the scripts the plan relies on (naming, guards, raw shifts, the suppression count, the `@req` trace, the length budgets). The harness: the instruction-count ratchet, the size probes (`.text`, `.rodata`, `.data`, `.bss` apart, the start-up stack, each call's static worst-case stack down its path), the link-stage gate as a script, coverage. The amalgamation. A smoke test of Doxygen and mdBook on one header and one page before their conventions are fixed. No library code beyond a first compiled unit. |
-| C0b | Contracts | `span`, `status` / `expected`, the checks and the handler, `catenae/config.h` with its inline namespace, `fwd.h` and the link tests (each case of section 3.4), `CATENAE_CONSTINIT`, `sample_traits` and the `fixed<>` tags, the ports, `stage_traits` (with `is_stage`, `joint`, the default `reset`, and the assertions on a state and a configuration), `junction_traits`, `analyzer_traits`. The contract documents with requirement identifiers, the assumptions-of-use register, the deviation log. The compile-fail battery for what exists: a missing or ill-typed contract member, a state that is not plain storage, an ignored `expected`. The harness's generic tests, which every stage and chain runs from C1: reset (storage filled with garbage then reset, and zeroed then reset, give bit-equal output), the counts (`outputs_for` exact, `frames_needed` smallest, `max_outputs_for` never exceeded), and bit-identity under any chunking. |
-| C1 | The chain on trivial stages | `chain` with `process` (dynamic and fixed), `reset`, the workspace and `memory_of`, the resumable `flush`, `stage<I>()`, `with_block`, in-place buffer sharing; the composition of `input_group` and `max_shortfall`. The compile-fail tests: one per way two ports can differ; a junction in a chain; a non-stage operand of `\|`; a fixed block that is not a whole number of input groups (down then up at an odd block, by 3 at 64 frames, a block stage at half its hop); an unstable constant table. `map`, `gain`, integer `delay`, `interleave` / `deinterleave`, and `convert` among `float`, `q15`, `q31` and Q4.27 with its numeric contract (scale, one rounding point, saturation at +1.0) written and pinned. Test fixtures as named deliverables: a block stage, a toy 1:2 and 2:1. `steady` (its battery includes block sizes that do not nest: 96 before 128, 480 before 512, 7 before 5) and `parallel` with its assertions. `handoff` with its fill policy (pinned: the fill after start-up in either order, and after one underrun), `restart` and `report`; `feeding` and `fed_by` (one pull per request); `mailbox`: under the thread sanitizer, on arm64 hardware, and with a timer interrupt as one side on a bare-metal leg. Every stage a template on its sample format, with a CI target that instantiates each stage's traits for `q31`. The link-stage gate's first probe image. The layout benchmark. The example chain's `.data`, `.bss`, start-up stack, callback stack, and `reset`'s code and stack as pinned numbers. |
-| CF | Fit (D16) | Throwaway skeletons against C0b's and C1's headers: one `rational` chain with its pull and its flush, its stages taking their designs as types; one `bridge` stage with its table design; and the `async` junction. The signal processing has no quality bar, with one exception: the `async` skeleton carries the real servo and must lock, with no underrun, behind `fed_by` at a request larger than the chain's block. A table of every public member of SampleRateTap's three engines and where it lands here or why it is dropped (run-time profile objects, a run-time design search, a stage created at an unpinned divisor, a ring sized at run time). A first C ABI manifest (section 7.5) written against them, with its count and build time. Passing CF is what "shown that they fit" means; what it forces on the contracts is changed here, before anything from C2 to C6 that rests on them is frozen. |
+| C0a | Ground | Repository layout, `NOTICE.md`, style files. The CMake and waf builds, both in CI: hosted GCC, Clang, MSVC and Apple at C++17, 20 and 23; the Cortex-M and Hexagon QEMU legs; the sanitizer legs; the warning sets, `clang-tidy`, and the scripts the plan relies on (naming, guards, raw shifts, the suppression count, the `@req` trace, the length budgets). The harness: the instruction-count ratchet, the size probes (`.text`, `.rodata`, `.data`, `.bss` apart, the start-up stack, each call's static worst-case stack down its path), the link-stage gate as a script, coverage. The amalgamation. A smoke test of Doxygen and mdBook on one header and one page before their conventions are fixed. `CLAUDE.md`, which exists from the plan, extended with the build and test commands. No library code beyond a first compiled unit. |
+| C0b | Contracts | `span`, `status` / `expected`, the checks and the handler, `catenae/config.h` with its inline namespace, `fwd.h` and the link tests (each case of section 3.4), `CATENAE_CONSTINIT`, `sample_traits` and the `fixed<>` tags, the ports, `stage_traits` (with `is_stage`, `joint`, the check that a stage declares exactly one way to rest, and the assertions on a state, a workspace and a configuration), `junction_traits` (with `serves`), `analyzer_traits`, the compiler-extension header with the atomic operations on a plain word. The contract documents with requirement identifiers, the assumptions-of-use register, the deviation log. The compile-fail battery for what exists: a missing or ill-typed contract member, a stage that declares neither way to rest or both, a state that is not plain storage, an ignored `expected`. The harness's generic tests, which every stage and chain runs from C1: reset (storage filled with garbage then reset, and zeroed then reset, give bit-equal output), the counts (`outputs_for` exact, `frames_needed` smallest, `max_outputs_for` never exceeded), the arrival numbers by counting (`input_group`, `max_shortfall`, `max_lead`, `output_quantum`, and the law of section 3.2 for every divisor of the group), and bit-identity under any chunking. |
+| C1 | The chain on trivial stages | `chain` with `process` (dynamic and fixed), `reset`, the workspace and `memory_of`, the resumable `flush`, `stage<I>()` and `stage_state<I>()`, `with_block`, in-place buffer sharing; the composition of `input_group`, `max_shortfall`, `max_lead` and `output_quantum`, with the brute-force count model as its test, and of latency and the tails. The compile-fail tests: one per way two ports can differ; a junction in a chain; a non-stage operand of `\|`; a fixed block that is not a whole number of input groups (down then up at an odd block, by 3 at 64 frames, a block stage at half its hop); a pull side behind a junction whose target is too small. `map`, `gain`, the fixed `delay`, `interleave` / `deinterleave`, and `convert` among `float`, `q15`, `q31` and Q4.27 with its numeric contract (scale, one rounding point, saturation at +1.0) written and pinned. Test fixtures as named deliverables: a block stage, a toy 1:2, and a toy 2:1 in both conventions (writing on a group's first frame, as the carried decimators do, and on its last). `steady` (its battery includes block sizes that do not nest: 96 before 128, 480 before 512, 7 before 5; chains that lead and chains that trail; and one odd call followed by full blocks) and `parallel` in both forms with their assertions. `handoff` with its fill policy (pinned: the fill a starting pull sees with the producer 0, 2 and 100 periods early and with the consumer early; after a late producer delivers its backlog; with unequal blocks at the bound and below it), `restart` and `report`; `feeding` and `fed_by` (at most one pull per request, and the target assertion); `mailbox`: under the thread sanitizer, on arm64 hardware, and with a timer interrupt as one side on a bare-metal leg. Every stage a template on its sample format, with a CI target that instantiates each stage's traits for `q31`. The link-stage gate's first probe image. The layout benchmark. The example chain's `.data`, `.bss`, start-up stack, callback stack, and `reset`'s code and stack as pinned numbers. |
+| CF | Fit (D16) | Throwaway skeletons against C0b's and C1's headers: one `rational` chain with its pull and its flush, its stages taking their designs as types; one `bridge` stage with its table design; and the `async` junction. The signal processing has no quality bar, with one exception: the `async` skeleton carries the real servo and must lock, with no underrun, behind `fed_by` at a request larger than the chain's block and at one that leaves a holdover, so that the servo sees pulls of varying size and requests with none. A table of every public member of SampleRateTap's three engines and where it lands here or why it is dropped (run-time profile objects, a run-time design search, a stage created at an unpinned divisor, a ring sized at run time). A first C ABI manifest (section 7.5) written against them, with its count and build time. Passing CF is what "shown that they fit" means; what it forces on the contracts is changed here, before anything from C2 to C6 that rests on them is frozen. |
 | C2 | The edges | `unpack` / `pack` (16, 24-packed, 24-in-32, 32; either byte order), TPDF dither, the mix matrix, `sanitize`. |
-| C3 | Filters | The biquad block kernel, the biquad family and the Butterworth with their designs (each design's card states `make()`'s stack and instruction count), a direct-form FIR, the L/M stage machine as `stage<S, Ch, Ratio, Design>` with `up2` / `down2` and one pinned design per divisor, the table generator as a host tool, `oversample`. One dynamics stage without a side chain. The overdrive chain as a tested example. The recursive stage's layout measured. |
+| C3 | Filters | The biquad block kernel, the biquad family and the Butterworth with their designs (each design's card states `make()`'s stack and instruction count), a direct-form FIR, the L/M stage machine as `stage<S, Ch, Ratio, Design>` with `up2` / `down2` and one pinned design per divisor, the table generator as a host tool, `oversample`. The compile-fail test of an unstable constant table. Each filter family's probe image for the link-stage gate. One dynamics stage without a side chain. The overdrive chain as a tested example. The recursive stage's layout measured. |
 | C4 | Blocks | The floating FFT behind its compiled interface, with the interface fixed for all four types (D48), the inverse's exponent included; the overlap-save FFT FIR; `planar_section`. The split-complex measurement, and D25 frozen. |
 | C5 | Analysis and the transform domain | Meters, auto- and cross-correlation over `tap`. `stft` / `istft` in `float` and `double` and a spectral gain: the gate of 9.5, bare at its hop and inside `steady`, as a tested example. |
 | C6 | Profiles | The fixed-point profiles that are new design (D47), with the section-scaling design a fixed-point biquad needs. The fixed-point FFT engine with its block-floating inverse, fixed-point spectra and the Q31 `istft` with its floor per back end (D38). The back ends: vDSP, CMSIS-DSP for Helium, the fixed-point CMSIS-DSP adapters. The C ABI from its manifest with its shared target and exported-symbol pin, and the executed notebooks. |
@@ -1052,7 +1164,7 @@ graph LR
 
 | Workstream | Needs | Can start |
 |---|---|---|
-| Harness rows (a stage's counts, sizes and layout row) | C0a's harness | With each stage |
+| Harness rows (a stage's counts, sizes and layout row, and its family's probe image for the link-stage gate) | C0a's harness | With each stage |
 | The floating FFT engine | C0b | With C1: nothing in it depends on the chain |
 | Kernels and designs | C0b | With C1: a kernel takes spans and knows nothing of stages |
 | Fit (CF) | C1 | At once after C1 |
@@ -1118,9 +1230,9 @@ are in `assets/icon/`.
    /// | Contract   |                                                                       |
    /// |------------|-----------------------------------------------------------------------|
    /// | Ports      | `port<S, Ch>` in and out                                              |
-   /// | Ratio      | 1:1, in place, input group 1 (frame-synchronous)                      |
+   /// | Ratio      | 1:1, in place, input group 1 (frame-synchronous: no trail, no lead)   |
    /// | Configured | by a `butterworth_design<S, Order>`; `set_design()` between calls     |
-   /// | State      | two words per section and channel; at rest all zero (default reset)   |
+   /// | State      | two words per section and channel; at rest all zero (`rests_at_zero`) |
    /// | Workspace  | none                                                                  |
    /// | Latency    | nominal: group delay at DC; deviation: its excess up to the cutoff    |
    /// | Tail       | `tail_frames()`; residue <= 256 x min normal, orders 2-8, fc >= 0.002 |
@@ -1141,11 +1253,13 @@ are in `assets/icon/`.
 5. **A guide page answers one question**, starts with the answer, and every listing is
    included from an example the build compiles and the battery runs.
 6. **One glossary**: stage, configuration, state, workspace, reset, chain, junction, mailbox,
-   port, frame, input group, shortfall, design, tail, residue.
+   port, frame, input group, shortfall, lead, design, tail, residue.
 7. **Built as strictly as code**: Doxygen's warnings are errors, links are checked, the
    README's quick start is compiled.
 
-`CLAUDE.md` follows the same rule: a short map of where things are and which rules bind.
+`CLAUDE.md` follows the same rule: a short map of where things are and which rules bind. It
+exists already, written from this plan; C0a adds the build and test commands and every
+later milestone keeps it current.
 
 Untried: Doxygen and mdBook were not installed where the plan was audited. Whether `@req`
 is an alias or a built-in command, and how a Markdown table survives in a `///` comment and
@@ -1166,7 +1280,7 @@ the command that reproduces the number; what catenae does instead, as code that 
 | What arithmetic costs | An FPU that has no `double`; fixed point and where the binary point is | The `float` profile, Q formats, the golden model |
 | Stages and chains | A mistake that should not survive compilation | Ports, joints, the compile-time proofs |
 | Rate and latency | A stream that changes rate; a dry path that must line up with a wet one | Ratios, exact latency, `oversample`, `parallel` |
-| Bursts and buffering | A callback that must return n frames for n, around a stage that works in blocks | Input groups, shortfall, `steady`, the exact pull; the figure of 9.5 |
+| Bursts and buffering | A callback that must return n frames for n, around a stage that works in blocks | Input groups, shortfall and lead, `steady`, the exact pull; the figure of 9.5 |
 | Threads and clocks | Two call sites that cannot share a lock | Junctions and mailboxes |
 | Measuring | A cost that is not measured is not known | The ratchet, size probes, the layout benchmark |
 | Writing a stage | | The contract, a card, a battery |
@@ -1178,7 +1292,7 @@ not re-explain to an embedded reader what they know: that reader has the referen
 
 | Milestone | Documentation it ships |
 |---|---|
-| C0a | The README; `CLAUDE.md` with the standing rules (D53 among them); Doxygen, mdBook and the budgets tried on one header and one page, then in CI; the site published |
+| C0a | The README; `CLAUDE.md` extended with the build and test commands (it carries the standing rules already, D53 among them); Doxygen, mdBook and the budgets tried on one header and one page, then in CI; the site published |
 | C0b | The glossary, the card and `@req` conventions, the stage, junction and analyzer contract pages |
 | C1 | The mailbox contract page. The guide's chapters on where memory lives, stages and chains, bursts and buffering, threads and clocks, and measuring; "Writing a stage" |
 | C3 | The chapters on the audio callback (which needs a real design), what arithmetic costs, and rate and latency |
@@ -1191,8 +1305,8 @@ A page is written with its code, in the same change, by the workstream that writ
 The guide's chapters are the exception in who writes them, not in when (D53): the workstream
 spawns a Fable-model agent for the chapter, hands it the compiled examples and the contract
 pages the chapter rests on, and the chapter lands in the same change. The repository's
-`CLAUDE.md`, written at C0a, carries this as a standing instruction, since a session follows
-the instruction file and not the plan.
+`CLAUDE.md` carries this as a standing instruction, since a session follows the instruction
+file and not the plan.
 
 ## 12. What is carried in
 
@@ -1211,7 +1325,8 @@ C7 and C8, with their plans' settled decisions read first.
 **Written new, not carried:** `convert`, `unpack` and `pack` (neither library has them),
 with `convert`'s rounding and saturation; the lookup from a `fixed<>` tag to its traits; a
 saturating multiply for a fixed-point gain and a saturating sum for a fixed-point mix;
-`handoff`'s fill policy and `report`; the mailbox.
+`handoff`'s fill policy, its discard at a start, `serves` and `report`; the atomic
+operations on a plain word; the mailbox.
 
 **The carried fixed-point arithmetic** is three sets of traits over raw integers, with no
 wrapper types, on purpose:
@@ -1229,7 +1344,7 @@ full scale is that less the headroom (24 dB in Q4.27). What the binary point doe
 a nonlinearity, dither's amplitude, a threshold, a meter in dBFS: those take `F` from the
 format.
 
-**The port is not mechanical in eight places:**
+**The port is not mechanical in nine places:**
 
 - **Allocation.** The designers, `decimate.h`, `chain.h`, the FFT's tables and
   SampleRateTap's engines size `std::vector`s at construction. Each becomes a state sized by
@@ -1255,6 +1370,11 @@ format.
   becomes the stage's `reset` (D49): `rational`'s stage starts each channel at its design's
   row length with one pre-advance pending; the guard band filter and the decimator start at
   their tap count less one; `async` starts from its configured targets.
+- **Which frame of a group writes.** The carried decimators and L/M stages write a group's
+  output when its first frame arrives (one frame in from rest gives one frame out, which is
+  what the pre-advance above is). That convention is kept, since their latency and the
+  vectors C7 compares against depend on it, and it is what `max_lead` publishes: such a
+  stage never trails and leads by up to (M - 1) / M of an output frame.
 - **The asynchronous converter's servo and phase arithmetic.** The carried servo is one
   class in `double` that calls `exp` on every pull (about fifty software-double calls on a
   Cortex-M33), whatever the sample type. Under D36 it is rewritten for the `float` image,
@@ -1267,7 +1387,8 @@ The versions the plan was written against: DspTap 0.7.0, SampleRateTap 0.9.0.
 ## 13. Open questions
 
 None gates a milestone. Deferred designs, each named where it is deferred: a block-floating
-forward transform and Q15 resynthesis (D38); a `parallel` that re-aligns at run time (D43);
-a two-step pull (D52); ARMv6-M (section 6.1); a Neon adapter and an HVX back end (section
+forward transform and Q15 resynthesis (D38); a `parallel` that re-aligns at run time and a
+delay whose length is set at run time (D43); a two-step pull (D52); a high-water trim for a
+`handoff` whose consumer stalls (section 6.1); ARMv6-M (section 6.1); a Neon adapter and an HVX back end (section
 7.2); a jitter buffer (section 6.1); a stage with two audio inputs (section 2); smoothing of
 a filter's redesign (section 9.2); a MISRA checker and a safety case (section 8).

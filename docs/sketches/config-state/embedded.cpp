@@ -19,9 +19,9 @@ struct soft_clip {
 // Two voices of one overdrive: one configuration (a constant), a state each, and one workspace
 // for the thread that runs them.
 constexpr auto overdrive = up2<2>{} | up2<2>{} | map<2, soft_clip>{soft_clip{4.0f}} | down2<2>{} | down2<2>{};
-static state_of<decltype(overdrive)>     s_voice_a;
-static state_of<decltype(overdrive)>     s_voice_b;
-static workspace_of<decltype(overdrive)> s_overdrive_work;
+CATENAE_SKETCH_CONSTINIT static state_of<decltype(overdrive)>     s_voice_a;
+CATENAE_SKETCH_CONSTINIT static state_of<decltype(overdrive)>     s_voice_b;
+CATENAE_SKETCH_CONSTINIT static workspace_of<decltype(overdrive)> s_overdrive_work;
 
 // The audio callback: a fixed block, so no run-time size check.
 void audio_callback(const std::array<float, 64 * 2>& in, std::array<float, 64 * 2>& out) noexcept {
@@ -38,8 +38,8 @@ constexpr auto k_lowpass_at_0_1 = lowpass_design<float>::from_table(
     {0.06745527388907191f, 0.13491054777814382f, 0.06745527388907191f, -1.1429805025399011f, 0.4128015980961886f},
     2.176250899482823f);
 
-static auto                         s_strip = lowpass<2>{k_lowpass_at_0_1} | gain<2>{1.0f, 96};
-static memory_of<decltype(s_strip)> s_strip_memory;
+CATENAE_SKETCH_CONSTINIT static auto                         s_strip = lowpass<2>{k_lowpass_at_0_1} | gain<2>{1.0f, 96};
+CATENAE_SKETCH_CONSTINIT static memory_of<decltype(s_strip)> s_strip_memory;
 
 void strip_callback(const std::array<float, 64 * 2>& in, std::array<float, 64 * 2>& out) noexcept {
     static_cast<void>(s_strip.process(s_strip_memory, in, out));
@@ -61,8 +61,8 @@ void reset_strip() noexcept {
 }
 
 // The same strip driven from another thread or an interrupt: nothing but posts on that side.
-static mailbox<lowpass_design<float>> s_new_design;
-static mailbox<float>                 s_new_level;
+CATENAE_SKETCH_CONSTINIT static mailbox<lowpass_design<float>> s_new_design;
+CATENAE_SKETCH_CONSTINIT static mailbox<float>                 s_new_level;
 
 void post_level(float level) noexcept {
     s_new_level.post(level);
@@ -76,9 +76,9 @@ void strip_callback_with_mail(const std::array<float, 64 * 2>& in, std::array<fl
     static_cast<void>(s_strip.process(s_strip_memory, in, out));
 }
 
-// A junction: a stereo ring of 1024 frames that fills to 128 before it pays out.
-constexpr handoff<2, 1024, 128> relay{};
-static state_of<decltype(relay)> s_relay;
+// A junction: a stereo ring of 1024 frames that fills to 128 before it pays out, fed 64 at a time.
+constexpr handoff<2, 1024, 128, 64> relay{};
+CATENAE_SKETCH_CONSTINIT static state_of<decltype(relay)> s_relay;
 
 void reset_relay() noexcept {
     relay.reset(s_relay);

@@ -66,6 +66,9 @@ struct fancy {
     static constexpr ratio       rate_ratio{1, 1};
     static constexpr std::size_t input_group = 1;
     static constexpr ratio       max_shortfall{0, 1};
+    static constexpr ratio       max_lead{0, 1};
+    static constexpr std::size_t output_quantum = 1;
+    static constexpr bool        rests_at_zero  = true;
     struct state {
         state() noexcept {}
         state(const state& /*unused*/) noexcept {}
@@ -96,5 +99,56 @@ struct owner {
 static mailbox<owner> s_box;
 void                  use(const owner& o) noexcept {
     s_box.post(o);
+}
+
+#elif CASE == 9 || CASE == 10 || CASE == 11
+// A stage says how its state comes to rest, one way or the other. CASE 9 says neither (its
+// reset is not const, so it is not the reset the contract names); CASE 10 says both; CASE 11
+// says it rests at zero, so nothing is wrong: it is the control for the other two.
+struct meter {
+    using input_port  = port<float, 1>;
+    using output_port = port<float, 1>;
+    static constexpr ratio       rate_ratio{1, 1};
+    static constexpr std::size_t input_group = 1;
+    static constexpr ratio       max_shortfall{0, 1};
+    static constexpr ratio       max_lead{0, 1};
+    static constexpr std::size_t output_quantum = 1;
+    struct state {
+        float least; // at rest: the largest value, not zero
+    };
+    using workspace = no_workspace;
+#if CASE == 9
+    void reset(state& st) noexcept { st.least = 1.0e30f; }
+#elif CASE == 10
+    static constexpr bool rests_at_zero = true;
+    void                  reset(state& st) const noexcept { st.least = 1.0e30f; }
+#else
+    static constexpr bool rests_at_zero = true;
+#endif
+    std::size_t run(state& /*unused*/, workspace& /*unused*/, span<const float> in, span<float> /*unused*/) const noexcept {
+        return in.size();
+    }
+    static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return n; }
+    static constexpr std::size_t outputs_for(const state& /*unused*/, std::size_t n) noexcept { return n; }
+    static constexpr std::size_t frames_needed(const state& /*unused*/, std::size_t k) noexcept { return k; }
+};
+template <>
+struct catenae::is_stage<meter> : std::true_type {};
+constexpr auto                     wrapped = chain(meter{});
+static state_of<decltype(wrapped)> s_state;
+void                               use() noexcept {
+    wrapped.reset(s_state);
+}
+
+#elif CASE == 12
+// The pull side behind a junction whose target is too small for the request: pulls of up to
+// 175 frames beside pushes of 64 need a target of 238.
+constexpr auto                               up4 = up2<2>{} | up2<2>{};
+constexpr handoff<2, 1024, 128, 64>          link{};
+static state_of<decltype(link)>              s_link;
+static fed_by_state<decltype(up4)>           s_state;
+static fed_by_workspace<decltype(up4), 700>  s_work;
+std::size_t                                  use(std::array<float, 64>& out) noexcept {
+    return fed_by(link, s_link, up4, s_state, s_work, span<float>(out));
 }
 #endif

@@ -43,8 +43,17 @@ scripts/icount.py --key host --build-dir build-host
 
 A probe set is two images of one workload (`bench/probe/`), built MinSizeRel as the QEMU
 test legs build: `catenae_probe_<set>`, linked with a map, and `catenae_stack_<set>`, which
-paints the stack below each call and reads how deep it went. `scripts/ceilings.py` reads, per
-key:
+paints the stack below each call and reads how deep it went. Each call an application makes
+is rooted at a noinline `catenae_probe::probe_<call>`. The sets:
+
+| Set | What it is | Calls |
+|---|---|---|
+| `version` | `catenae::version()`, the first compiled unit | `version` |
+| `strip` | The example chain, `examples/strip.h`: its memory, start-up and stack are C1's pinned numbers | `reset`, `process` |
+| `strip_object` | The same strip as a desktop program writes it, one object with its delay line on the heap: the guide's "Where memory lives" measures it against `strip` | `process` |
+| `c1` | Every C1 stage once, in one float path: the link-stage gate's first probe image | `reset`, `process` |
+
+`scripts/ceilings.py` reads, per key:
 
 - the image's `.text`, `.rodata`, `.data` and `.bss`, apart (`size -A`);
 - the same four for the compiled core (`core.*`, its archive members) and for the probe's own
@@ -53,7 +62,16 @@ key:
   stack of every start-up function in the image, the runtime's included;
 - each call's static worst-case stack down its path, from GCC's `-fcallgraph-info` with the
   runtime's routines bounded from their disassembly, and the high-water it actually painted
-  (Arm keys).
+  (Arm keys);
+- each call's code (`code.<call>`): the bytes of every function the call can reach by a direct
+  call in the linked image, the root and the runtime's routines included (Arm keys);
+- where the stack probe prints them, a chain's state and workspace as the target lays them out
+  (`sizeof.state`, `sizeof.workspace`) and what the heap holds after start-up (`heap.used`),
+  which no section of the image shows (Arm keys).
+
+`strip_object`'s start-up has no static stack bound, since `operator new` calls the
+new-handler through a pointer; the script says so for that set alone and records no start-up
+stack for it. Any other probe whose start-up cannot be bounded fails.
 
 Each figure has a ceiling, one-sided: the recorded figure plus 3 %, rounded up to 64 bytes for
 sizes and 8 for stack (SampleRateTap's rule); a count of start-up functions, and any figure of
@@ -93,10 +111,24 @@ Probe `version`: each cell is the recorded figure / its ceiling, in bytes (start
 ## The link-stage gate
 
 `scripts/link_gate.py` refuses an image that links a software-double or double-`libm` symbol
-(D36). Its probe images, one per `float` stage family, arrive with C1; until then it proves
-itself on two fixtures on every Arm key (`bench/link_gate/`, CTest label `link_gate`). On the
-M55, GCC's default FPU has double precision, so a double product is an instruction and no
-symbol: the gate cannot see it there, and a test pins that limit.
+(D36). It runs on named probe images, one per `float` stage family; the first is C1's,
+`catenae_probe_c1`, every C1 stage in one float path (`link_gate.C1ImageHasNoSoftwareDouble`).
+It also proves itself on two fixtures on every Arm key (`bench/link_gate/`, CTest label
+`link_gate`). On the M55, GCC's default FPU has double precision, so a double product is an
+instruction and no symbol: the gate cannot see it there, and a test pins that limit.
+
+Its first run refused the `c1` image on the M4, M4F and M33: `convert`'s rounding truncated
+the scaled value to `int64_t`, which on the Cortex-M is libgcc's `__aeabi_f2lz`, written in
+software double (19 routines came with it on each of the three; the M55 passed, for the reason
+above). The value is below 2^31 in magnitude, so `convert` now truncates to `int32_t`, one FPU
+instruction each way, with the same results.
+
+```sh
+cmake -S . -B build-size -DCMAKE_BUILD_TYPE=MinSizeRel -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m33-mps2.cmake \
+      -DCATENAE_BUILD_TESTS=OFF -DCATENAE_BUILD_EXAMPLES=OFF -DCATENAE_BUILD_BENCH=ON
+cmake --build build-size
+ctest --test-dir build-size -L link_gate
+```
 
 ## Recorded
 

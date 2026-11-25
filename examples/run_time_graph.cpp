@@ -5,7 +5,44 @@
 
 #include <cstddef>
 
+// The graph is built without catenae, so it spells the one compiler extension it uses itself:
+// the promise that two pointers do not overlap (catenae's own is CATENAE_RESTRICT, DEV-003).
+#if defined(_MSC_VER) && !defined(__clang__)
+#define EXAMPLE_RESTRICT __restrict
+#else
+#define EXAMPLE_RESTRICT __restrict__
+#endif
+
 namespace example::run_time {
+
+    namespace {
+        constexpr std::size_t k_run = 16;
+
+        void scale(const float* EXAMPLE_RESTRICT from, float* EXAMPLE_RESTRICT to, std::size_t count,
+                   float level) noexcept {
+            std::size_t i = 0;
+            for (; i + k_run <= count; i += k_run) {
+                for (std::size_t j = 0; j < k_run; ++j) {
+                    to[i + j] = from[i + j] * level;
+                }
+            }
+            for (; i < count; ++i) {
+                to[i] = from[i] * level;
+            }
+        }
+
+        void scale_in_place(float* EXAMPLE_RESTRICT samples, std::size_t count, float level) noexcept {
+            std::size_t i = 0;
+            for (; i + k_run <= count; i += k_run) {
+                for (std::size_t j = 0; j < k_run; ++j) {
+                    samples[i + j] = samples[i + j] * level;
+                }
+            }
+            for (; i < count; ++i) {
+                samples[i] = samples[i] * level;
+            }
+        }
+    } // namespace
 
     const char* node::name() const noexcept {
         return "node";
@@ -49,13 +86,21 @@ namespace example::run_time {
             m_step      = (m_level - m_current) / 96.0f;
             m_remaining = 96;
         }
-        for (std::size_t f = 0; f < frames; ++f) {
-            if (m_remaining > 0) {
-                --m_remaining;
-                m_current = m_goal - m_step * static_cast<float>(m_remaining);
-            }
-            out[2 * f]     = in[2 * f] * m_current;
-            out[2 * f + 1] = in[2 * f + 1] * m_current;
+        // The same loops as catenae::gain's, so that the two strips differ only in how their
+        // parts are joined: the ramp's frames one at a time, the rest at one level in runs of 16.
+        std::size_t f = 0;
+        for (; f < frames && m_remaining > 0; ++f) {
+            --m_remaining;
+            m_current         = m_goal - m_step * static_cast<float>(m_remaining);
+            const float level = m_current;
+            out[2 * f]        = in[2 * f] * level;
+            out[2 * f + 1]    = in[2 * f + 1] * level;
+        }
+        if (in == out) {
+            scale_in_place(out + 2 * f, 2 * (frames - f), m_current);
+        }
+        else {
+            scale(in + 2 * f, out + 2 * f, 2 * (frames - f), m_current);
         }
     }
 

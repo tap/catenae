@@ -135,9 +135,13 @@ def build(bld):
     for directory in (gtest.find_dir("include"),):
         system += list(env.CATENAE_SYSTEM_INCLUDE) + [directory.abspath()]
     bld.stlib(target="catenae_gtest",
-              source=[gtest.find_node("src/gtest-all.cc"), gtest.find_node("src/gtest_main.cc")],
+              source=[gtest.find_node("src/gtest-all.cc")],
               includes=[gtest.find_dir("include"), gtest],
               export_includes=[gtest.find_dir("include")])
+    # main as an object, not inside the library: MSVC's linker infers a program's entry point
+    # from the objects it is given and cannot find one in an archive (LNK1561).
+    bld.objects(target="catenae_gtest_main", source=[gtest.find_node("src/gtest_main.cc")],
+                includes=[gtest.find_dir("include")])
 
     major, minor, patch = VERSION.split(".")
     bld.program(
@@ -145,7 +149,7 @@ def build(bld):
         features="cxx cxxprogram test",
         source=bld.path.ant_glob("tests/test_*.cpp"),
         includes=["include"],
-        use=["catenae", "catenae_gtest"],
+        use=["catenae", "catenae_gtest_main", "catenae_gtest"],
         defines=["CATENAE_TEST_PROJECT_VERSION_MAJOR=" + major, "CATENAE_TEST_PROJECT_VERSION_MINOR=" + minor,
                  "CATENAE_TEST_PROJECT_VERSION_PATCH=" + patch],
         cxxflags=system + warnings(env, "test"),

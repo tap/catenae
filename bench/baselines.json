@@ -1,1 +1,25 @@
-{}
+{
+  "hexagon": {
+    "callmax_version": 5,
+    "version": 20886
+  },
+  "host": {
+    "version": 21013
+  },
+  "m33": {
+    "callmax_version": 9,
+    "version": 31916
+  },
+  "m4-softfp": {
+    "callmax_version": 9,
+    "version": 31871
+  },
+  "m4f": {
+    "callmax_version": 9,
+    "version": 31887
+  },
+  "m55": {
+    "callmax_version": 9,
+    "version": 31921
+  }
+}

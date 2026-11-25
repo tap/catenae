@@ -12,6 +12,8 @@
 
 # Reads one flag file: a flag per line, `#` comments and blank lines ignored.
 function(catenae_read_flags file out)
+    # A changed set re-runs the configure.
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${file}")
     file(STRINGS "${file}" _lines)
     set(_flags)
     foreach(_line IN LISTS _lines)

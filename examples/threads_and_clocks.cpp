@@ -103,7 +103,10 @@ int main() {
     std::size_t                real  = 0;
     std::size_t                wrong = 0;
     std::size_t                size  = 37;
-    while (!fed.load()) {
+    // The last pull comes after the producer is done, so frames come through however the two
+    // threads were scheduled: by then the ring holds at least its target, or has paid out.
+    for (bool done = false; !done;) {
+        done = fed.load();
         size = size * 7 % 256 + 1; // requests of varied sizes, up to 256
         static_cast<void>(catenae::fed_by(ring, s_ring, output, s_from_ring, s_from_ring_work,
                                           catenae::span<float>(got.data(), size * 2)));

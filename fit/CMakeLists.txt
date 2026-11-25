@@ -19,3 +19,18 @@ catenae_add_gtest_executable(catenae_fit_tests
     SOURCES ${_catenae_fit_tests} ${PROJECT_SOURCE_DIR}/tests/support/catenae_test/check_trap.cpp LABELS fit)
 target_include_directories(catenae_fit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/tests/support
                                                       ${PROJECT_SOURCE_DIR}/tests/fixtures)
+
+# The first C ABI manifest (PLAN.md section 7.5): capi/catenae_manifest.h expanded into the C
+# header and the C++ definitions. The tests compile the definitions in, and a C11 consumer
+# beside them; hosted builds also build the one shared target the plan names, catenae_c.
+enable_language(C)
+target_sources(catenae_fit_tests PRIVATE capi/catenae_c.cpp capi/c_consumer.c)
+target_include_directories(catenae_fit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/capi ${PROJECT_SOURCE_DIR}/examples)
+set_source_files_properties(capi/c_consumer.c PROPERTIES COMPILE_OPTIONS "-std=c11;-Wall;-Wextra;-Wpedantic;-Werror")
+if(NOT CMAKE_SYSTEM_NAME STREQUAL "Generic")
+    add_library(catenae_c SHARED capi/catenae_c.cpp)
+    target_include_directories(catenae_c PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/capi ${PROJECT_SOURCE_DIR}/examples)
+    target_link_libraries(catenae_c PRIVATE catenae::catenae catenae::trap_handler catenae_test_warnings
+                                            catenae_contraction)
+    set_target_properties(catenae_c PROPERTIES CXX_VISIBILITY_PRESET default POSITION_INDEPENDENT_CODE ON)
+endif()

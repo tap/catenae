@@ -43,6 +43,7 @@ typedef int catenae_c_status;
 #define CATENAE_C_NOT_WHOLE_FRAMES 3 /* the input is not a whole number of frames */
 #define CATENAE_C_OUTPUT_TOO_SMALL 4 /* the output cannot hold what the call writes */
 #define CATENAE_C_NULL 5             /* a pointer is null */
+#define CATENAE_C_REJECTED 6         /* a make() could not meet its spec */
 
 /* Storage a caller declares for an entry, with the manifest's capacity and alignment. */
 #ifdef __cplusplus
@@ -94,6 +95,77 @@ CATENAE_C_MANIFEST(CATENAE_C_DECLARE)
                                                         value_type value);
 CATENAE_C_PARAMETERS(CATENAE_C_DECLARE_SETTER)
 #undef CATENAE_C_DECLARE_SETTER
+
+/* Junctions: their capacities, storage through the macros above, and their functions. */
+#define CATENAE_C_JUNCTION_CAPACITIES(name, ch, ccap, calign, scap, salign, rcap, ralign)                              \
+    enum {                                                                                                             \
+        catenae_c_##name##_channels                = ch,                                                               \
+        catenae_c_##name##_configuration_capacity  = ccap,                                                             \
+        catenae_c_##name##_configuration_alignment = calign,                                                           \
+        catenae_c_##name##_state_capacity          = scap,                                                             \
+        catenae_c_##name##_state_alignment         = salign,                                                           \
+        catenae_c_##name##_report_capacity         = rcap,                                                             \
+        catenae_c_##name##_report_alignment        = ralign                                                            \
+    };
+CATENAE_C_JUNCTIONS(CATENAE_C_JUNCTION_CAPACITIES)
+#undef CATENAE_C_JUNCTION_CAPACITIES
+
+#define CATENAE_C_REPORT_STORAGE(name, var)                                                                            \
+    CATENAE_C_ALIGNAS(catenae_c_##name##_report_alignment) unsigned char var[catenae_c_##name##_report_capacity]
+
+#define CATENAE_C_DECLARE_JUNCTION(name, ch, ccap, calign, scap, salign, rcap, ralign)                                 \
+    size_t           catenae_c_##name##_configuration_size(void);                                                      \
+    size_t           catenae_c_##name##_configuration_align(void);                                                     \
+    catenae_c_status catenae_c_##name##_configuration_copy(void* dst, size_t dst_size);                                \
+    size_t           catenae_c_##name##_state_size(void);                                                              \
+    size_t           catenae_c_##name##_state_align(void);                                                             \
+    size_t           catenae_c_##name##_report_size(void);                                                             \
+    catenae_c_status catenae_c_##name##_init(const void* configuration, size_t configuration_size, void* state,        \
+                                             size_t state_size);                                                       \
+    catenae_c_status catenae_c_##name##_push(const void* configuration, size_t configuration_size, void* state,        \
+                                             size_t state_size, const float* in, size_t in_values, size_t* accepted);  \
+    catenae_c_status catenae_c_##name##_pull(const void* configuration, size_t configuration_size, void* state,        \
+                                             size_t state_size, float* out, size_t out_values, size_t* real);          \
+    catenae_c_status catenae_c_##name##_report(const void* configuration, size_t configuration_size,                   \
+                                               const void* state, size_t state_size, void* report,                     \
+                                               size_t report_size);
+CATENAE_C_JUNCTIONS(CATENAE_C_DECLARE_JUNCTION)
+#undef CATENAE_C_DECLARE_JUNCTION
+
+/* A parenthesised parameter list, unwrapped. */
+#define CATENAE_C_UNWRAP(...) __VA_ARGS__
+
+/* Table designs: the table and the designer's scratch, in the caller's storage. make() constructs
+ * the entry's configuration over the table in `configuration`; the table must outlive it, which
+ * init cannot see (an assumption of use). */
+#define CATENAE_C_DESIGN_CAPACITIES(name, tcap, talign, wcap, walign, params, args)                                    \
+    enum {                                                                                                             \
+        catenae_c_##name##_table_capacity    = tcap,                                                                   \
+        catenae_c_##name##_table_alignment   = talign,                                                                 \
+        catenae_c_##name##_scratch_capacity  = wcap,                                                                   \
+        catenae_c_##name##_scratch_alignment = walign                                                                  \
+    };
+CATENAE_C_DESIGNS(CATENAE_C_DESIGN_CAPACITIES)
+#undef CATENAE_C_DESIGN_CAPACITIES
+
+#define CATENAE_C_TABLE_STORAGE(name, var)                                                                             \
+    CATENAE_C_ALIGNAS(catenae_c_##name##_table_alignment) unsigned char var[catenae_c_##name##_table_capacity]
+#define CATENAE_C_SCRATCH_STORAGE(name, var)                                                                           \
+    CATENAE_C_ALIGNAS(catenae_c_##name##_scratch_alignment) unsigned char var[catenae_c_##name##_scratch_capacity]
+
+#define CATENAE_C_DECLARE_DESIGN(name, tcap, talign, wcap, walign, params, args)                                       \
+    size_t           catenae_c_##name##_table_size(void);                                                              \
+    size_t           catenae_c_##name##_scratch_size(void);                                                            \
+    catenae_c_status catenae_c_##name##_make(void* table, size_t table_size, void* scratch, size_t scratch_size,       \
+                                             void* configuration, size_t configuration_size, CATENAE_C_UNWRAP params);
+CATENAE_C_DESIGNS(CATENAE_C_DECLARE_DESIGN)
+#undef CATENAE_C_DECLARE_DESIGN
+
+/* Configurations made from numbers. */
+#define CATENAE_C_DECLARE_MAKER(name, params, args)                                                                    \
+    catenae_c_status catenae_c_##name##_make(void* configuration, size_t configuration_size, CATENAE_C_UNWRAP params);
+CATENAE_C_MAKERS(CATENAE_C_DECLARE_MAKER)
+#undef CATENAE_C_DECLARE_MAKER
 
 /* The manifest's own count: entries, and the functions they export. */
 size_t catenae_c_entries(void);

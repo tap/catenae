@@ -35,7 +35,8 @@ target_include_directories(catenae_fit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}
 set_source_files_properties(capi/c_consumer.c PROPERTIES COMPILE_OPTIONS "-std=c11;-Wall;-Wextra;-Wpedantic;-Werror")
 if(NOT CMAKE_SYSTEM_NAME STREQUAL "Generic")
     add_library(catenae_c SHARED capi/catenae_c.cpp)
-    target_include_directories(catenae_c PRIVATE ${CMAKE_CURRENT_SOURCE_DIR}/capi ${PROJECT_SOURCE_DIR}/examples)
+    target_include_directories(catenae_c PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${CMAKE_CURRENT_SOURCE_DIR}/capi
+                                                 ${PROJECT_SOURCE_DIR}/examples)
     target_link_libraries(catenae_c PRIVATE catenae::catenae catenae::trap_handler catenae_test_warnings
                                             catenae_contraction)
     set_target_properties(catenae_c PROPERTIES CXX_VISIBILITY_PRESET default POSITION_INDEPENDENT_CODE ON)

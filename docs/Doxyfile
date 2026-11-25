@@ -7,7 +7,7 @@ PROJECT_NAME           = catenae
 PROJECT_BRIEF          = "Chainable Audio Transforms for Embedded, Native & Accelerated Environments"
 PROJECT_LOGO           = assets/icon/png/catenae-icon-128.png
 OUTPUT_DIRECTORY       = build-docs
-INPUT                  = include docs/reference.md
+INPUT                  = include docs/reference.md docs/contracts docs/assumptions.md docs/deviations.md
 USE_MDFILE_AS_MAINPAGE = docs/reference.md
 FILE_PATTERNS          = *.h *.md
 RECURSIVE              = YES
@@ -21,9 +21,14 @@ ALIASES                = "req{1}=\xrefitem req \"Requirement\" \"Requirements\" 
 EXTRACT_ALL            = NO
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = NO
+# catenae's own internals: a name in a detail namespace is not the reference's.
+EXCLUDE_SYMBOLS        = detail detail::* *::detail *::detail::*
+# Every public member has a line, and every warning fails the run. A brief names its
+# arguments, as a card's fields do (PLAN.md section 11.2, rule 2): no @param table is asked for.
+# A macro is documented on the branch Doxygen's preprocessor takes, GCC's and Clang's.
 WARN_IF_UNDOCUMENTED   = YES
 WARN_IF_DOC_ERROR      = YES
-WARN_NO_PARAMDOC       = YES
+WARN_NO_PARAMDOC       = NO
 WARN_AS_ERROR          = FAIL_ON_WARNINGS
 QUIET                  = YES
 ENABLE_PREPROCESSING   = YES

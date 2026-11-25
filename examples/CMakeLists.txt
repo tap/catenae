@@ -6,7 +6,7 @@
 # semihosting does not reliably carry an exit code).
 function(catenae_add_example name)
     add_executable(catenae_example_${name} ${name}.cpp)
-    target_link_libraries(catenae_example_${name} PRIVATE catenae::catenae catenae_test_warnings)
+    target_link_libraries(catenae_example_${name} PRIVATE catenae::catenae catenae::trap_handler catenae_test_warnings)
     add_test(NAME example.${name} COMMAND catenae_example_${name})
     set_tests_properties(example.${name} PROPERTIES PASS_REGULAR_EXPRESSION "CATENAE_EXAMPLE_DONE ok=1" TIMEOUT 120)
 endfunction()

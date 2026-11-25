@@ -21,5 +21,5 @@ foreach(_header IN LISTS _catenae_public_headers)
 endforeach()
 
 add_library(catenae_header_checks OBJECT ${_catenae_header_check_sources})
-target_include_directories(catenae_header_checks PRIVATE "${PROJECT_SOURCE_DIR}/include")
+target_include_directories(catenae_header_checks PRIVATE "${_catenae_include}")
 target_link_libraries(catenae_header_checks PRIVATE catenae_library_warnings catenae_no_exceptions)

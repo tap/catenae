@@ -11,9 +11,11 @@ A C++17 library of audio processing *stages*, the *chain* that composes them, th
 value between threads. No heap, no exceptions, no RTTI; every contract is stated as numbers
 and pinned by a test.
 
-**Status: the ground is laid, and nothing to build a chain with yet.** The builds, CI on
-every target, the warning sets and the measurement harness are in place around one compiled
-unit, `catenae::version()`. The first stages and the chain arrive with the next milestones.
+**Status: the contracts are written, and there is no chain to build yet.** The builds, CI on
+every target and the measurement harness are in place, and so are the contracts the rest
+is built on: the vocabulary (`span`, `expected`, the sample formats, the ports), the checks
+and their handler, and the traits that read and check what a stage, a junction and an
+analyzer declare. The chain and the first stages arrive with the next milestone.
 The design, its decisions and the milestones are in [`PLAN.md`](PLAN.md); the guide and the
 reference are published at <https://tap.github.io/catenae/>.
 
@@ -25,8 +27,16 @@ prebuilt. It needs a C++17 compiler; it compiles the same at C++20 and C++23.
 - **CMake**: `add_subdirectory(catenae)`, then link `catenae::catenae`.
 - **waf**: the `wscript` builds the same files (`waf configure build`).
 - **Anything else**: `scripts/amalgamate.py --out DIR` writes the compiled core as one
-  `catenae.cpp` beside a copy of the headers. Compile it with floating-point contraction off
-  (`-ffp-contract=off`).
+  `catenae.cpp` beside a copy of the headers and a `catenae/config.h`. Compile it with
+  floating-point contraction off (`-ffp-contract=off`).
+
+A failed check calls `catenae::check_failed(check)`, which must not return, and which the
+library leaves to you to define: it is where your system enters its safe state. A trapping
+one ships apart, as `catenae::trap_handler` (CMake), `catenae_trap_handler` (waf) or
+`check_failed_trap.cpp` (the amalgamation). The checks of your buffers' sizes run in every
+build; the library's checks of its own promises run when you build with
+`-DCATENAE_CHECKS=audit` (`waf configure --checks=audit`, `amalgamate.py --checks audit`),
+and code built at one level does not link with code built at the other.
 
 ```cpp
 #include "catenae/version.h"

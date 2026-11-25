@@ -2,13 +2,14 @@
 # Copyright 2026 Timothy Place and the catenae contributors
 """The amalgamation (D26, PLAN.md section 7.4): catenae for any other build system.
 
-    scripts/amalgamate.py --out DIR
+    scripts/amalgamate.py --out DIR [--checks boundary|audit]
 
 writes DIR/catenae.cpp, the whole compiled core as one source (every file of src/ in name
-order, a private header of src/ inlined at its first include), and DIR/include/, a copy of the
-public headers. A consumer compiles catenae.cpp with DIR/include on its include path and its
-own target flags. Once C0b adds the build-written catenae/config.h, a default one is written
-beside the headers here.
+order, a private header of src/ inlined at its first include), DIR/include/, a copy of the
+public headers, and DIR/include/catenae/config.h, the configuration a build system would
+otherwise write: the check level, boundary unless --checks says audit. A consumer compiles
+catenae.cpp with DIR/include on its include path and its own target flags, and links a handler
+(src/handler/trap.cpp is the default, beside it as DIR/check_failed_trap.cpp).
 
 An assumption of use, stated in the file: no compiler honours a contraction pragma reliably,
 so the amalgamation cannot carry the library's contraction policy, and catenae.cpp must be
@@ -50,6 +51,7 @@ def expand(path: pathlib.Path, seen: set[pathlib.Path]) -> list[str]:
 def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", required=True, type=pathlib.Path)
+    ap.add_argument("--checks", choices=["boundary", "audit"], default="boundary")
     args = ap.parse_args()
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
@@ -65,7 +67,13 @@ def main() -> int:
     if (out / "include").exists():
         shutil.rmtree(out / "include")
     shutil.copytree(REPO / "include", out / "include")
-    print(f"{out / 'catenae.cpp'}: {len(sources)} source(s); {out / 'include'}: the public headers")
+    template = (REPO / "tools" / "config" / "config.h.in").read_text()
+    config = template.replace("@CATENAE_CONFIG_WRITER@", "scripts/amalgamate.py")
+    config = config.replace("@CATENAE_CHECKS_VALUE@", f"CATENAE_CHECKS_{args.checks.upper()}")
+    (out / "include" / "catenae" / "config.h").write_text(config)
+    shutil.copyfile(REPO / "src" / "handler" / "trap.cpp", out / "check_failed_trap.cpp")
+    print(f"{out / 'catenae.cpp'}: {len(sources)} source(s); {out / 'include'}: the public headers and a "
+          f"{args.checks} config.h; {out / 'check_failed_trap.cpp'}: the default handler")
     return 0
 
 

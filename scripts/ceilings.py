@@ -30,6 +30,12 @@ passes (a ceiling is a bound, not a pin). Per key and probe set:
                          disassembly (Arm keys)
   stack.<call>.measured  the high-water the stack probe (catenae_stack_<set>) paints and reads
                          under qemu-system-arm (tools/probe/stack_meter.h): the path taken
+  code.<call>            the bytes of code the call can reach: the stack image's symbol sizes of
+                         every function on its call graph from probe_<call>, the root (which
+                         holds what was inlined into it) and the runtime's routines included
+                         (Arm keys)
+  heap.used              where the stack probe prints CATENAE_HEAP: the bytes the allocator
+                         holds after start-up, which no section of the image shows (Arm keys)
 
 --update records each figure and its ceiling: the figure plus 3 %, rounded up to a multiple of
 64 bytes for sizes and of 8 (the AAPCS stack alignment) for stack, and 0 for 0 (a count of
@@ -52,7 +58,17 @@ import sys
 REPO = pathlib.Path(__file__).resolve().parent.parent
 # The probe sets (bench/CMakeLists.txt, catenae_add_probe) and each one's calls: the stack
 # probe prints CATENAE_STACK <call> <bytes> and roots each call at catenae_probe::probe_<call>.
-PROBES = {"version": ["version"]}
+PROBES = {"version": ["version"], "strip": ["reset", "process"], "strip_object": ["process"],
+          "c1": ["reset", "process"]}
+# A call's root, catenae_probe::probe_<call>, as a mangled name or a call graph's title: anchored,
+# so a static constructor whose name embeds the root's (_GLOBAL__sub_I_...) is not taken for it.
+ROOT = r"(?:^|:)_ZN13catenae_probe\d+probe_{call}E"
+# The probe sets whose start-up may have no static stack bound, and why: the guide's strawman,
+# whose constructor calls operator new, which calls the new-handler through a pointer. Any other
+# probe whose start-up cannot be bounded fails.
+UNBOUNDED_STARTUP = {"strip_object": "operator new calls the new-handler through a pointer"}
+# The probe sets that call the compiled core (the rest are header templates alone).
+CALLS_CORE = {"version"}
 # The keys, as the ratchet names them, and their QEMU machines (Arm) or none (Hexagon).
 KEYS = {"m4-softfp": "mps2-an386", "m4f": "mps2-an386", "m33": "mps2-an505", "m55": "mps3-an547",
         "hexagon": None}
@@ -165,7 +181,8 @@ def measure_sizes(key: str, probe: str, binary: str) -> dict[str, int]:
         k = kind(section)
         if k:
             parts[part][k] += size
-    if parts["core"]["text"] == 0 or parts["unit"]["text"] == 0:
+    # Every probe's unit holds its main; a probe that calls the compiled core must find it too.
+    if parts["unit"]["text"] == 0 or (probe.removeprefix("catenae_probe_") in CALLS_CORE and parts["core"]["text"] == 0):
         raise SystemExit(f"{binary}.map: no input from the core or the probe's unit; the map format moved?")
     for part, sizes in parts.items():
         fig.update({f"{part}.{s}": sizes[s] for s in SECTIONS})
@@ -280,6 +297,47 @@ def runtime_depths(binary: str):
     return by_name, by_addr
 
 
+def code_bytes(binary: str, call: str) -> tuple[int, int]:
+    """(bytes, functions) of the code a call can reach in a linked Arm image: every function
+    reached from its root, probe_<call>, by a direct call or tail branch in the disassembly,
+    the root and the runtime's routines included, each counted once at its symbol size."""
+    sizes, names = {}, {}
+    for line in subprocess.run(["arm-none-eabi-nm", "-S", "--defined-only", binary], check=True,
+                               capture_output=True, text=True).stdout.splitlines():
+        parts = line.split()
+        if len(parts) == 4 and parts[2] in "TtWw":
+            addr = int(parts[0], 16) & ~1
+            sizes[addr] = max(sizes.get(addr, 0), int(parts[1], 16))
+            names.setdefault(parts[3], addr)
+    roots = [a for n, a in names.items() if re.search(ROOT.format(call=call), n)]
+    if len(roots) != 1:
+        raise SystemExit(f"{binary}: expected one root for {call}, found {len(roots)}")
+    dis = subprocess.run(["arm-none-eabi-objdump", "-d", "--no-show-raw-insn", binary], check=True,
+                         capture_output=True, text=True).stdout
+    calls, cur = {}, None
+    for line in dis.splitlines():
+        head = re.match(r"^([0-9a-f]+) <([^>]+)>:$", line)
+        if head:
+            cur = int(head.group(1), 16)
+            calls.setdefault(cur, set())
+            continue
+        ins = re.match(r"^\s*[0-9a-f]+:\s+(\S+)\s*(.*)$", line)
+        if cur is None or not ins:
+            continue
+        ops = ins.group(2).split(";")[0].strip()
+        if re.match(r"^b[a-z]*(\.[wn])?$", ins.group(1)) and re.match(r"^[0-9a-f]+ <[^+>]+>$", ops):
+            target = int(ops.split()[0], 16)
+            if target != cur:
+                calls[cur].add(target)
+    seen, todo = set(), [roots[0]]
+    while todo:
+        addr = todo.pop()
+        if addr not in seen:
+            seen.add(addr)
+            todo.extend(calls.get(addr, ()))
+    return sum(sizes.get(a, 0) for a in seen), len(seen)
+
+
 def worst_path(frames, externals, edges, root, runtime):
     """(bytes, external routines reached) of the deepest path from root: GCC's frames for the
     compiled code, the disassembly's for the runtime."""
@@ -346,7 +404,7 @@ def measure_stack(key: str, build_dir: str, probe_set: str, size_binary: str) ->
     by_name, by_addr = runtime_depths(binary)
     fig = {}
     for call in PROBES[probe_set]:
-        roots = [t for t in frames if re.search(rf"\dprobe_{call}E", t)]
+        roots = [t for t in frames if re.search(ROOT.format(call=call), t)]
         if not roots or call not in painted:
             raise SystemExit(f"{name}: no root or no painted figure for {call}")
         bound, reached = max(worst_path(frames, externals, edges, r, by_name) for r in roots)
@@ -356,10 +414,24 @@ def measure_stack(key: str, build_dir: str, probe_set: str, size_binary: str) ->
             raise SystemExit(f"{name} {call}: painted {painted[call]} B exceeds the static bound {bound} B")
         fig[f"stack.{call}.static"] = bound
         fig[f"stack.{call}.measured"] = painted[call]
+        code, functions = code_bytes(binary, call)
+        fig[f"code.{call}"] = code
         print(f"{name} {call}: static {bound} B, measured {painted[call]} B; "
-              f"runtime routines on the paths: {', '.join(sorted(reached)) or 'none'}")
+              f"runtime routines on the paths: {', '.join(sorted(reached)) or 'none'}; "
+              f"code reached {code} B in {functions} function(s)")
+    heap = re.search(r"CATENAE_HEAP (\d+)", out)
+    if heap:
+        fig["heap.used"] = int(heap.group(1))
+        print(f"{name}: the heap holds {fig['heap.used']} B after start-up")
     _, size_by_addr = runtime_depths(size_binary)
-    deepest, names = startup_stack(size_binary, size_by_addr)
+    try:
+        deepest, names = startup_stack(size_binary, size_by_addr)
+    except SystemExit as unbounded:
+        if probe_set not in UNBOUNDED_STARTUP:
+            raise
+        # The strawman's start-up has no bound to record; that it has none is the finding.
+        print(f"catenae_probe_{probe_set} start-up: no static bound ({UNBOUNDED_STARTUP[probe_set]}): {unbounded}")
+        return fig
     fig["startup.stack"] = deepest
     print(f"catenae_probe_{probe_set} start-up: {len(names)} function(s) ({', '.join(names) or 'none'}), "
           f"deepest static path {deepest} B")
@@ -423,7 +495,7 @@ def render(doc: dict) -> str:
     rows = []
     for probe_set in PROBES:
         figures = sorted({f for key in doc.values() for f in key.get(probe_set, {})},
-                         key=lambda f: (["image", "core", "unit", "startup", "stack"].index(f.split(".")[0]), f))
+                         key=lambda f: (["image", "core", "unit", "startup", "heap", "stack", "code"].index(f.split(".")[0]), f))
         keys = [k for k in KEYS if probe_set in doc.get(k, {})]
         if not keys:
             continue

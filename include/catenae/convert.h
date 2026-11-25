@@ -61,9 +61,13 @@ namespace catenae {
                                                || std::is_same<S, q31>::value || std::is_same<S, q4_27>::value;
 
             /// floor(v + 1/2) for a float below 2^31 in magnitude, exactly: v + 0.5f can round,
-            /// so the fraction is taken apart first (v less its truncation is exact).
+            /// so the fraction is taken apart first (v less its truncation is exact). The
+            /// truncation is to 32 bits, which hold it: a single-precision FPU converts float to
+            /// and from int32 in one instruction each, where a 64-bit conversion is a libgcc
+            /// routine that runs in software double on the Cortex-M (D36; the link-stage gate's
+            /// C1 probe refused it).
             inline std::int64_t round_half_up(float v) noexcept {
-                const auto  whole = static_cast<std::int64_t>(v); // truncates toward zero
+                const auto  whole = static_cast<std::int32_t>(v); // truncates toward zero
                 const float frac  = v - static_cast<float>(whole);
                 if (frac >= 0.5f) {
                     return whole + 1;

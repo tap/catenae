@@ -7,6 +7,8 @@ Carried from SampleRateTap's scripts/icount.py (NOTICE.md), with DspTap's keys a
 
   icount.py --key KEY --build-dir DIR [--plugin LIB] [--baselines FILE] [--tolerance 0.03]
             [--update] [--record FILE] [--compare-json FILE]
+  icount.py --key KEY --build-dir DIR [--plugin LIB] --prefix catenae_layout_ --report-only
+            [--record FILE]
 
 KEY is m4-softfp, m4f, m33 or m55 (qemu-system-arm, with the counting plugin of
 tools/qemu_insn_plugin), hexagon (qemu-hexagon built with plugin support) or host (x86-64
@@ -22,6 +24,11 @@ callmax_* scenario, the most executed between one pair of tools/probe/call_marke
 catenae_host_counted() alone (--toggle-collect), with the environment pinned so the count
 follows the binary and the C library, not the runner's CPU: eager binding, and glibc's
 CPU-dispatched routines held to their x86-64 baseline. callmax_* scenarios are QEMU-only.
+
+--prefix catenae_layout_ --report-only counts the layout benchmark (bench/layout/) and gates
+nothing: each workload's count inside the brackets its DONE line declares (brackets=<n>), and
+planar over interleaved per pair, with whether the pair's outputs are bit-identical. It fails
+only when a binary yields no count. Carried from DspTap's --report-only.
 
 --record writes {key: {scenario: {insns, checksum}}} whatever the verdict, so a run that
 fails for want of a baseline still hands back the numbers to commit. --compare-json gates
@@ -45,6 +52,7 @@ DONE = re.compile(r"CATENAE_ICOUNT_DONE ok=1 checksum=(\S+)")
 COUNT = re.compile(r"CATENAE_INSN_COUNT (\d+)")
 CALL_MAX = re.compile(r"CATENAE_CALL_MAX (\d+) call=(\d+) calls=(\d+) total=(\d+)")
 CALL_MAX_PREFIX = "callmax_"
+BRACKETS = re.compile(r"CATENAE_ICOUNT_DONE ok=1 checksum=\S+ brackets=(\d+)")
 MACHINES = {"m4-softfp": "mps2-an386", "m4f": "mps2-an386", "m33": "mps2-an505", "m55": "mps3-an547"}
 KEYS = sorted([*MACHINES, "hexagon", "host"])
 
@@ -79,6 +87,27 @@ def run(cmd: list[str], env=None) -> str:
 
 
 def measure(key: str, plugin: str | None, binary: str, call_max: bool) -> tuple[int, str]:
+    out, count = execute(key, plugin, binary)
+    label = os.path.basename(binary)
+    done = DONE.search(out)
+    if not done:
+        print(out, file=sys.stderr)
+        raise SystemExit(f"{label}: the workload did not complete cleanly")
+    if call_max:
+        c = CALL_MAX.search(out)
+        if not c:
+            print(out, file=sys.stderr)
+            raise SystemExit(f"{label}: no CATENAE_CALL_MAX (markers not found?)")
+        worst, at, calls, total = (int(g) for g in c.groups())
+        print(f"{label}: worst call {at} of {calls}: {worst} insns (mean {total / calls:.1f}, "
+              f"whole run {count})")
+        return worst, done.group(1)
+    return count, done.group(1)
+
+
+def execute(key: str, plugin: str | None, binary: str) -> tuple[str, int]:
+    """Runs one workload: (its output, the count). Under QEMU the count is the whole run's;
+    on the host, what callgrind collected inside catenae_host_counted()."""
     label = os.path.basename(binary)
     if key == "host":
         valgrind = shutil.which("valgrind") or sys.exit("valgrind not found on PATH")
@@ -104,20 +133,52 @@ def measure(key: str, plugin: str | None, binary: str, call_max: bool) -> tuple[
         if not count:
             print(out, file=sys.stderr)
             raise SystemExit(f"{label}: no CATENAE_INSN_COUNT (plugin not loaded?)")
-    done = DONE.search(out)
-    if not done:
-        print(out, file=sys.stderr)
-        raise SystemExit(f"{label}: the workload did not complete cleanly")
-    if call_max:
-        c = CALL_MAX.search(out)
-        if not c:
+    return out, int(count.group(1))
+
+
+def report(args, binaries: list[str]) -> int:
+    """--report-only: each workload's count, then planar over interleaved per pair; gates
+    nothing (bench/README.md, "The layout benchmark"). A workload that declares brackets=<n>
+    is counted inside its n brackets: under QEMU the plugin's sum over them, which must cover
+    exactly n calls; on the host, callgrind's count inside catenae_host_counted(), the step
+    the brackets enclose. A binary that yields no count fails the run."""
+    measured, worst = {}, {}
+    for binary in binaries:
+        scenario = os.path.basename(binary)[len(args.prefix):]
+        out, count = execute(args.key, args.plugin, binary)
+        done, brackets = DONE.search(out), BRACKETS.search(out)
+        if not done or not brackets:
             print(out, file=sys.stderr)
-            raise SystemExit(f"{label}: no CATENAE_CALL_MAX (markers not found?)")
-        worst, at, calls, total = (int(g) for g in c.groups())
-        print(f"{label}: worst call {at} of {calls}: {worst} insns (mean {total / calls:.1f}, "
-              f"whole run {count.group(1)})")
-        return worst, done.group(1)
-    return int(count.group(1)), done.group(1)
+            raise SystemExit(f"{scenario}: the workload did not complete cleanly, or declared no brackets")
+        if args.key != "host":
+            c = CALL_MAX.search(out)
+            if not c or c.group(3) != brackets.group(1):
+                print(out, file=sys.stderr)
+                raise SystemExit(f"{scenario}: the plugin did not see the {brackets.group(1)} brackets declared")
+            worst[scenario] = int(c.group(1))
+            count = int(c.group(4))
+        measured[scenario] = {"insns": count, "checksum": done.group(1)}
+        extra = f", worst step {worst[scenario]}" if scenario in worst else ""
+        print(f"{scenario}: {count} insns in {brackets.group(1)} steps{extra}, checksum {done.group(1)}")
+
+    def order(name: str):
+        m = re.match(r"(.*)_ch(\d+)_", name)
+        return (m.group(1), int(m.group(2))) if m else (name, 0)
+
+    pairs = sorted((s for s in measured if s.endswith("_p") and s[:-2] + "_i" in measured), key=order)
+    if pairs:
+        print()
+        print(f"{'pair':<20} {'interleaved':>13} {'planar':>13} {'p / i':>7}  output")
+    for scenario in pairs:
+        i, p = measured[scenario[:-2] + "_i"], measured[scenario]
+        same = "bit-identical" if i["checksum"] == p["checksum"] else "DIFFERENT"
+        print(f"{scenario[:-2]:<20} {i['insns']:>13} {p['insns']:>13} {p['insns'] / i['insns']:>7.3f}  {same}")
+    if args.record:
+        record = pathlib.Path(args.record)
+        doc = json.loads(record.read_text()) if record.exists() else {}
+        doc[args.key] = dict(sorted(measured.items()))
+        record.write_text(json.dumps(doc, indent=2, sort_keys=True) + "\n")
+    return 0
 
 
 def main() -> int:
@@ -130,18 +191,28 @@ def main() -> int:
     ap.add_argument("--update", action="store_true")
     ap.add_argument("--record", help="write the measured counts and checksums here, whatever the verdict")
     ap.add_argument("--compare-json", help="gate exactly against a --record file instead of the baselines")
+    ap.add_argument("--prefix", default=PREFIX, help="the binaries to count (default: the ratchet's)")
+    ap.add_argument("--report-only", action="store_true",
+                    help="count and print, with planar / interleaved per pair; gate nothing")
     args = ap.parse_args()
     if args.key != "host" and not args.plugin:
         raise SystemExit(f"--plugin is required for --key {args.key}")
     if args.update and args.compare_json:
         raise SystemExit("--update and --compare-json are mutually exclusive")
 
-    binaries = sorted(b for b in glob.glob(os.path.join(args.build_dir, "**", PREFIX + "*"), recursive=True)
+    if args.report_only and (args.update or args.compare_json):
+        raise SystemExit("--report-only gates nothing: it takes neither --update nor --compare-json")
+    if not args.report_only and args.prefix != PREFIX:
+        raise SystemExit(f"only {PREFIX}* is gated; another --prefix needs --report-only")
+
+    binaries = sorted(b for b in glob.glob(os.path.join(args.build_dir, "**", args.prefix + "*"), recursive=True)
                       if os.path.isfile(b) and os.access(b, os.X_OK))
     if args.key == "host":
-        binaries = [b for b in binaries if not os.path.basename(b)[len(PREFIX):].startswith(CALL_MAX_PREFIX)]
+        binaries = [b for b in binaries if not os.path.basename(b)[len(args.prefix):].startswith(CALL_MAX_PREFIX)]
     if not binaries:
-        raise SystemExit(f"no {PREFIX}* binaries under {args.build_dir}")
+        raise SystemExit(f"no {args.prefix}* binaries under {args.build_dir}")
+    if args.report_only:
+        return report(args, binaries)
 
     tolerance, checksums_ref = args.tolerance, {}
     path = pathlib.Path(args.baselines)

@@ -8,7 +8,7 @@
 
 #include "catenae/gain.h"
 
-constexpr auto c = catenae::chain(catenae::gain<2>{1.0f, 0});
+constexpr auto k_chain = catenae::chain(catenae::gain<2>{1.0f, 0});
 
 #ifdef CATENAE_CF_CONTROL
 constexpr std::size_t k_out_frames = 64;
@@ -16,9 +16,9 @@ constexpr std::size_t k_out_frames = 64;
 constexpr std::size_t k_out_frames = 63;
 #endif
 
-std::size_t short_out(catenae::memory_of<decltype(c)>& m, const std::array<float, 64 * 2>& in,
+std::size_t short_out(catenae::memory_of<decltype(k_chain)>& m, const std::array<float, 64 * 2>& in,
                       std::array<float, k_out_frames * 2>& out) noexcept;
-std::size_t short_out(catenae::memory_of<decltype(c)>& m, const std::array<float, 64 * 2>& in,
+std::size_t short_out(catenae::memory_of<decltype(k_chain)>& m, const std::array<float, 64 * 2>& in,
                       std::array<float, k_out_frames * 2>& out) noexcept {
-    return c.process(m, in, out);
+    return k_chain.process(m, in, out);
 }

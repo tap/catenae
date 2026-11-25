@@ -11,15 +11,15 @@
 #ifdef CATENAE_CF_CONTROL
 using g_t = catenae::gain<2>;
 using v_t = float;
-constexpr g_t g{0.5f, 0};
+constexpr g_t k_gain{0.5f, 0};
 #else
 using g_t = catenae::gain_q31<2>;
 using v_t = std::int32_t;
-constexpr g_t g{0.5f, 0};
+constexpr g_t k_gain{0.5f, 0};
 #endif
 
 std::size_t ran(g_t::state& st, std::array<v_t, 4>& in, std::array<v_t, 4>& out) noexcept;
 std::size_t ran(g_t::state& st, std::array<v_t, 4>& in, std::array<v_t, 4>& out) noexcept {
     g_t::workspace ws{};
-    return g.run(st, ws, catenae::span<const v_t>(in), catenae::span<v_t>(out));
+    return k_gain.run(st, ws, catenae::span<const v_t>(in), catenae::span<v_t>(out));
 }

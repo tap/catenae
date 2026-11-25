@@ -147,13 +147,11 @@ namespace {
         float                            breath;        ///< the farthest the backlog was from the setpoint once locked
     };
 
-    // CF finding: fed_by inlined here, over a state from make_unique, draws GCC 13's -Warray-bounds
-    // at -O2, and at -O3 with CATENAE_CHECKS=audit: it cannot bound `held` (at most the holdover,
-    // an invariant), so the holdover's copies in fed_by.h (lines 132 and 134) look out of bounds.
-    // The request goes through a function the compiler keeps out of line, which knows no size.
+    // One request, through fed_by. (GCC 13 once called the holdover's copies out of bounds when
+    // fed_by was inlined here; fed_by.h now bounds `held` by the holdover's room.)
     template <typename L, typename C, typename Memory, typename Scratch>
-    CATENAE_NOINLINE std::size_t request_once(const L& link, typename L::state& shared, const C& chain, Memory& st,
-                                              Scratch& ws, catenae::span<float> out) noexcept {
+    std::size_t request_once(const L& link, typename L::state& shared, const C& chain, Memory& st, Scratch& ws,
+                             catenae::span<float> out) noexcept {
         return catenae::fed_by(link, shared, chain, st, ws, out);
     }
 

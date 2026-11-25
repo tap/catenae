@@ -31,6 +31,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <tuple>
 #include <type_traits>
 
 #include "catenae/chain.h"
@@ -127,13 +128,18 @@ namespace catenae {
             const std::size_t want = out.size() / width;
             detail::check_always(want <= MaxRequest, check::request_too_large);
 
-            // The holdover first: a request it covers makes no pull.
-            std::size_t done = std::min(st.held, want);
+            // The holdover first: a request it covers makes no pull. It never holds more than its
+            // own room, which bounding `held` by it tells the compiler too: inlined, GCC 13 cannot
+            // see the invariant and calls the copies out of bounds (-Warray-bounds).
+            constexpr std::size_t room = std::tuple_size<std::remove_reference_t<decltype(st.holdover)>>::value / width;
+            detail::check_audit(st.held <= room, check::invariant);
+            const std::size_t held = std::min(st.held, room);
+            std::size_t       done = std::min(held, want);
             std::copy(st.holdover.begin(), st.holdover.begin() + static_cast<std::ptrdiff_t>(done * width),
                       out.begin());
             std::copy(st.holdover.begin() + static_cast<std::ptrdiff_t>(done * width),
-                      st.holdover.begin() + static_cast<std::ptrdiff_t>(st.held * width), st.holdover.begin());
-            st.held -= done;
+                      st.holdover.begin() + static_cast<std::ptrdiff_t>(held * width), st.holdover.begin());
+            st.held = held - done;
             if (done == want) {
                 return want;
             }

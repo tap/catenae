@@ -174,3 +174,98 @@ int main() {
     std::printf("TAP_DSP_ICOUNT_DONE ok=1 checksum=%016llx\n", static_cast<unsigned long long>(h));
 }
 ```
+
+## catenae's own gain and map
+
+Measured the same day against catenae `main` at `556e18f`: `gain<Ch>` and `map<Ch, F>`
+(F multiplies by a constant) called through `run()` directly, at a steady level with no ramp,
+interleaved against one mono configuration over `Ch` states. Instructions for 16,384 frames
+in calls of 128; all five outputs bit-identical.
+
+| | x86-64, 2 ch | 6 ch | 12 ch | Cortex-A78, 2 ch | 6 ch | 12 ch |
+|---|---:|---:|---:|---:|---:|---:|
+| `gain<Ch>`, interleaved | 74,624 | 366,208 | 661,248 | 37,120 | 463,232 | 856,960 |
+| `gain<1>` over Ch states | 70,656 | 207,488 | 411,008 | 67,712 | 201,216 | 400,128 |
+| `map<Ch, F>`, interleaved | 56,064 | 154,496 | 301,952 | 54,656 | 153,088 | 300,544 |
+| `map<1, F>` over Ch states | 55,040 | 162,560 | 322,304 | 54,400 | 161,280 | 320,256 |
+| A hand-written flat loop in runs of 16 | 40,064 | 109,824 | 214,272 | 30,720 | 84,096 | 163,968 |
+
+`gain` shows the first benchmark's pattern (planar over interleaved 0.57 and 0.62 at 6 and
+12 channels on x86-64, 0.43 and 0.47 on the A78): its loop reads the current level from the
+state for every sample and tests the ramp counter every frame. `map` is even between the
+layouts, within 7 %. Against the flat loop at 6 channels, `gain` interleaved costs 3.3 times
+as much on x86-64 and 5.5 times on the A78, and `map` 1.4 and 1.8 times. Not measured: the
+M-class cores, Hexagon, a ramp in progress, and the same stages through `chain::process`.
+
+Built as the file above was, with `-fno-exceptions -fno-rtti -I include -I <generated>`
+(the `catenae/config.h` of a default host configure):
+
+```cpp
+// catenae's own gain and map, interleaved against Ch mono stages, beside a hand-written flat loop.
+#include <array>
+#include <cstddef>
+#include <cstdint>
+#include <cstdio>
+#include <vector>
+#include "call_marker.h"
+#include "catenae/gain.h"
+#include "catenae/map.h"
+#ifndef CH
+#define CH 6
+#endif
+#ifndef VAR
+#define VAR 0
+#endif
+constexpr std::size_t Ch = CH, k_frames = 16384, k_call = 128;
+#define NOINLINE __attribute__((noinline))
+struct times { float k; constexpr float operator()(float x) const noexcept { return x * k; } };
+template <typename F> NOINLINE void layout_step(F&& f) { tap_dsp_call_begin(); f(); tap_dsp_call_end(); }
+template <typename Stage> NOINLINE std::size_t run_stage(const Stage& s, typename Stage::state& st, const float* in, std::size_t samples, float* out) noexcept {
+    typename Stage::workspace ws{};
+    return s.run(st, ws, catenae::span<const float>(in, samples), catenae::span<float>(out, samples));
+}
+NOINLINE void flat(const float* __restrict in, std::size_t samples, float* __restrict out, float k) noexcept {
+    std::size_t s = 0;
+    for (; s + 16 <= samples; s += 16) for (std::size_t j = 0; j < 16; ++j) out[s + j] = in[s + j] * k;
+    for (; s < samples; ++s) out[s] = in[s] * k;
+}
+int main() {
+    std::vector<float> in(k_frames * Ch), out(k_frames * Ch);
+    for (std::size_t i = 0; i < in.size(); ++i) in[i] = 0.001f * static_cast<float>((i * 2654435761u) % 2001u) - 1.0f;
+    const float level = 0.53f;
+#if VAR == 0 || VAR == 2      // interleaved: gain<Ch> (0) or map<Ch, times> (2)
+#if VAR == 0
+    const catenae::gain<Ch> stage(level, 0);
+#else
+    const catenae::map<Ch, times> stage(times{level});
+#endif
+    decltype(stage)::state st{};
+#if VAR == 0
+    stage.reset(st);
+#endif
+    for (std::size_t f = 0; f < k_frames; f += k_call)
+        layout_step([&] { run_stage(stage, st, in.data() + f * Ch, k_call * Ch, out.data() + f * Ch); });
+#elif VAR == 1 || VAR == 3    // planar: one mono configuration over Ch states (D42's fan-out)
+    std::vector<float> pin(k_frames * Ch), pout(k_frames * Ch);
+    for (std::size_t c = 0; c < Ch; ++c) for (std::size_t f = 0; f < k_frames; ++f) pin[c * k_frames + f] = in[f * Ch + c];
+#if VAR == 1
+    const catenae::gain<1> stage(level, 0);
+#else
+    const catenae::map<1, times> stage(times{level});
+#endif
+    std::array<decltype(stage)::state, Ch> st{};
+#if VAR == 1
+    for (auto& s : st) stage.reset(s);
+#endif
+    for (std::size_t f = 0; f < k_frames; f += k_call)
+        layout_step([&] { for (std::size_t c = 0; c < Ch; ++c) run_stage(stage, st[c], pin.data() + c * k_frames + f, k_call, pout.data() + c * k_frames + f); });
+    for (std::size_t c = 0; c < Ch; ++c) for (std::size_t f = 0; f < k_frames; ++f) out[f * Ch + c] = pout[c * k_frames + f];
+#elif VAR == 4                // the hand-written flat loop over the interleaved buffer
+    for (std::size_t f = 0; f < k_frames; f += k_call)
+        layout_step([&] { flat(in.data() + f * Ch, k_call * Ch, out.data() + f * Ch, level); });
+#endif
+    std::uint64_t h = 1469598103934665603ull;
+    for (float v : out) { std::uint32_t u; __builtin_memcpy(&u, &v, 4); h = (h ^ u) * 1099511628211ull; }
+    std::printf("TAP_DSP_ICOUNT_DONE ok=1 checksum=%016llx\n", static_cast<unsigned long long>(h));
+}
+```

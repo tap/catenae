@@ -1,0 +1,99 @@
+#!/usr/bin/env bash
+# Copyright 2026 Timothy Place and the catenae contributors
+# Carried from SampleRateTap's scripts/tidy.sh (NOTICE.md): the compile database is configured
+# with clang++ (the GCC-only warnings are not clang's), with the bench targets, and excludes
+# only fetched dependencies.
+#
+# Local mirror of the CI clang-tidy gate (.github/workflows/style.yml): .clang-tidy's naming,
+# mandatory-braces and complexity checks over catenae's own translation units. Run it before
+# pushing.
+#
+# WHY THIS EXISTS (and is not a pre-commit hook): the pre-commit hook only
+# runs clang-FORMAT, which is cheap and context-free. clang-TIDY needs a
+# compile database (a configured CMake build) and compiles every TU to reason
+# about types — too slow and stateful for a per-commit hook, so CI keeps it as
+# its own gate. This script is the fast local equivalent of that gate.
+#
+# Usage:
+#   scripts/tidy.sh                       # sweep every project TU (full CI mirror)
+#   scripts/tidy.sh tests/test_foo.cpp …  # only the given TU(s) — fast, for a change
+#
+# Env:
+#   CLANG_TIDY=clang-tidy-18   # binary to use (default: clang-tidy-18, then clang-tidy)
+#   TIDY_BUILD=build-tidy      # compile-database build dir (kept separate from ./build)
+#   TIDY_RECONFIGURE=1         # force a cmake re-configure of the compile database
+set -euo pipefail
+
+repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+cd "$repo_root"
+
+# Prefer clang-tidy-18 — the version the CI gate installs and the .clang-tidy
+# checks are validated against; a different major version may disagree.
+tidy="${CLANG_TIDY:-}"
+if [ -z "$tidy" ]; then
+    if command -v clang-tidy-18 >/dev/null 2>&1; then
+        tidy=clang-tidy-18
+    elif command -v clang-tidy >/dev/null 2>&1; then
+        tidy=clang-tidy
+        echo "warning: clang-tidy-18 not found; using '$tidy'. CI pins v18 — results may differ." >&2
+    else
+        echo "error: no clang-tidy found. Install clang-tidy-18 (apt) or set CLANG_TIDY=..." >&2
+        exit 127
+    fi
+fi
+
+build="${TIDY_BUILD:-build-tidy}"
+
+# A compile database is what clang-tidy needs; reuse it across runs unless it is
+# missing or a reconfigure is forced. This does not touch your ./build dir.
+if [ "${TIDY_RECONFIGURE:-0}" = "1" ] || [ ! -f "$build/compile_commands.json" ]; then
+    echo "== configuring compile database in $build/ (one-time; reuses cached deps) =="
+    CXX="${CXX:-clang++-18}" cmake -B "$build" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCATENAE_BUILD_BENCH=ON >/dev/null
+fi
+
+# File list: the given TUs, or — matching CI — every project TU in the
+# database with fetched deps (_deps) excluded, each FILE once.
+# `clang-tidy -p` checks every compile command the database holds for a file,
+# so a source compiled several times under different -D (benchmark workloads,
+# size probes) must be listed once: one entry per command checked a file
+# compiled n times n^2 times (SampleRateTap's CI sweep, 40 entries for one
+# workload source, ran past its 30-minute timeout; listed once, under five
+# minutes). Built with a read loop, not mapfile, so macOS /bin/bash 3.2 runs
+# the sweep too.
+files=()
+if [ "$#" -gt 0 ]; then
+    files=("$@")
+else
+    while IFS= read -r f; do
+        files+=("$f")
+    done < <(python3 -c "
+import json
+files = [e['file'] for e in json.load(open('$build/compile_commands.json'))]
+for f in dict.fromkeys(files):
+    if '_deps' not in f:
+        print(f)")
+fi
+
+echo "== clang-tidy ($tidy) over ${#files[@]} file(s) =="
+fail=0
+# ${files[@]+...}: an empty list under set -u is an error before bash 4.4.
+for f in ${files[@]+"${files[@]}"}; do
+    out="$("$tidy" -p "$build" "$f" 2>/dev/null || true)"
+    # Test the captured output in-process, never through a pipe. Under pipefail,
+    # `printf '%s\n' "$out" | grep -q …` fails whenever grep quits at its first
+    # match while printf still has more than a pipe buffer to write (SIGPIPE) —
+    # and the `if` then took the CLEAN branch over real warnings. TapHouse's
+    # scripts/test-tidy.sh feeds this script multi-megabyte output to prove the
+    # verdict holds.
+    if [[ "$out" =~ (warning:|error:) ]]; then
+        printf '%s\n' "$out"
+        fail=1
+    fi
+done
+
+if [ "$fail" -eq 0 ]; then
+    echo "clang-tidy clean."
+else
+    echo "clang-tidy found violations (above); fix before pushing." >&2
+    exit 1
+fi

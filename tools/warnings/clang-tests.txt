@@ -1,0 +1,5 @@
+# Clang and AppleClang, test and bench code only: what the test framework needs off.
+-Wno-global-constructors
+# GoogleTest registers each TEST through a static object with a constructor.
+-Wno-exit-time-destructors
+# The same registry is destroyed at exit.

@@ -1,0 +1,16 @@
+# MSVC (PLAN.md section 7.3): /W4 /permissive-, with the conversion and shadowing warnings
+# raised. /W4 already enables the shadowing warnings (C4456, C4457, C4458, C4459) and most
+# conversion warnings (C4244, C4267); the conversion warnings it leaves off are enabled here
+# at level 1, and /WX makes every one an error where catenae is the project being built.
+/W4
+/permissive-
+/w14242
+# conversion from one integer type to a smaller one, possible loss of data
+/w14254
+# a larger bit field assigned to a smaller one
+/w14365
+# conversion between signed and unsigned
+/w14388
+# signed/unsigned mismatch in a comparison
+/w14826
+# conversion that sign-extends

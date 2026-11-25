@@ -9,9 +9,9 @@ C++17 library of audio processing *stages*, the *chain* that composes them, the 
 that join chains across threads and clocks, and the *mailboxes* that carry a value between
 threads.
 
-Nothing is built yet. `PLAN.md` is the specification. Its milestones (section 10) are done in
-order, C0a, C0b, C1, CF, then C2 to C9; the next one is **C0a**: the builds, CI, the warning
-sets and the test harness, with no library code beyond a first compiled unit.
+`PLAN.md` is the specification. Its milestones (section 10) are done in order, C0a, C0b, C1,
+CF, then C2 to C9. **C0a** (the builds, CI, the warning sets, the scripts and the harness around
+one compiled unit, `catenae::version()`) is done; the next one is **C0b**, the contracts.
 
 ## How to work here
 
@@ -80,13 +80,46 @@ whoever writes the code. The guide's reader and its three-step chapter shape are
 
 ## Build and test
 
-The library's build and test commands arrive with C0a and are kept current here from then
-on. Until then the only code is the sketch:
-
 ```sh
-docs/sketches/config-state/verify.sh    # GCC and Clang at C++17, 20 and 23; sanitizers; the refusals
-docs/sketches/config-state/measure.sh   # Cortex-M33 sizes, stacks and images; needs arm-none-eabi-g++
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release            # -DCATENAE_CXX_STANDARD=20 or 23
+cmake --build build
+ctest --test-dir build --output-on-failure
+
+python3 waf configure --std=17 --gtest=/path/to/googletest   # waf from waf.io; GoogleTest at
+python3 waf build --alltests                                 # f8d7d77 (v1.14.0)
+
+scripts/tidy.sh                                              # clang-tidy, every finding an error
+python3 -m unittest discover -s scripts/tests                # the scripts' own battery
+python3 scripts/check_naming.py -p build-tidy                # D30 (needs a Clang compile database)
+python3 scripts/check_shifts.py -p build-tidy                # raw signed shifts
+python3 scripts/check_guards.py                              # D40
+python3 scripts/check_suppressions.py                        # D31, against docs/deviations.md
+python3 scripts/check_requirements.py                        # the @req trace
+python3 scripts/check_budgets.py                             # the length budgets
+scripts/build_site.sh                                        # Doxygen + mdBook, links checked
 ```
 
-Both print what `PLAN.md` section 9 quotes. If one of them stops agreeing with the plan, the
-plan's number is corrected in the same change.
+The four bare-metal legs: `-DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m4-mps2.cmake` (with
+`-DCATENAE_M4_FPU=ON` for the M4F), `arm-cortex-m33-mps2.cmake` or `arm-cortex-m55-mps3.cmake`,
+`-DCMAKE_BUILD_TYPE=MinSizeRel`, with `gcc-arm-none-eabi` and `qemu-system-arm` installed; CTest
+runs the battery once under QEMU and judges its printed summary. Hexagon:
+`scripts/fetch_hexagon_toolchain.sh DIR` (with CI's two `HEXAGON_TOOLCHAIN_*` variables), then
+`-DCMAKE_TOOLCHAIN_FILE=cmake/hexagon-linux-musl.cmake` with `HEXAGON_TOOLCHAIN_ROOT` set and
+`qemu-hexagon` on `PATH`. Coverage: Clang, `-DCATENAE_COVERAGE=ON`, then
+`scripts/coverage.py --build-dir build`. The amalgamation: `-DCATENAE_AMALGAMATION=ON`, or
+`scripts/amalgamate.py --out DIR` alone.
+
+The harness (`bench/README.md`): `-DCATENAE_BUILD_BENCH=ON` builds the ratchet's workloads,
+the size and stack probes and the link-gate fixtures; `scripts/icount.py` counts and gates
+them against `bench/baselines.json`, and `scripts/ceilings.py measure` measures the probes
+against `bench/ceilings.json`. A number is never typed in: it is copied from the CI run that
+measured it, and the run is named in `bench/README.md`.
+
+Where things are: `include/catenae/` and `src/` are the library; `tests/` the battery;
+`examples/` what the guide includes; `bench/` the harness's workloads and records; `cmake/`
+and `platform/` the targets; `tools/warnings/` the warning sets, read by both builds;
+`scripts/` the checks and the harness; `guide/` the mdBook source and `docs/Doxyfile` the
+reference's; `.github/workflows/` CI (`ci.yml`, `style.yml`, `bench.yml`, `docs.yml`).
+`docs/sketches/config-state/` is still throwaway evidence for the plan: none of the above
+builds on it, and its own `verify.sh` and `measure.sh` still print what `PLAN.md` section 9
+quotes.

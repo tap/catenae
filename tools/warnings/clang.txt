@@ -1,0 +1,12 @@
+# Clang and AppleClang, hosted and Hexagon (PLAN.md section 7.3): -Weverything less this list.
+-Weverything
+-Wno-c++98-compat
+# catenae is C++17 (D2); compatibility with C++98 is not a goal.
+-Wno-c++98-compat-pedantic
+# The same, for the pedantic group.
+-Wno-padded
+# Reports every padding byte the layout of a struct implies; a layout is a design decision.
+-Wno-unsafe-buffer-usage
+# Fires inside span and on every indexed kernel loop (PLAN.md section 7.3).
+-Wno-switch-default
+# Contradicts -Wswitch-enum, which is kept: an enumerated switch names every enumerator.

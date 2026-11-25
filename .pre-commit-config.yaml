@@ -1,0 +1,13 @@
+# catenae's formatting hook: the Tap House pre-commit config (D20), carried from DspTap and
+# owned here. Run `pre-commit install` once per clone; `git commit` then formats staged C/C++
+# with the pinned clang-format, the version CI's clang-format job runs
+# (`pre-commit run --all-files`). Changed from the Tap copy (NOTICE.md): the sketch under
+# docs/sketches/ is throwaway evidence for PLAN.md and is never reformatted; there is no
+# third_party/ here.
+repos:
+  - repo: https://github.com/pre-commit/mirrors-clang-format
+    rev: v18.1.3            # the clang-format version CI runs
+    hooks:
+      - id: clang-format
+        types_or: [c, c++]
+        exclude: '^docs/sketches/'

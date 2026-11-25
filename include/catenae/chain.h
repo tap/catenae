@@ -266,11 +266,17 @@ namespace catenae {
                 using buffer_t =
                     std::array<typename out_port_t<I>::value_type, k_bounds[I] * out_port_t<I>::values_per_frame>;
 
+                /// The buffer of slot K, sized by the stage that owns it. An alias of one K, so the
+                /// expansion below is of the alias alone: MSVC does not expand a pack inside a
+                /// subscript of a static member (C3546).
+                template <std::size_t K>
+                using slot_buffer_t = buffer_t<k_buffers.owner[K]>;
+
                 template <typename Seq>
                 struct buffers_of;
                 template <std::size_t... K>
                 struct buffers_of<std::index_sequence<K...>> {
-                    using type = pack<buffer_t<k_buffers.owner[K]>...>;
+                    using type = pack<slot_buffer_t<K>...>;
                 };
                 using buffers = typename buffers_of<std::make_index_sequence<k_buffers.slots>>::type;
             };

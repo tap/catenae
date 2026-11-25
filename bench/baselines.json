@@ -1,25 +1,37 @@
 {
   "hexagon": {
     "callmax_version": 5,
+    "strip_chain": 1172150,
+    "strip_graph": 1299888,
     "version": 20886
   },
   "host": {
+    "strip_chain": 2777174,
+    "strip_graph": 3203166,
     "version": 21013
   },
   "m33": {
     "callmax_version": 9,
+    "strip_chain": 3860694,
+    "strip_graph": 3841430,
     "version": 31916
   },
   "m4-softfp": {
     "callmax_version": 9,
+    "strip_chain": 24160128,
+    "strip_graph": 23574864,
     "version": 31871
   },
   "m4f": {
     "callmax_version": 9,
+    "strip_chain": 3796665,
+    "strip_graph": 3840400,
     "version": 31887
   },
   "m55": {
     "callmax_version": 9,
+    "strip_chain": 2375698,
+    "strip_graph": 2472434,
     "version": 31921
   }
 }

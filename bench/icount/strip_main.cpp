@@ -52,6 +52,7 @@ namespace {
 
 } // namespace
 
+// ANCHOR: counted
 // The counted region: callgrind's --toggle-collect names it on the host.
 extern "C" CATENAE_PROBE_NOINLINE std::uint64_t catenae_host_counted() noexcept {
     std::array<float, 64 * 2> in{};
@@ -73,6 +74,7 @@ extern "C" CATENAE_PROBE_NOINLINE std::uint64_t catenae_host_counted() noexcept 
     }
     return hash;
 }
+// ANCHOR_END: counted
 
 int main() {
 #if CATENAE_STRIP_GRAPH

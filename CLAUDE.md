@@ -13,11 +13,11 @@ threads.
 CF, then C2 to C9. **C0a** (the builds, CI, the warning sets, the scripts and the harness) and
 **C0b** (the contracts: the vocabulary, the checks and their handler, the traits a stage, a
 junction and an analyzer meet, the compile-fail battery, the link tests and the generic
-harness, with the contract pages in `docs/`) are done. **C1** is under way in four pull
-requests, each green on every leg before the next goes up: the chain, its composition and its
-first stages (`map`, `gain`, `delay`, `interleave` / `deinterleave`, `convert`); `steady` and
-`parallel`; `handoff`, `mailbox`, `feeding` and `fed_by`; and the harness rows (the link-stage
-gate's probe image, the layout benchmark, the example chain's pinned numbers).
+harness, with the contract pages in `docs/`) are done, and so is **C1**, in four pull requests:
+the chain, its composition and its first stages (`map`, `gain`, `delay`, `interleave` /
+`deinterleave`, `convert`); `steady` and `parallel`; `handoff`, `mailbox`, `feeding` and
+`fed_by`; and the harness rows (the link-stage gate's first probe image, the layout benchmark,
+the example chain's pinned numbers), with the guide's first five chapters. CF is next.
 
 ## How to work here
 

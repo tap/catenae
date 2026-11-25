@@ -6,9 +6,11 @@
 #include <cstdint>
 
 namespace catenae {
+    inline namespace CATENAE_ABI {
 
-    std::uint32_t version() noexcept {
-        return CATENAE_VERSION;
-    }
+        std::uint32_t version() noexcept {
+            return CATENAE_VERSION;
+        }
 
+    } // namespace CATENAE_ABI
 } // namespace catenae

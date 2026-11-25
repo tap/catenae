@@ -158,6 +158,10 @@ class Suppressions(Tree):
         self.assertPasses(run("check_suppressions.py", "--root", str(self.root)))
         (self.root / "docs/deviations.md").write_text("| Entry | What | Uses |\n|---|---|---|\n| DEV-001 | padding | 3 |\n")
         self.assertRefuses(run("check_suppressions.py", "--root", str(self.root)), "DEV-001: cited 2 time(s), and the deviation log says 3")
+        (self.root / "docs/deviations.md").write_text(
+            "| Entry | What | Uses |\n|---|---|---|\n| DEV-001 | padding | \u2014 |\n| DEV-002 | a construct | \u2014 |\n")
+        self.assertRefuses(run("check_suppressions.py", "--root", str(self.root)),
+                           "DEV-001: cited by 2 suppression(s), and the deviation log says it is not one", "1 finding(s)")
         (self.root / "docs/deviations.md").unlink()
         self.assertRefuses(run("check_suppressions.py", "--root", str(self.root)), "has no such entry")
 
@@ -177,6 +181,18 @@ class Requirements(Tree):
         self.assertRefuses(run("check_requirements.py", "--root", str(self.root)),
                            "CAT-AREA-001 is declared again", "CAT-AREA-002 is cited by no test",
                            "r.None cites no requirement", "r.Dangling cites CAT-AREA-009, which nothing declares")
+
+
+    def test_contract_pages_declare_and_whole_files_cite(self):
+        write(self.root, {"include/catenae/r.h": "/// @req{CAT-AREA-001} one.\nint f();\n",
+                          "docs/contracts/area.md": "# Area\n\n@req{CAT-AREA-002} two.\n",
+                          "tests/t.cpp": "// Verifies CAT-AREA-001.\nTEST(r, One) {}\n",
+                          "tests/compile_fail/two.cpp": "// A case.\n// Verifies CAT-AREA-002.\n#include \"x.h\"\n",
+                          "tests/compile_fail/cf.h": "// A template, not a case.\n"})
+        self.assertPasses(run("check_requirements.py", "--root", str(self.root)))
+        write(self.root, {"tests/link/probe.cpp": "// A probe.\nint main() {}\n// Verifies CAT-AREA-001.\n"})
+        self.assertRefuses(run("check_requirements.py", "--root", str(self.root)),
+                           "link.probe cites no requirement", "1 finding(s)")
 
 
 class Budgets(Tree):

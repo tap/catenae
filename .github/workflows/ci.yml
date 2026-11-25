@@ -3,8 +3,11 @@
 # The battery on every leg PLAN.md names (section 10, C0a; sections 7.3 and 7.4), built by
 # CMake everywhere and by waf on every hosted leg. Carried from DspTap's and SampleRateTap's
 # ci.yml (NOTICE.md): the bare-metal legs, the cached Arm toolchain, the pinned Hexagon
-# toolchain, the sanitizer and arm64 legs are theirs. catenae has one configuration
-# (-fno-exceptions -fno-rtti, D21), so there is no second set of legs for it.
+# toolchain, the sanitizer and arm64 legs are theirs. catenae builds -fno-exceptions -fno-rtti
+# everywhere (D21), so there is no second set of legs for that. Every leg runs the battery at
+# both check levels, boundary and then audit, in the same job (PLAN.md section 8: "the battery
+# runs at both check levels"); coverage and the ratchet measure the shipping one, boundary.
+# CLAUDE.md lists the combinations.
 name: CI
 
 # A push runs for main only; a branch gets CI through its pull request (or on demand).
@@ -36,7 +39,7 @@ jobs:
   hosted:
     name: ${{ matrix.name }}, C++${{ matrix.std }}
     runs-on: ${{ matrix.os }}
-    timeout-minutes: 30
+    timeout-minutes: 45
     strategy:
       fail-fast: false
       matrix:
@@ -68,17 +71,21 @@ jobs:
           if [ -n "${{ matrix.cxx }}" ]; then "${{ matrix.cxx }}" --version | head -1; fi
           cmake --version | head -1
 
-      - name: Configure (CMake)
+      - name: Configure, build and test (CMake, boundary)
         shell: bash
         run: |
           if [ -n "${{ matrix.cxx }}" ]; then export CXX="${{ matrix.cxx }}"; fi
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=${{ matrix.std }}
+          cmake -S . -B build-boundary -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=${{ matrix.std }} -DCATENAE_CHECKS=boundary
+          cmake --build build-boundary --config Release -j 4
+          ctest --test-dir build-boundary -C Release ${{ env.CTEST_COMMON }}
 
-      - name: Build (CMake)
-        run: cmake --build build --config Release -j 4
-
-      - name: Test (CMake)
-        run: ctest --test-dir build -C Release ${{ env.CTEST_COMMON }}
+      - name: Configure, build and test (CMake, audit)
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.cxx }}" ]; then export CXX="${{ matrix.cxx }}"; fi
+          cmake -S . -B build-audit -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=${{ matrix.std }} -DCATENAE_CHECKS=audit
+          cmake --build build-audit --config Release -j 4
+          ctest --test-dir build-audit -C Release ${{ env.CTEST_COMMON }}
 
       - name: Fetch waf and GoogleTest (pinned)
         shell: bash
@@ -90,14 +97,18 @@ jobs:
           git -C "$RUNNER_TEMP/googletest" checkout -q FETCH_HEAD
 
       # Windows' python3 can be the Store's stub; its python is the runner's interpreter.
-      - name: Configure, build and test (waf)
+      - name: Configure, build and test (waf, boundary then audit)
         shell: bash
         run: |
           if [ -n "${{ matrix.cxx }}" ]; then export CXX="${{ matrix.cxx }}"; fi
           py=python3
           if [ "$RUNNER_OS" = Windows ]; then py=python; fi
-          "$py" waf configure --std=${{ matrix.std }} --gtest="$RUNNER_TEMP/googletest"
-          "$py" waf build --alltests
+          for level in boundary audit; do
+            echo "::group::waf, $level"
+            "$py" waf configure --std=${{ matrix.std }} --checks=$level --gtest="$RUNNER_TEMP/googletest"
+            "$py" waf build --alltests
+            echo "::endgroup::"
+          done
 
   # The address and undefined-behaviour sanitizers at C++17 (a later standard defines shifts
   # that C++17 does not), and the thread sanitizer, which every junction and the mailbox run
@@ -125,21 +136,27 @@ jobs:
       - name: Narrow mmap randomization for TSan
         run: sudo sysctl vm.mmap_rnd_bits=28
 
-      - name: Configure
+      - name: Configure, build and test (boundary)
         env:
           CXX: clang++-18
-        run: >
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCATENAE_CXX_STANDARD=17
-          -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"
-
-      - name: Build
-        run: cmake --build build -j 4
-
-      - name: Test
-        env:
           TSAN_OPTIONS: halt_on_error=1
           UBSAN_OPTIONS: print_stacktrace=1
-        run: ctest --test-dir build ${{ env.CTEST_COMMON }}
+        run: |
+          cmake -S . -B build-boundary -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCATENAE_CXX_STANDARD=17 -DCATENAE_CHECKS=boundary \
+            -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"
+          cmake --build build-boundary -j 4
+          ctest --test-dir build-boundary ${{ env.CTEST_COMMON }}
+
+      - name: Configure, build and test (audit)
+        env:
+          CXX: clang++-18
+          TSAN_OPTIONS: halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: |
+          cmake -S . -B build-audit -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCATENAE_CXX_STANDARD=17 -DCATENAE_CHECKS=audit \
+            -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"
+          cmake --build build-audit -j 4
+          ctest --test-dir build-audit ${{ env.CTEST_COMMON }}
 
   # Real weakly ordered hardware (PLAN.md section 7.3): x86 cannot reorder as Arm does and
   # QEMU does not help. The junctions' and the mailbox's stress runs here from C1, under the
@@ -154,23 +171,31 @@ jobs:
       - name: Compiler
         run: g++ --version | head -1
 
-      - name: Configure, build and test
+      - name: Configure, build and test (boundary, then audit)
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          cmake --build build -j 4
-          ctest --test-dir build ${{ env.CTEST_COMMON }}
+          for level in boundary audit; do
+            echo "::group::$level"
+            cmake -S . -B build-$level -DCMAKE_BUILD_TYPE=Release -DCATENAE_CHECKS=$level
+            cmake --build build-$level -j 4
+            ctest --test-dir build-$level ${{ env.CTEST_COMMON }}
+            echo "::endgroup::"
+          done
 
       - name: Narrow mmap randomization for TSan
         run: sudo sysctl vm.mmap_rnd_bits=28
 
-      - name: Configure, build and test under TSan
+      - name: Configure, build and test under TSan (boundary, then audit)
         env:
           TSAN_OPTIONS: halt_on_error=1
         run: |
-          cmake -S . -B build-tsan -DCMAKE_BUILD_TYPE=RelWithDebInfo \
-            -DCMAKE_CXX_FLAGS=-fsanitize=thread -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=thread
-          cmake --build build-tsan -j 4
-          ctest --test-dir build-tsan ${{ env.CTEST_COMMON }}
+          for level in boundary audit; do
+            echo "::group::TSan, $level"
+            cmake -S . -B build-tsan-$level -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCATENAE_CHECKS=$level \
+              -DCMAKE_CXX_FLAGS=-fsanitize=thread -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=thread
+            cmake --build build-tsan-$level -j 4
+            ctest --test-dir build-tsan-$level ${{ env.CTEST_COMMON }}
+            echo "::endgroup::"
+          done
 
   # The bare-metal Cortex-M legs under qemu-system-arm (newlib + semihosting), one-shot mode
   # (tests/CMakeLists.txt): the M4 soft-float and M4F on mps2-an386, the M33 on mps2-an505 and
@@ -223,16 +248,20 @@ jobs:
           arm-none-eabi-gcc --version | head -1
           qemu-system-arm --version | head -1
 
-      - name: Configure
-        run: >
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=MinSizeRel
-          -DCMAKE_TOOLCHAIN_FILE=${{ matrix.toolchain }} ${{ matrix.extra }}
+      # The link tests of PLAN.md section 3.4 run here, at -Os with --gc-sections.
+      - name: Configure, build and test under emulation (boundary)
+        run: |
+          cmake -S . -B build-boundary -DCMAKE_BUILD_TYPE=MinSizeRel -DCATENAE_CHECKS=boundary \
+            -DCMAKE_TOOLCHAIN_FILE=${{ matrix.toolchain }} ${{ matrix.extra }}
+          cmake --build build-boundary -j 4
+          ctest --test-dir build-boundary --no-tests=error -V
 
-      - name: Build
-        run: cmake --build build -j 4
-
-      - name: Test under emulation
-        run: ctest --test-dir build --no-tests=error -V
+      - name: Configure, build and test under emulation (audit)
+        run: |
+          cmake -S . -B build-audit -DCMAKE_BUILD_TYPE=MinSizeRel -DCATENAE_CHECKS=audit \
+            -DCMAKE_TOOLCHAIN_FILE=${{ matrix.toolchain }} ${{ matrix.extra }}
+          cmake --build build-audit -j 4
+          ctest --test-dir build-audit --no-tests=error -V
 
   # Hexagon (Linux/musl) under qemu-hexagon user-mode emulation: the CodeLinaro toolchain
   # (clang 19), pinned by digest, and the distribution's qemu-user.
@@ -264,16 +293,19 @@ jobs:
           "$HEXAGON_TOOLCHAIN_ROOT/bin/hexagon-unknown-linux-musl-clang++" --version | head -1
           qemu-hexagon --version | head -1
 
-      - name: Configure
-        run: >
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release
-          -DCMAKE_TOOLCHAIN_FILE=cmake/hexagon-linux-musl.cmake
+      - name: Configure, build and test under emulation (boundary)
+        run: |
+          cmake -S . -B build-boundary -DCMAKE_BUILD_TYPE=Release -DCATENAE_CHECKS=boundary \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/hexagon-linux-musl.cmake
+          cmake --build build-boundary -j 4
+          ctest --test-dir build-boundary ${{ env.CTEST_COMMON }}
 
-      - name: Build
-        run: cmake --build build -j 4
-
-      - name: Test under emulation
-        run: ctest --test-dir build ${{ env.CTEST_COMMON }}
+      - name: Configure, build and test under emulation (audit)
+        run: |
+          cmake -S . -B build-audit -DCMAKE_BUILD_TYPE=Release -DCATENAE_CHECKS=audit \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/hexagon-linux-musl.cmake
+          cmake --build build-audit -j 4
+          ctest --test-dir build-audit ${{ env.CTEST_COMMON }}
 
   # The amalgamation (D26, PLAN.md section 7.4): catenae.cpp generated, compiled alone as a
   # consumer of no build system would, and the battery run against it. Contraction off is the
@@ -288,22 +320,29 @@ jobs:
       - name: Generate catenae.cpp
         run: python3 scripts/amalgamate.py --out dist/catenae
 
+      # The core, the default trapping handler beside it, and an example.
       - name: Compile it and an example with nothing but the compiler
         run: |
           g++-13 -std=c++17 -O2 -fno-exceptions -fno-rtti -ffp-contract=off -Idist/catenae/include \
             -c dist/catenae/catenae.cpp -o catenae.o
           g++-13 -std=c++17 -O2 -fno-exceptions -fno-rtti -Idist/catenae/include \
-            examples/print_version.cpp catenae.o -o print_version
+            -c dist/catenae/check_failed_trap.cpp -o check_failed_trap.o
+          g++-13 -std=c++17 -O2 -fno-exceptions -fno-rtti -Idist/catenae/include \
+            examples/print_version.cpp catenae.o check_failed_trap.o -o print_version
           ./print_version | tee print_version.txt
           grep -q "CATENAE_EXAMPLE_DONE ok=1" print_version.txt
 
-      - name: The battery against the amalgamation
+      - name: The battery against the amalgamation (boundary, then audit)
         env:
           CXX: g++-13
         run: |
-          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCATENAE_AMALGAMATION=ON
-          cmake --build build -j 4
-          ctest --test-dir build ${{ env.CTEST_COMMON }}
+          for level in boundary audit; do
+            echo "::group::$level"
+            cmake -S . -B build-$level -DCMAKE_BUILD_TYPE=Release -DCATENAE_AMALGAMATION=ON -DCATENAE_CHECKS=$level
+            cmake --build build-$level -j 4
+            ctest --test-dir build-$level ${{ env.CTEST_COMMON }}
+            echo "::endgroup::"
+          done
 
       - name: Upload the amalgamation
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1

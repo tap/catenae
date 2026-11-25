@@ -1,0 +1,19 @@
+/* catenae/config.h: this build's configuration (PLAN.md section 3.4), written by the build.
+ * Copyright 2026 Timothy Place and the catenae contributors
+ *
+ * Generated from tools/config/config.h.in by @CATENAE_CONFIG_WRITER@. Do not edit: choose the
+ * level with the build's CATENAE_CHECKS option (CMake, waf) or scripts/amalgamate.py --checks.
+ * catenae/detail/abi.h reads it and spells the level into catenae's inline namespace, so a
+ * file built at one level cannot link against code built at the other.
+ */
+#ifndef CATENAE_CONFIG_H
+#define CATENAE_CONFIG_H
+
+/* The two check levels (D27). */
+#define CATENAE_CHECKS_BOUNDARY 1
+#define CATENAE_CHECKS_AUDIT 2
+
+/* This build's level. */
+#define CATENAE_CHECKS @CATENAE_CHECKS_VALUE@
+
+#endif /* CATENAE_CONFIG_H */

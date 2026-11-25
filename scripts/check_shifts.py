@@ -17,9 +17,8 @@ import sys
 
 import checks_common as common
 
-# The one helper's header, relative to the root, once it exists: its own shifts are the
-# raw ones it wraps. It arrives with the first code that shifts a signed value.
-HELPERS: list[str] = []
+# The one helper's header, relative to the root: its own shifts are the raw ones it wraps.
+HELPERS: list[str] = ["include/catenae/detail/shift.h"]
 
 SHIFT = ('binaryOperator(hasAnyOperatorName("<<", ">>", "<<=", ">>="), hasType(isSignedInteger()), '
          'isExpansionInFileMatching("{files}")).bind("raw_signed_shift")')

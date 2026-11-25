@@ -7,7 +7,7 @@
 -Wno-padded
 # Reports every padding byte the layout of a struct implies; a layout is a design decision.
 -Wno-unsafe-buffer-usage
-# Fires inside span and on every indexed kernel loop (PLAN.md section 7.3).
+# Fires inside span and on every indexed kernel loop (PLAN.md section 7.3; DEV-009).
 -Wno-switch-default
 # Contradicts -Wswitch-enum, which is kept: an enumerated switch names every enumerator.
 -Wno-poison-system-directories

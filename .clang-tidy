@@ -5,7 +5,8 @@
 #     prefix while private ones and detail's do; scripts/check_naming.py enforces that instead
 #     (PLAN.md section 7.3). The constants' case is still checked here.
 #   - a per-function complexity ceiling (readability-function-cognitive-complexity, at
-#     clang-tidy's default threshold of 25), kernels included (PLAN.md sections 7.3 and 8).
+#     clang-tidy's default threshold of 25), kernels included (PLAN.md sections 7.3 and 8), over
+#     the code written in the function and not inside a macro's expansion.
 #   - every finding is an error (WarningsAsErrors), locally and in CI.
 #   - the header filter covers every directory catenae's own code lives in.
 Checks: >
@@ -128,3 +129,7 @@ CheckOptions:
   # --- The per-function complexity ceiling (clang-tidy's default threshold) ---
   - key: readability-function-cognitive-complexity.Threshold
     value: '25'
+  # The control flow a person wrote, not a macro's expansion: GoogleTest's EXPECT and ASSERT and
+  # the battery's CATENAE_EXPECT_CHECK each expand to branches that would otherwise count.
+  - key: readability-function-cognitive-complexity.IgnoreMacros
+    value: 'true'

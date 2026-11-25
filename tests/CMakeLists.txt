@@ -92,12 +92,39 @@ endfunction()
 # decision written next to it.
 catenae_add_gtest_executable(catenae_tests
     SOURCES
+        support/catenae_test/check_trap.cpp
+        test_analyzer_traits.cpp
+        test_check.cpp
+        test_compiler.cpp
+        test_convert_shift.cpp
+        test_expected.cpp
+        test_fwd.cpp
+        test_fwd_alone.cpp
+        test_harness.cpp
+        test_junction_traits.cpp
+        test_port.cpp
+        test_ratio.cpp
+        test_sample_format.cpp
+        test_sample_traits.cpp
+        test_span.cpp
+        test_stage_traits.cpp
         test_version.cpp)
+# The battery's support (its check_failed, the generic harness) and the fixture stages.
+target_include_directories(catenae_tests PRIVATE support fixtures)
+# The message-passing test needs a second thread: hosted builds that have one.
+if(Threads_FOUND)
+    target_compile_definitions(catenae_tests PRIVATE CATENAE_TEST_THREADS)
+    target_link_libraries(catenae_tests PRIVATE Threads::Threads)
+endif()
 # test_version.cpp pins include/catenae/version.h to the build's project() version.
 target_compile_definitions(catenae_tests PRIVATE
     CATENAE_TEST_PROJECT_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
     CATENAE_TEST_PROJECT_VERSION_MINOR=${PROJECT_VERSION_MINOR}
     CATENAE_TEST_PROJECT_VERSION_PATCH=${PROJECT_VERSION_PATCH})
+
+# What must not compile (tests/compile_fail) and what must and must not link (tests/link).
+add_subdirectory(compile_fail)
+add_subdirectory(link)
 
 # The README's quick start is compiled (PLAN.md section 11.2, rule 7): its first ```cpp block,
 # under the test warning set, on every leg.

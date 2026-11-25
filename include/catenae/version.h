@@ -21,6 +21,8 @@
 
 #include <cstdint>
 
+#include "catenae/detail/abi.h"
+
 /// @brief The major version: the build's own (CAT-VERSION-001).
 #define CATENAE_VERSION_MAJOR 0
 /// @brief The minor version (see `CATENAE_VERSION_MAJOR`).
@@ -32,11 +34,14 @@
 
 /// @brief Everything catenae declares.
 namespace catenae {
+    /// @brief This build's configuration (catenae/detail/abi.h).
+    inline namespace CATENAE_ABI {
 
-    /// @brief The version of the compiled core this image linked.
-    /// @return `CATENAE_VERSION` as it was when the compiled core was built.
-    [[nodiscard]] std::uint32_t version() noexcept;
+        /// @brief The version of the compiled core this image linked.
+        /// @return `CATENAE_VERSION` as it was when the compiled core was built.
+        [[nodiscard]] std::uint32_t version() noexcept;
 
+    } // namespace CATENAE_ABI
 } // namespace catenae
 
 #endif // CATENAE_VERSION_H

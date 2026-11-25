@@ -12,7 +12,9 @@ home and gives each exclusion its reason there. Each suppression cites a deviati
 (DEV-<number>) on its own line or the line before. The log (docs/deviations.md, from C0b) is a
 Markdown table whose first column is the entry's identifier and which has a "Uses" column; the
 count of citations of each entry must equal its "Uses", so a suppression can be neither added
-nor removed without the log saying so. Without a log, any suppression fails.
+nor removed without the log saying so. An entry whose "Uses" is "—" (or "-") is a construct,
+not a suppression, and a suppression that cites one fails. Without a log, any suppression
+fails.
 """
 import argparse
 import pathlib
@@ -59,8 +61,11 @@ def citations(root: pathlib.Path) -> tuple[dict[str, int], list[str]]:
     return counts, failures
 
 
-def log_entries(log: pathlib.Path) -> dict[str, int]:
-    """The "Uses" of each entry of the log's table."""
+NOT_A_SUPPRESSION = ("\u2014", "-")
+
+
+def log_entries(log: pathlib.Path) -> dict[str, int | None]:
+    """The "Uses" of each entry of the log's table: None for a construct, -1 for no number."""
     entries, uses_column = {}, None
     for line in log.read_text().splitlines():
         cells = [c.strip() for c in line.strip().strip("|").split("|")] if line.strip().startswith("|") else []
@@ -71,7 +76,8 @@ def log_entries(log: pathlib.Path) -> dict[str, int]:
             uses_column = lowered.index("uses")
             continue
         if uses_column is not None and DEV.fullmatch(cells[0]) and uses_column < len(cells):
-            entries[cells[0]] = int(cells[uses_column]) if cells[uses_column].isdigit() else -1
+            uses = cells[uses_column]
+            entries[cells[0]] = None if uses in NOT_A_SUPPRESSION else (int(uses) if uses.isdigit() else -1)
     return entries
 
 
@@ -87,10 +93,12 @@ def main() -> int:
     for ident, n in sorted(counts.items()):
         if ident not in entries:
             failures.append(f"{ident}: cited {n} time(s), and the deviation log ({args.log}) has no such entry")
+        elif entries[ident] is None:
+            failures.append(f"{ident}: cited by {n} suppression(s), and the deviation log says it is not one")
         elif entries[ident] != n:
             failures.append(f"{ident}: cited {n} time(s), and the deviation log says {entries[ident]}")
     for ident, n in sorted(entries.items()):
-        if ident not in counts and n != 0:
+        if ident not in counts and n is not None and n != 0:
             failures.append(f"{ident}: the deviation log says {n} use(s), and nothing cites it")
     total = sum(counts.values())
     return common.report(failures, f"D31: {total} suppression(s), each a recorded deviation, counted against the log.")

@@ -21,7 +21,7 @@ own records (DspTap's `platform/README.md` and file headers) give that chain.
 | Here | There | What changed |
 |---|---|---|
 | `.clang-format` | `.clang-format` | `Standard: c++17` (D2); the Max/Min macro shapes removed; owned here with no drift check (D20) |
-| `.clang-tidy` | `.clang-tidy` | No `k_` prefix required on constants (D30's script replaces it); a per-function complexity ceiling (`readability-function-cognitive-complexity`, threshold 25); every finding an error; the header filter covers catenae's directories |
+| `.clang-tidy` | `.clang-tidy` | No `k_` prefix required on constants (D30's script replaces it); a per-function complexity ceiling (`readability-function-cognitive-complexity`, threshold 25, macro expansions not counted); every finding an error; the header filter covers catenae's directories |
 | `.pre-commit-config.yaml` | `.pre-commit-config.yaml` | The sketch excluded instead of `third_party/` |
 | `STYLE.md` | `STYLE.md` | Restated for catenae's decisions: constants by access (D30), include guards (D40), the banner without a license line (D14, D33), the safety idioms of D2, D21, D22 and D27 |
 | `cmake/arm-cortex-m4-mps2.cmake`, `cmake/arm-cortex-m33-mps2.cmake`, `cmake/arm-cortex-m55-mps3.cmake` | the same paths | Names (`CATENAE_M4_FPU`, `CATENAE_BARE_METAL`); `-Wno-psabi` removed (a suppression is a recorded deviation, D31, and nothing here needs it); DspTap's FFT test-size setting removed |
@@ -33,6 +33,8 @@ own records (DspTap's `platform/README.md` and file headers) give that chain.
 | `tests/CMakeLists.txt` (the registration helper) | `tests/CMakeLists.txt` | `catenae_add_gtest_executable`; GoogleTest fetched as a system dependency; the battery's own sources are catenae's |
 | `bench/icount/smoke.cmake` | `bench/icount/smoke.cmake` | Runs a cross binary under its emulator; the marker is `CATENAE_ICOUNT_DONE` |
 | `.github/workflows/ci.yml` (the Cortex-M legs), `.github/workflows/bench.yml` | `.github/workflows/ci.yml`, `.github/workflows/bench.yml` | Restructured for catenae's legs and keys: the cached Arm toolchain, the one-shot QEMU legs, the plugin build and the Hexagon key's pins are theirs |
+| `include/catenae/sample_traits.h` | `include/tap/dsp/sample_traits.h` | In catenae's inline namespace (section 3.4); its constants named without `k_` (D30); the float profile accumulates in `float`, not `double` (D36); every signed shift through `catenae/detail/shift.h` and every narrowing through `catenae/detail/convert.h`; the detection trait `is_kernel_sample<T>` in place of the C++20 concept (D2) |
+| `tests/test_sample_traits.cpp` | `tests/test_sample_traits.cpp` | The same battery over the renamed constants, at C++17; `FloatMacAccumulatesInFloat` in place of the test of a `double` accumulator (D36); each test cites its requirement |
 
 ## Carried from SampleRateTap at `4496888`
 

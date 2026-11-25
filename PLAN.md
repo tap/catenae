@@ -380,7 +380,11 @@ What the spike measured, as planar cost over interleaved across 2, 6 and 12 chan
 - A compile-time channel count: worth up to 12 times for interleaved and under 2 % for
   planar.
 
-The recursive stage's layout is measured again at C3 on the block kernel.
+Since the spike, DspTap has measured its Butterworth on the block kernel: the two layouts
+are within 5 % of each other on the M-class cores, and interleaved is 1.28 times cheaper at
+order 4 on Hexagon. A Cortex-A78, measured locally, follows x86-64's pattern, with the
+asynchronous converter 3.2 times cheaper interleaved at 12 channels. Both are in the same
+file. catenae measures its own recursive stage at C3.
 
 ### 5.2 A spectrum's format (D25)
 

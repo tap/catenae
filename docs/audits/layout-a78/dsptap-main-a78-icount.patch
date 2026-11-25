@@ -1,0 +1,24 @@
+--- a/scripts/icount.py	2026-11-25 19:57:15.111804763 +0000
++++ b/scripts/icount.py	2026-11-25 20:02:06.718388139 +0000
+@@ -82,6 +82,12 @@
+     # static) under qemu-hexagon user-mode emulation, built with plugin
+     # support (bench.yml; cmake/hexagon-linux-musl.cmake).
+     "hexagon": None,
++    # Hosted too: aarch64-linux-gnu, static, built -mcpu=cortex-a78, under
++    # qemu-aarch64 user mode built with plugin support. QEMU 8.2 has no
++    # cortex-a78 model; cortex-a76 executes the same Armv8.2-A instructions
++    # (neoverse-n1 counts alike). Pinned, because glibc dispatches memcpy by
++    # CPU feature: "-cpu max" (SVE) counts up to 1.4 % differently.
++    "a78": None,
+ }
+ PREFIX = "tap_dsp_icount_"
+ DONE_MARKER = "TAP_DSP_ICOUNT_DONE ok=1"
+@@ -102,6 +108,8 @@
+         raise SystemExit(f"unknown target {target}")
+     if target == "hexagon":
+         return ["qemu-hexagon", "-d", "plugin", "-plugin", plugin, binary]
++    if target == "a78":
++        return ["qemu-aarch64", "-cpu", "cortex-a76", "-d", "plugin", "-plugin", plugin, binary]
+     machine = MACHINES[target]
+     return ["qemu-system-arm", "-M", machine, "-nographic", "-semihosting",
+             "-d", "plugin", "-plugin", plugin, "-kernel", binary]

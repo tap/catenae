@@ -1,0 +1,38 @@
+--- a/scripts/icount.py	2026-11-21 16:13:53.266615304 +0000
++++ b/scripts/icount.py	2026-11-25 20:02:06.718000078 +0000
+@@ -122,6 +122,15 @@
+         if qemu is None:
+             raise SystemExit("qemu-hexagon not found on PATH")
+         return [qemu, "-0", HEXAGON_ARGV0, "-d", "plugin", "-plugin", plugin, binary]
++    if target == "a78":
++        # User mode, as hexagon. QEMU 8.2 has no cortex-a78 model; the code
++        # built for -mcpu=cortex-a78 runs on cortex-a76 (the same Armv8.2-A
++        # instruction set; neoverse-n1 counts alike). Pinned, because glibc
++        # dispatches memcpy by CPU feature: "max" (SVE) counts differently.
++        qemu = shutil.which("qemu-aarch64")
++        if qemu is None:
++            raise SystemExit("qemu-aarch64 not found on PATH")
++        return [qemu, "-cpu", "cortex-a76", "-0", HEXAGON_ARGV0, "-d", "plugin", "-plugin", plugin, binary]
+     if target == "m55":
+         return ["qemu-system-arm", "-M", "mps3-an547", "-nographic",
+                 "-semihosting", "-d", "plugin", "-plugin", plugin,
+--- a/scripts/layout.py	2026-11-21 18:57:56.755581753 +0000
++++ b/scripts/layout.py	2026-11-25 19:57:43.718465773 +0000
+@@ -59,7 +59,7 @@
+ 
+ def measure_qemu(target: str, plugin: str, binary: str) -> tuple[int, str]:
+     env = None
+-    if target == "hexagon":
++    if target in ("hexagon", "a78"):
+         os.makedirs(icount.HEXAGON_RUN_DIR, exist_ok=True)
+         fixed = os.path.join(icount.HEXAGON_RUN_DIR, icount.HEXAGON_ARGV0)
+         shutil.copyfile(binary, fixed)
+@@ -80,7 +80,7 @@
+ 
+ def main() -> int:
+     ap = argparse.ArgumentParser()
+-    ap.add_argument("--target", required=True, choices=["hexagon", "m55", "m33", "host"])
++    ap.add_argument("--target", required=True, choices=["hexagon", "a78", "m55", "m33", "host"])
+     ap.add_argument("--build-dir", required=True)
+     ap.add_argument("--plugin")
+     ap.add_argument("--json-out")

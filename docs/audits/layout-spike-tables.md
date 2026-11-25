@@ -49,3 +49,64 @@ by up to 12 times on the M55 at 2 channels.
 On the `m55` keys the planar and interleaved `fir` outputs differ in their last bits: the
 benchmark is built with GCC's default contraction, which fuses the two instantiations
 differently under Helium. Every other pair is bit-identical.
+
+## Since the spike: the block kernel, and a Cortex-A78
+
+Two sets of figures are newer than the tables above.
+
+**The Butterworth on the kernel DspTap ships since 0.7.0** (`biquad_cascade_block`: a
+compile-time section count, the coefficients and state in locals for a block). From DspTap's
+own `bench/README.md` on `main` (`b26a7db`), `bench.yml` run 173 at `5634a73`, 2026-11-23;
+every pair bit-identical on every key:
+
+| key | `bw4` 2 | `bw4` 6 | `bw4` 12 | `bw8` 2 | `bw8` 6 | `bw8` 12 |
+|---|---:|---:|---:|---:|---:|---:|
+| `m4-softfp` | 1.003 | 1.003 | 1.003 | 0.999 | 0.999 | 0.999 |
+| `m4f` | 1.004 | 1.001 | 1.001 | 0.948 | 0.949 | 0.948 |
+| `m33` | 1.004 | 1.001 | 1.001 | 0.952 | 0.952 | 0.952 |
+| `m55` | 1.005 | 1.004 | 1.005 | 0.950 | 0.951 | 0.951 |
+| `hexagon` | 1.284 | 1.287 | 1.288 | 1.000 | 1.002 | 1.002 |
+
+Both layouts cost 1.9 to 3.5 times less on this kernel than on the per-sample one the spike
+measured. Running the channels in vector lanes was tried for it in DspTap and not kept.
+The gain's figures in run 173 are those of run 157 above.
+
+**A Cortex-A78, and the host figures run 173 lacks.** Measured locally on 2026-11-25, not in
+CI. Planar over interleaved, with the bracketed instruction counts (interleaved / planar):
+
+| what | tree | 2 ch | 6 ch | 12 ch | counts at 2 ch | at 6 ch | at 12 ch |
+|---|---|---:|---:|---:|---|---|---|
+| async converter | SampleRateTap spike `8bd3e1f` | 1.213 | 2.486 | 3.208 | 46,455,884 / 56,350,597 | 68,106,174 / 169,310,082 | 106,080,096 / 340,269,288 |
+| rational converter | the same | 1.109 | 1.204 | 1.232 | 21,386,727 / 23,710,203 | 59,059,239 / 71,125,359 | 115,443,990 / 142,243,593 |
+| bridge converter | the same | 1.034 | 1.046 | 1.059 | 34,683,591 / 35,866,455 | 102,886,392 / 107,594,115 | 203,212,029 / 215,181,105 |
+| `fir` | DspTap spike `0fd75b2` | 1.046 | 1.093 | 1.074 | 3,709,696 / 3,878,784 | 10,639,360 / 11,629,056 | 21,056,000 / 22,620,672 |
+| `bw4`, block kernel | DspTap main `b26a7db` | 1.066 | 1.060 | 1.060 | 528,640 / 563,456 | 1,594,880 / 1,689,856 | 3,186,816 / 3,377,920 |
+| `bw8`, block kernel | the same | 1.001 | 1.001 | 1.001 | 1,065,216 / 1,066,112 | 3,193,728 / 3,197,824 | 6,387,712 / 6,393,472 |
+| `gain` | the same | 1.925 | 0.358 | 0.385 | 29,184 / 56,192 | 461,312 / 165,248 | 854,528 / 328,832 |
+
+Every pair's outputs are bit-identical. Also on the A78, from the spike tree: the per-sample
+Butterworth 0.915 / 0.869 / 0.886, and the `chain` 1.037 / 1.050 / 1.023 with its two layouts'
+last bits different.
+
+On the x86-64 host (GCC 13.3, callgrind), DspTap main: `bw4` 1.036 / 1.035 / 1.035, `bw8`
+1.000 / 1.000 / 1.000, `gain` 0.878 / 0.471 / 0.515 as published.
+
+How the A78 figures were made:
+
+- `aarch64-linux-gnu-g++` 13.3.0 (Ubuntu 24.04), `-mcpu=cortex-a78 -O3 -DNDEBUG`, static
+  glibc 2.39; CMake Release, as the other keys.
+- User-mode `qemu-aarch64` 8.2.2 built from the source and digest the workflows pin, with
+  `--enable-plugins` (Ubuntu's packaged one refuses `-plugin`), and each repository's own
+  `insn_count.c`.
+- `-cpu cortex-a76`: QEMU 8.2.2 has no `cortex-a78` model. The model matters a little.
+  `neoverse-n1` gives the same counts, but `max` gives up to 1.4 % fewer, because static glibc
+  chooses `memcpy` and its kin by CPU feature and `max` has SVE. `bw4`, which calls no C
+  library routine in its bracket, counts the same on all three.
+- Checks: every count run twice and equal; the same harness reproduced run 173's Cortex-M33
+  row exactly, SampleRateTap's published host ratios (one cell differs in its third decimal)
+  and the spike's published DspTap host figures; one A78 count was confirmed from QEMU's own
+  execution log without the plugin.
+
+`layout-a78/` holds the toolchain file, the script patches and the notes on what a CI key for
+this core would need in DspTap and SampleRateTap. None of it is applied anywhere.
+

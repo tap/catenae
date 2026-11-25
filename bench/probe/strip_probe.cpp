@@ -34,18 +34,22 @@ namespace catenae_probe {
     CATENAE_PROBE_NOINLINE void probe_reset() noexcept;
     CATENAE_PROBE_NOINLINE void probe_process(const block& in, block& out) noexcept;
 
+    // ANCHOR: memory
     namespace {
         // The strip's one instance: its state and its workspace, plain storage, in .bss.
         CATENAE_CONSTINIT catenae::memory_of<example::strip_t> s_memory{};
     } // namespace
 
+    // Once, before the first callback: the configuration sets its state.
     CATENAE_PROBE_NOINLINE void probe_reset() noexcept {
         example::strip.reset(s_memory.state);
     }
 
+    // Every callback.
     CATENAE_PROBE_NOINLINE void probe_process(const block& in, block& out) noexcept {
         static_cast<void>(example::strip.process(s_memory, in, out));
     }
+    // ANCHOR_END: memory
 
 } // namespace catenae_probe
 
@@ -58,6 +62,11 @@ int main() {
     const std::size_t process = catenae_probe::high_water([&in, &out] { catenae_probe::probe_process(in, out); });
     std::printf("CATENAE_STACK reset %lu\n", static_cast<unsigned long>(reset));
     std::printf("CATENAE_STACK process %lu\n", static_cast<unsigned long>(process));
+    // The memory's two parts, as this target lays them out: what the chain remembers and what
+    // a call needs.
+    std::printf("CATENAE_SIZEOF state %lu\n", static_cast<unsigned long>(sizeof(catenae::state_of<example::strip_t>)));
+    std::printf("CATENAE_SIZEOF workspace %lu\n",
+                static_cast<unsigned long>(sizeof(catenae::workspace_of<example::strip_t>)));
     const bool ok = reset < catenae_probe::paint_bytes && process < catenae_probe::paint_bytes;
     std::printf("CATENAE_PROBE_DONE ok=%d\n", ok ? 1 : 0);
 #else

@@ -36,6 +36,8 @@ passes (a ceiling is a bound, not a pin). Per key and probe set:
                          (Arm keys)
   heap.used              where the stack probe prints CATENAE_HEAP: the bytes the allocator
                          holds after start-up, which no section of the image shows (Arm keys)
+  sizeof.<part>          where the stack probe prints CATENAE_SIZEOF: a chain's state and
+                         workspace, as the target lays them out (Arm keys)
 
 --update records each figure and its ceiling: the figure plus 3 %, rounded up to a multiple of
 64 bytes for sizes and of 8 (the AAPCS stack alignment) for stack, and 0 for 0 (a count of
@@ -419,6 +421,8 @@ def measure_stack(key: str, build_dir: str, probe_set: str, size_binary: str) ->
         print(f"{name} {call}: static {bound} B, measured {painted[call]} B; "
               f"runtime routines on the paths: {', '.join(sorted(reached)) or 'none'}; "
               f"code reached {code} B in {functions} function(s)")
+    for part, size in re.findall(r"CATENAE_SIZEOF (\w+) (\d+)", out):
+        fig[f"sizeof.{part}"] = int(size)
     heap = re.search(r"CATENAE_HEAP (\d+)", out)
     if heap:
         fig["heap.used"] = int(heap.group(1))
@@ -495,7 +499,7 @@ def render(doc: dict) -> str:
     rows = []
     for probe_set in PROBES:
         figures = sorted({f for key in doc.values() for f in key.get(probe_set, {})},
-                         key=lambda f: (["image", "core", "unit", "startup", "heap", "stack", "code"].index(f.split(".")[0]), f))
+                         key=lambda f: (["image", "core", "unit", "sizeof", "startup", "heap", "stack", "code"].index(f.split(".")[0]), f))
         keys = [k for k in KEYS if probe_set in doc.get(k, {})]
         if not keys:
             continue

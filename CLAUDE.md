@@ -150,8 +150,12 @@ by what a fused multiply-add moves. Two stages of another namespace join through
 catenae's `|` only when one operand is a catenae type.
 
 The harness (`bench/README.md`): `-DCATENAE_BUILD_BENCH=ON` builds the ratchet's workloads,
-the size and stack probes and the link-gate fixtures; `scripts/icount.py` counts and gates
-them against `bench/baselines.json`, and `scripts/ceilings.py measure` measures the probes
+the size and stack probes (`version`; the example strip, whose memory, start-up and stack are
+C1's pinned numbers; the strip as a heap object, the guide's strawman; and `c1`, every C1
+stage in one float path, the link-stage gate's first image), the layout benchmark and the
+link-gate fixtures; `scripts/icount.py` counts and gates the workloads against
+`bench/baselines.json`, `scripts/icount.py --prefix catenae_layout_ --report-only` counts
+the layout benchmark and gates nothing, and `scripts/ceilings.py measure` measures the probes
 against `bench/ceilings.json`. A number is never typed in: it is copied from the CI run that
 measured it, and the run is named in `bench/README.md`.
 
@@ -169,7 +173,7 @@ junction's producer); `bench/` the harness's workloads
 and records; `cmake/` and `platform/` the targets; `tools/warnings/` the warning sets, read by
 both builds; `scripts/` the checks and the harness; `guide/` the mdBook source and
 `docs/Doxyfile` the reference's, over the headers and `docs/contracts/` (the stage, chain,
-junction and analyzer contract pages, the glossary, the card and `@req` conventions),
+junction, mailbox and analyzer contract pages, the glossary, the card and `@req` conventions),
 `docs/assumptions.md` (AOU-nnn) and `docs/deviations.md` (DEV-nnn); `.github/workflows/` CI
 (`ci.yml`, `style.yml`, `bench.yml`, `docs.yml`).
 `docs/sketches/config-state/` is still throwaway evidence for the plan: none of the above

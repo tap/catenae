@@ -12,7 +12,7 @@ milestones. How it came to be this way is elsewhere, by rule (one home per fact)
 | Where | What |
 |---|---|
 | `git log -- PLAN.md` | The thirty-odd drafts and what each changed |
-| `docs/audits/` | The two audits (63 and 53 findings, with evidence), where each finding went, the alternatives each decision set aside, and the layout spike's tables |
+| `docs/audits/` | The three audits (63, 53 and 23 findings, with evidence), where each finding went, the alternatives each decision set aside, and the layout spike's tables |
 | `docs/sketches/config-state/` | Part of sections 3 to 6 as code that compiles and runs, with the Cortex-M33 measurements quoted here; its README lists what it covers and what it does not |
 
 Every decision in section 1 is the maintainer's, settled on or before 2026-11-25.
@@ -100,6 +100,7 @@ Every decision in section 1 is the maintainer's, settled on or before 2026-11-25
 | D32 | Four kinds of document with one job each (README, guide, reference, record), executed notebooks and generated tables, under rules that keep them short (section 11). |
 | D41 | The guide is a tutorial for one reader: an experienced software engineer who has not worked on embedded hardware. |
 | D46 | mdBook for the guide, Doxygen for the reference, one site. No print edition. Notebooks arrive with the C ABI. |
+| D53 | The guide's chapters are written by a spawned Fable-model agent, whatever model is doing the implementation work. The reference comments and the cards stay with the code's author. |
 
 ## 2. Charter
 
@@ -1177,7 +1178,7 @@ not re-explain to an embedded reader what they know: that reader has the referen
 
 | Milestone | Documentation it ships |
 |---|---|
-| C0a | The README; Doxygen, mdBook and the budgets tried on one header and one page, then in CI; the site published |
+| C0a | The README; `CLAUDE.md` with the standing rules (D53 among them); Doxygen, mdBook and the budgets tried on one header and one page, then in CI; the site published |
 | C0b | The glossary, the card and `@req` conventions, the stage, junction and analyzer contract pages |
 | C1 | The mailbox contract page. The guide's chapters on where memory lives, stages and chains, bursts and buffering, threads and clocks, and measuring; "Writing a stage" |
 | C3 | The chapters on the audio callback (which needs a real design), what arithmetic costs, and rate and latency |
@@ -1187,6 +1188,11 @@ not re-explain to an embedded reader what they know: that reader has the referen
 | C9 | The guide read end to end and trimmed |
 
 A page is written with its code, in the same change, by the workstream that writes the code.
+The guide's chapters are the exception in who writes them, not in when (D53): the workstream
+spawns a Fable-model agent for the chapter, hands it the compiled examples and the contract
+pages the chapter rests on, and the chapter lands in the same change. The repository's
+`CLAUDE.md`, written at C0a, carries this as a standing instruction, since a session follows
+the instruction file and not the plan.
 
 ## 12. What is carried in
 

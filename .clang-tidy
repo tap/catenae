@@ -1,0 +1,135 @@
+# catenae's naming, braces and complexity rules: the Tap House Rules (D20), carried from DspTap
+# and owned here, with no drift check against TapHouse. Changed from the Tap copy (NOTICE.md):
+#   - the k_ prefix is no longer required on namespace, class and static constants. clang-tidy
+#     cannot tell a public constant from a private one, and D30 says public constants have no
+#     prefix while private ones and detail's do; scripts/check_naming.py enforces that instead
+#     (PLAN.md section 7.3). The constants' case is still checked here.
+#   - a per-function complexity ceiling (readability-function-cognitive-complexity, at
+#     clang-tidy's default threshold of 25), kernels included (PLAN.md sections 7.3 and 8), over
+#     the code written in the function and not inside a macro's expansion.
+#   - every finding is an error (WarningsAsErrors), locally and in CI.
+#   - the header filter covers every directory catenae's own code lives in.
+Checks: >
+  -*,
+  readability-identifier-naming,
+  readability-braces-around-statements,
+  readability-function-cognitive-complexity
+WarningsAsErrors: '*'
+# Analyze catenae's own files only. Fetched dependencies (_deps) live outside these directories.
+# NOTE: clang-tidy uses llvm::Regex, which has NO negative lookahead — a '^(?!...)' pattern
+# silently matches nothing and disables the check.
+HeaderFilterRegex: '.*/(include|src|tests|bench|examples|tools)/.*'
+
+# --- Linear-algebra notation carve-out --------------------------------------
+# The DSP math deliberately uses capitalized matrix/vector symbols (Y = SH
+# matrix, D = decoder, R = rotation, ...). Permit a leading-capital symbol with
+# an optional short subscript and _snake suffixes (Y, Yd, R9, Y_virtual). This
+# Also matrix products (DtD, YtD). Still rejects camelCase (frameCount).
+# Applied below per category via <Category>IgnoredRegexp.
+CheckOptions:
+  # --- Types: snake_case ---
+  - key: readability-identifier-naming.ClassCase
+    value: lower_case
+  - key: readability-identifier-naming.StructCase
+    value: lower_case
+  - key: readability-identifier-naming.UnionCase
+    value: lower_case
+  - key: readability-identifier-naming.EnumCase
+    value: lower_case
+  - key: readability-identifier-naming.EnumConstantCase
+    value: lower_case
+  - key: readability-identifier-naming.ScopedEnumConstantCase
+    value: lower_case
+  - key: readability-identifier-naming.TypeAliasCase
+    value: lower_case
+  - key: readability-identifier-naming.TypedefCase
+    value: lower_case
+  - key: readability-identifier-naming.NamespaceCase
+    value: lower_case
+
+  # --- Concepts: snake_case (like the types they constrain, per P1754) ---
+  - key: readability-identifier-naming.ConceptCase
+    value: lower_case
+
+  # --- Functions / methods: snake_case ---
+  - key: readability-identifier-naming.FunctionCase
+    value: lower_case
+  - key: readability-identifier-naming.MethodCase
+    value: lower_case
+
+  # --- Variables / parameters / locals: snake_case, no prefix ---
+  - key: readability-identifier-naming.VariableCase
+    value: lower_case
+  - key: readability-identifier-naming.ParameterCase
+    value: lower_case
+  - key: readability-identifier-naming.LocalVariableCase
+    value: lower_case
+  - key: readability-identifier-naming.LocalConstantCase
+    value: lower_case
+  # Math-notation carve-out (see header): capitalized matrix/vector symbols.
+  - key: readability-identifier-naming.ParameterIgnoredRegexp
+    value: '^[A-Z][A-Za-z0-9]*(_[A-Za-z0-9]+)*$'
+  - key: readability-identifier-naming.LocalVariableIgnoredRegexp
+    value: '^[A-Z][A-Za-z0-9]*(_[A-Za-z0-9]+)*$'
+  - key: readability-identifier-naming.LocalConstantIgnoredRegexp
+    value: '^[A-Z][A-Za-z0-9]*(_[A-Za-z0-9]+)*$'
+  - key: readability-identifier-naming.VariableIgnoredRegexp
+    value: '^[A-Z][A-Za-z0-9]*(_[A-Za-z0-9]+)*$'
+
+  # --- Data members: private/protected get m_; public struct fields bare ---
+  - key: readability-identifier-naming.PrivateMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.PrivateMemberPrefix
+    value: 'm_'
+  - key: readability-identifier-naming.ProtectedMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.ProtectedMemberPrefix
+    value: 'm_'
+  - key: readability-identifier-naming.PublicMemberCase
+    value: lower_case
+  # const (non-static) data members are still members -> keep the m_ marker
+  - key: readability-identifier-naming.ConstantMemberCase
+    value: lower_case
+  - key: readability-identifier-naming.ConstantMemberPrefix
+    value: 'm_'
+  # Math-notation carve-out for capitalized matrix/vector member symbols.
+  - key: readability-identifier-naming.PublicMemberIgnoredRegexp
+    value: '^[A-Z][A-Za-z0-9]*(_[A-Za-z0-9]+)*$'
+  - key: readability-identifier-naming.PrivateMemberIgnoredRegexp
+    value: '^[A-Z][A-Za-z0-9]*(_[A-Za-z0-9]+)*$'
+  - key: readability-identifier-naming.ProtectedMemberIgnoredRegexp
+    value: '^[A-Z][A-Za-z0-9]*(_[A-Za-z0-9]+)*$'
+
+  # --- Constants at namespace/class/static scope: snake_case; the prefix is D30's script's ---
+  # (constexpr/const LOCALS stay bare via LocalConstantCase above)
+  - key: readability-identifier-naming.GlobalConstantCase
+    value: lower_case
+  - key: readability-identifier-naming.ClassConstantCase
+    value: lower_case
+  - key: readability-identifier-naming.StaticConstantCase
+    value: lower_case
+
+  # --- Template parameters: PascalCase (the ONLY leading-capital names) ---
+  # Applies to type AND non-type params: template <int Order>, not <int order>.
+  - key: readability-identifier-naming.TemplateParameterCase
+    value: CamelCase
+  - key: readability-identifier-naming.TypeTemplateParameterCase
+    value: CamelCase
+  - key: readability-identifier-naming.ValueTemplateParameterCase
+    value: CamelCase
+
+  # --- Macros: ALL_CAPS ---
+  - key: readability-identifier-naming.MacroDefinitionCase
+    value: UPPER_CASE
+
+  # --- Mandatory braces: brace every control-flow body, even one-liners ---
+  - key: readability-braces-around-statements.ShortStatementLines
+    value: '0'
+
+  # --- The per-function complexity ceiling (clang-tidy's default threshold) ---
+  - key: readability-function-cognitive-complexity.Threshold
+    value: '25'
+  # The control flow a person wrote, not a macro's expansion: GoogleTest's EXPECT and ASSERT and
+  # the battery's CATENAE_EXPECT_CHECK each expand to branches that would otherwise count.
+  - key: readability-function-cognitive-complexity.IgnoreMacros
+    value: 'true'

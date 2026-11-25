@@ -1,0 +1,211 @@
+# Copyright 2026 Timothy Place and the catenae contributors
+#
+# The harness (PLAN.md section 10, C0a; bench/README.md): the instruction-count ratchet, the
+# size and stack probes with their ceilings, and the link-stage gate's own test. Carried from
+# DspTap's bench.yml and SampleRateTap's ratchet jobs (NOTICE.md).
+#
+# Per key: the workloads are built at C++17, 20 and 23 (Release). The C++17 counts are gated
+# two-sided at +-3 % against bench/baselines.json; the C++20 and C++23 counts must equal the
+# C++17 ones exactly, checksums included (D2). Then the probes are built MinSizeRel, as the
+# QEMU test legs build, and every figure is gated one-sided against bench/ceilings.json.
+# Every run uploads what it measured (measured-<key>), so a number is "run CI, copy, commit",
+# never typed in, and a key with no baseline fails until its numbers are committed.
+#
+#   m4-softfp  Cortex-M4, -mfloat-abi=soft        mps2-an386   GCC (arm-none-eabi)
+#   m4f        Cortex-M4F, fpv4-sp-d16            mps2-an386   GCC
+#   m33        Cortex-M33, single-precision FPU   mps2-an505   GCC
+#   m55        Cortex-M55, Helium                 mps3-an547   GCC
+#   hexagon    Hexagon v68 + HVX-128              qemu-hexagon CodeLinaro clang 19 (counts packets)
+#   host       x86-64                             callgrind    GCC 13, glibc's dispatch pinned
+name: Bench
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: bench-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  ratchet:
+    name: ${{ matrix.key }}
+    # Pinned image: the counts follow the image's toolchain packages, so a run must not
+    # straddle an image rollout unnoticed; the versions step records them.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - key: m4-softfp
+            toolchain: -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m4-mps2.cmake -DCATENAE_M4_FPU=OFF
+          - key: m4f
+            toolchain: -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m4-mps2.cmake -DCATENAE_M4_FPU=ON
+          - key: m33
+            toolchain: -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m33-mps2.cmake
+          - key: m55
+            toolchain: -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m55-mps3.cmake
+          - key: hexagon
+            toolchain: -DCMAKE_TOOLCHAIN_FILE=cmake/hexagon-linux-musl.cmake
+          - key: host
+            toolchain: -DCMAKE_CXX_COMPILER=g++-13
+    env:
+      KEY: ${{ matrix.key }}
+      PLUGIN: /tmp/libinsncount.so
+      # The plugin header, from QEMU v8.2.2 (the commit the tag pointed at when pinned),
+      # digest-verified; GPL-2.0-or-later, fetched only to build a CI tool never shipped.
+      QEMU_PLUGIN_HEADER_URL: https://raw.githubusercontent.com/qemu/qemu/11aa0b1ff115b86160c4d37e7c37e6a6b13b77ea/include/qemu/qemu-plugin.h
+      QEMU_PLUGIN_HEADER_SHA256: "c53a2af163e80e3f4bc6c60dbdfc84003db329d757e37cd8a16a77e1d82606ff"
+      # The hexagon key: the QEMU release its plugin-enabled qemu-hexagon is built from, and the
+      # CodeLinaro toolchain, both digest-pinned (DspTap's and SampleRateTap's pins).
+      QEMU_SRC_URL: https://download.qemu.org/qemu-8.2.2.tar.xz
+      QEMU_SRC_SHA256: "847346c1b82c1a54b2c38f6edbd85549edeb17430b7d4d3da12620e2962bc4f3"
+      HEXAGON_TOOLCHAIN_URL: https://artifacts.codelinaro.org/artifactory/codelinaro-toolchain-for-hexagon/19.1.5/clang+llvm-19.1.5-cross-hexagon-unknown-linux-musl.tar.zst
+      HEXAGON_TOOLCHAIN_SHA256: "55b41922318f6331590ab7baa7f5dbdd99c109327a9c44a52c5e9878fab148c1"
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Runner image (for the package cache key)
+        id: apt-image
+        run: |
+          echo "os=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+          echo "family=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
+      - name: Cache the Arm toolchain packages
+        if: matrix.key != 'hexagon' && matrix.key != 'host'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: ~/apt-archives
+          key: apt-arm-toolchain-bench-${{ steps.apt-image.outputs.os }}-1
+          restore-keys: apt-arm-toolchain-bench-${{ steps.apt-image.outputs.family }}-
+      - name: Install the Arm toolchain and QEMU
+        if: matrix.key != 'hexagon' && matrix.key != 'host'
+        run: >
+          scripts/apt_install.sh --archives "$HOME/apt-archives" --no-install-recommends
+          gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib qemu-system-arm
+          libglib2.0-dev pkg-config
+      - name: Install valgrind
+        if: matrix.key == 'host'
+        run: scripts/apt_install.sh --no-install-recommends valgrind
+      - name: Install the Hexagon build dependencies
+        if: matrix.key == 'hexagon'
+        run: scripts/apt_install.sh --no-install-recommends libglib2.0-dev pkg-config ninja-build flex bison zstd python3-venv
+
+      # Neither Ubuntu's nor CodeLinaro's qemu-hexagon enables TCG plugins, so this key builds
+      # its own from the pinned release, cached on the image and the digest.
+      - name: Cache the plugin-enabled qemu-hexagon
+        if: matrix.key == 'hexagon'
+        id: qemu-hex
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: ~/qemu-hexagon-plugins
+          key: qemu-hexagon-plugins-${{ steps.apt-image.outputs.family }}-${{ env.QEMU_SRC_SHA256 }}-1
+      - name: Build the plugin-enabled qemu-hexagon
+        if: matrix.key == 'hexagon' && steps.qemu-hex.outputs.cache-hit != 'true'
+        run: |
+          curl -sfLo /tmp/qemu-src.tar.xz "$QEMU_SRC_URL"
+          echo "$QEMU_SRC_SHA256  /tmp/qemu-src.tar.xz" | sha256sum -c -
+          tar -xJf /tmp/qemu-src.tar.xz -C /tmp
+          cd /tmp/qemu-8.2.2
+          ./configure --target-list=hexagon-linux-user --enable-plugins --disable-docs --disable-tools --disable-system
+          ninja -C build qemu-hexagon
+          mkdir -p ~/qemu-hexagon-plugins
+          cp build/qemu-hexagon ~/qemu-hexagon-plugins/
+      - name: Cache the Hexagon toolchain
+        if: matrix.key == 'hexagon'
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: ~/hexagon
+          key: hexagon-toolchain-${{ env.HEXAGON_TOOLCHAIN_SHA256 }}-1
+      - name: The Hexagon toolchain and the plugin-enabled qemu-hexagon on PATH
+        if: matrix.key == 'hexagon'
+        run: |
+          scripts/fetch_hexagon_toolchain.sh "$HOME/hexagon" | tail -1 >> "$GITHUB_ENV"
+          q="$HOME/qemu-hexagon-plugins/qemu-hexagon"
+          test -x "$q" || { echo "::error::no plugin-enabled qemu-hexagon at $q"; exit 1; }
+          # qemu exits 1 with or without plugin support when given no program: probe the text.
+          if "$q" -plugin help 2>&1 | grep -q "unknown option"; then
+            echo "::error::the built qemu-hexagon lacks plugin support"; exit 1
+          fi
+          echo "$HOME/qemu-hexagon-plugins" >> "$GITHUB_PATH"
+
+      - name: Build the counting plugin
+        if: matrix.key != 'host'
+        run: |
+          curl -sfLo /tmp/qemu-plugin.h "$QEMU_PLUGIN_HEADER_URL"
+          echo "$QEMU_PLUGIN_HEADER_SHA256  /tmp/qemu-plugin.h" | sha256sum -c -
+          gcc -shared -fPIC $(pkg-config --cflags glib-2.0) -I/tmp -o "$PLUGIN" tools/qemu_insn_plugin/insn_count.c
+
+      - name: Toolchain versions
+        run: |
+          echo "image: ${ImageOS:-unknown} ${ImageVersion:-unknown}"
+          case "$KEY" in
+            hexagon) "$HEXAGON_TOOLCHAIN_ROOT/bin/hexagon-unknown-linux-musl-clang++" --version | head -1
+                     qemu-hexagon --version | head -1 ;;
+            host)    g++-13 --version | head -1; valgrind --version; dpkg-query -W libc6 ;;
+            *)       arm-none-eabi-gcc --version | head -1; qemu-system-arm --version | head -1
+                     dpkg-query -W gcc-arm-none-eabi qemu-system-arm ;;
+          esac
+          cmake --version | head -1
+
+      - name: Build the workloads at C++17, 20 and 23 (Release)
+        run: |
+          for std in 17 20 23; do
+            cmake -S . -B "build-$std" -DCMAKE_BUILD_TYPE=Release ${{ matrix.toolchain }} \
+              -DCATENAE_CXX_STANDARD=$std -DCATENAE_BUILD_TESTS=OFF -DCATENAE_BUILD_EXAMPLES=OFF -DCATENAE_BUILD_BENCH=ON
+            cmake --build "build-$std" -j 4
+          done
+
+      - name: Count at C++17, gated against bench/baselines.json
+        run: |
+          set -o pipefail
+          plugin=""
+          if [ "$KEY" != host ]; then plugin="--plugin $PLUGIN"; fi
+          python3 scripts/icount.py --key "$KEY" --build-dir build-17 $plugin --record "measured-$KEY.json" | tee icount.txt
+      - name: Count at C++20 and 23, equal to C++17 (D2)
+        if: ${{ !cancelled() }}
+        run: |
+          set -o pipefail
+          plugin=""
+          if [ "$KEY" != host ]; then plugin="--plugin $PLUGIN"; fi
+          for std in 20 23; do
+            echo "== C++$std against C++17"
+            python3 scripts/icount.py --key "$KEY" --build-dir "build-$std" $plugin \
+              --compare-json "measured-$KEY.json" | tee -a icount.txt
+          done
+
+      - name: Build the probes (MinSizeRel)
+        if: ${{ !cancelled() && matrix.key != 'host' }}
+        run: |
+          cmake -S . -B build-size -DCMAKE_BUILD_TYPE=MinSizeRel ${{ matrix.toolchain }} \
+            -DCATENAE_BUILD_TESTS=OFF -DCATENAE_BUILD_EXAMPLES=OFF -DCATENAE_BUILD_BENCH=ON
+          cmake --build build-size -j 4
+      - name: Sizes, start-up and stack, gated against bench/ceilings.json
+        if: ${{ !cancelled() && matrix.key != 'host' }}
+        run: |
+          set -o pipefail
+          python3 scripts/ceilings.py measure --key "$KEY" --build-dir build-size \
+            --record "ceilings-measured-$KEY.json" | tee ceilings.txt
+      - name: The link-stage gate's own test
+        if: ${{ !cancelled() && matrix.key != 'host' && matrix.key != 'hexagon' }}
+        run: ctest --test-dir build-size -L link_gate --no-tests=error -V
+
+      - name: Summary
+        if: ${{ !cancelled() }}
+        run: |
+          { echo "### $KEY"; echo '```'; for f in icount.txt ceilings.txt; do if [ -f "$f" ]; then cat "$f"; fi; done
+            echo '```'; } >> "$GITHUB_STEP_SUMMARY"
+      - name: Upload what was measured
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: measured-${{ matrix.key }}
+          path: |
+            measured-${{ matrix.key }}.json
+            ceilings-measured-${{ matrix.key }}.json
+          if-no-files-found: ignore

@@ -1,0 +1,27 @@
+# GCC, hosted and arm-none-eabi (PLAN.md section 7.3)
+-Wall
+-Wextra
+-Wpedantic
+-Wshadow
+-Wconversion
+-Wsign-conversion
+-Warith-conversion
+-Wdouble-promotion
+-Wfloat-equal
+-Wold-style-cast
+-Wuseless-cast
+-Wcast-align=strict
+-Wcast-qual
+-Wundef
+-Wnull-dereference
+-Wformat=2
+-Wimplicit-fallthrough
+-Wswitch-enum
+-Wduplicated-cond
+-Wduplicated-branches
+-Wlogical-op
+-Wmissing-declarations
+-Wredundant-decls
+-Wzero-as-null-pointer-constant
+-Wextra-semi
+-Wvla

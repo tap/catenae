@@ -9,9 +9,15 @@ C++17 library of audio processing *stages*, the *chain* that composes them, the 
 that join chains across threads and clocks, and the *mailboxes* that carry a value between
 threads.
 
-Nothing is built yet. `PLAN.md` is the specification. Its milestones (section 10) are done in
-order, C0a, C0b, C1, CF, then C2 to C9; the next one is **C0a**: the builds, CI, the warning
-sets and the test harness, with no library code beyond a first compiled unit.
+`PLAN.md` is the specification. Its milestones (section 10) are done in order, C0a, C0b, C1,
+CF, then C2 to C9. **C0a** (the builds, CI, the warning sets, the scripts and the harness) and
+**C0b** (the contracts: the vocabulary, the checks and their handler, the traits a stage, a
+junction and an analyzer meet, the compile-fail battery, the link tests and the generic
+harness, with the contract pages in `docs/`) are done. **C1** is under way in four pull
+requests, each green on every leg before the next goes up: the chain, its composition and its
+first stages (`map`, `gain`, `delay`, `interleave` / `deinterleave`, `convert`); `steady` and
+`parallel`; `handoff`, `mailbox`, `feeding` and `fed_by`; and the harness rows (the link-stage
+gate's probe image, the layout benchmark, the example chain's pinned numbers).
 
 ## How to work here
 
@@ -80,13 +86,85 @@ whoever writes the code. The guide's reader and its three-step chapter shape are
 
 ## Build and test
 
-The library's build and test commands arrive with C0a and are kept current here from then
-on. Until then the only code is the sketch:
-
 ```sh
-docs/sketches/config-state/verify.sh    # GCC and Clang at C++17, 20 and 23; sanitizers; the refusals
-docs/sketches/config-state/measure.sh   # Cortex-M33 sizes, stacks and images; needs arm-none-eabi-g++
+cmake -S . -B build -DCMAKE_BUILD_TYPE=Release            # -DCATENAE_CXX_STANDARD=20 or 23,
+cmake --build build                                       # -DCATENAE_CHECKS=audit
+ctest --test-dir build --output-on-failure                # -L compile_fail, -L '^link$' for those
+
+python3 waf configure --std=17 --gtest=/path/to/googletest   # waf from waf.io; GoogleTest at
+python3 waf build --alltests                                 # f8d7d77 (v1.14.0); --checks=audit
+
+scripts/tidy.sh                                              # clang-tidy, every finding an error
+python3 -m unittest discover -s scripts/tests                # the scripts' own battery
+python3 scripts/check_naming.py -p build-tidy                # D30 (needs a Clang compile database)
+python3 scripts/check_shifts.py -p build-tidy                # raw signed shifts
+python3 scripts/check_guards.py                              # D40
+python3 scripts/check_suppressions.py                        # D31, against docs/deviations.md
+python3 scripts/check_requirements.py                        # the @req trace
+python3 scripts/check_budgets.py                             # the length budgets
+scripts/build_site.sh                                        # Doxygen + mdBook, links checked
 ```
 
-Both print what `PLAN.md` section 9 quotes. If one of them stops agreeing with the plan, the
-plan's number is corrected in the same change.
+The four bare-metal legs: `-DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m4-mps2.cmake` (with
+`-DCATENAE_M4_FPU=ON` for the M4F), `arm-cortex-m33-mps2.cmake` or `arm-cortex-m55-mps3.cmake`,
+`-DCMAKE_BUILD_TYPE=MinSizeRel`, with `gcc-arm-none-eabi` and `qemu-system-arm` installed; CTest
+runs the battery once under QEMU and judges its printed summary. Hexagon:
+`scripts/fetch_hexagon_toolchain.sh DIR` (with CI's two `HEXAGON_TOOLCHAIN_*` variables), then
+`-DCMAKE_TOOLCHAIN_FILE=cmake/hexagon-linux-musl.cmake` with `HEXAGON_TOOLCHAIN_ROOT` set and
+`qemu-hexagon` on `PATH`. Coverage: Clang, `-DCATENAE_COVERAGE=ON`, then
+`scripts/coverage.py --build-dir build`. The amalgamation: `-DCATENAE_AMALGAMATION=ON`, or
+`scripts/amalgamate.py --out DIR` alone.
+
+The check level (`CATENAE_CHECKS`, `boundary` by default, or `audit`) is written into the
+generated `catenae/config.h` and spelled into the inline namespace, so each level is its own
+build tree. The library defines no `check_failed`: an image links `catenae::trap_handler` (CMake)
+or `catenae_trap_handler` (waf), or its own; the battery's is `tests/support/catenae_test/`. A
+compile-fail case (`tests/compile_fail/`) is a source with an `// Expect: ` regex that CTest
+builds and must see fail, its control (the case without its defect) in the ordinary build; the
+link tests (`tests/link/`) build the core and the handler again at both levels. Both are CMake's,
+and run on every CMake leg; waf compiles the controls.
+
+**What CI runs** (PLAN.md section 8: the combinations are written down). Every leg below runs
+`boundary` and then `audit` in the same job, the battery, the compile-fail cases, the link tests
+and the header checks each time; the measurements are of the shipping level, `boundary`.
+
+| Leg | Compiler | C++ | Build | Levels |
+|---|---|---|---|---|
+| Linux GCC 13, Linux Clang 18, macOS AppleClang, Windows MSVC | each | 17, 20, 23 | CMake and waf, Release | both |
+| ASan + UBSan; TSan | Clang 18 | 17 | CMake, RelWithDebInfo | both |
+| Linux arm64, native and under TSan | the runner's GCC | 17 | CMake | both |
+| Cortex-M4 (soft float), M4F, M33, M55, under qemu-system-arm | arm-none-eabi-gcc | 17 | CMake, MinSizeRel (-Os, --gc-sections) | both |
+| Hexagon, under qemu-hexagon | CodeLinaro clang 19 | 17 | CMake, Release | both |
+| The amalgamation | GCC 13 | 17 | CMake over `catenae.cpp`, and the compiler alone | both |
+| Coverage | Clang 18 | 17 | CMake, Release | boundary |
+| The ratchet and the ceilings (`bench.yml`, six keys) | each key's | 17, 20, 23 (counts); 17 (sizes) | Release; MinSizeRel | boundary |
+
+The `constinit_dynamic` case is GCC's and Clang's only: on MSVC the macro is empty (DEV-001).
+The battery is built with contraction off (`catenae_contraction`), as the compiled core is: the
+numeric contracts are pinned there, and a header template under a consumer's flags may differ
+by what a fused multiply-add moves. Two stages of another namespace join through
+`catenae::chain(a) | b` or `using catenae::operator|;`: argument-dependent lookup finds
+catenae's `|` only when one operand is a catenae type.
+
+The harness (`bench/README.md`): `-DCATENAE_BUILD_BENCH=ON` builds the ratchet's workloads,
+the size and stack probes and the link-gate fixtures; `scripts/icount.py` counts and gates
+them against `bench/baselines.json`, and `scripts/ceilings.py measure` measures the probes
+against `bench/ceilings.json`. A number is never typed in: it is copied from the CI run that
+measured it, and the run is named in `bench/README.md`.
+
+Where things are: `include/catenae/` and `src/` are the library (`src/handler/` the default
+handler); `tests/` the battery, with `tests/fixtures/` (the fixture stages, junction and
+analyzer) and `tests/support/` (the check trap and the generic harness every stage runs);
+`examples/` what the guide includes (its strip, a stage of the reader's own with its battery,
+the run-time graph the guide measures the chain against, and a block stage bare and in
+`steady<>`, whose trace `scripts/figure_steady.py` draws `guide/src/figures/steady.svg` from, a
+CTest check failing when the committed figure is not what they draw); `bench/` the harness's workloads
+and records; `cmake/` and `platform/` the targets; `tools/warnings/` the warning sets, read by
+both builds; `scripts/` the checks and the harness; `guide/` the mdBook source and
+`docs/Doxyfile` the reference's, over the headers and `docs/contracts/` (the stage, chain,
+junction and analyzer contract pages, the glossary, the card and `@req` conventions),
+`docs/assumptions.md` (AOU-nnn) and `docs/deviations.md` (DEV-nnn); `.github/workflows/` CI
+(`ci.yml`, `style.yml`, `bench.yml`, `docs.yml`).
+`docs/sketches/config-state/` is still throwaway evidence for the plan: none of the above
+builds on it, and its own `verify.sh` and `measure.sh` still print what `PLAN.md` section 9
+quotes.

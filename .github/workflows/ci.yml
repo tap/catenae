@@ -1,0 +1,385 @@
+# Copyright 2026 Timothy Place and the catenae contributors
+#
+# The battery on every leg PLAN.md names (section 10, C0a; sections 7.3 and 7.4), built by
+# CMake everywhere and by waf on every hosted leg. Carried from DspTap's and SampleRateTap's
+# ci.yml (NOTICE.md): the bare-metal legs, the cached Arm toolchain, the pinned Hexagon
+# toolchain, the sanitizer and arm64 legs are theirs. catenae builds -fno-exceptions -fno-rtti
+# everywhere (D21), so there is no second set of legs for that. Every leg runs the battery at
+# both check levels, boundary and then audit, in the same job (PLAN.md section 8: "the battery
+# runs at both check levels"); coverage and the ratchet measure the shipping one, boundary.
+# CLAUDE.md lists the combinations.
+name: CI
+
+# A push runs for main only; a branch gets CI through its pull request (or on demand).
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CTEST_COMMON: --no-tests=error --output-on-failure
+  # The battery's GoogleTest (tests/CMakeLists.txt pins the same commit, v1.14.0).
+  GTEST_COMMIT: f8d7d77c06936315286eb55f8de22cd23c188571
+  # waf, digest-verified on download; catenae keeps only its wscript.
+  WAF_URL: https://waf.io/waf-2.1.9
+  WAF_SHA256: e235eeac6d34f039834e355a738298416a92a17defd1b6e1eae48488ba4a6864
+
+jobs:
+  # Hosted GCC, Clang, MSVC and Apple at C++17, 20 and 23 (D2: the same files at each), every
+  # warning an error. Each leg builds and runs the battery with CMake and again with waf, and
+  # both compile each public header alone (a consumer's view).
+  hosted:
+    name: ${{ matrix.name }}, C++${{ matrix.std }}
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang, apple, msvc]
+        std: ["17", "20", "23"]
+        include:
+          - compiler: gcc
+            name: Linux GCC 13
+            os: ubuntu-24.04
+            cxx: g++-13
+          - compiler: clang
+            name: Linux Clang 18
+            os: ubuntu-24.04
+            cxx: clang++-18
+          - compiler: apple
+            name: macOS AppleClang
+            os: macos-latest
+            cxx: clang++
+          - compiler: msvc
+            name: Windows MSVC
+            os: windows-latest
+            cxx: ""
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Compiler
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.cxx }}" ]; then "${{ matrix.cxx }}" --version | head -1; fi
+          cmake --version | head -1
+
+      - name: Configure, build and test (CMake, boundary)
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.cxx }}" ]; then export CXX="${{ matrix.cxx }}"; fi
+          cmake -S . -B build-boundary -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=${{ matrix.std }} -DCATENAE_CHECKS=boundary
+          cmake --build build-boundary --config Release -j 4
+          ctest --test-dir build-boundary -C Release ${{ env.CTEST_COMMON }}
+
+      - name: Configure, build and test (CMake, audit)
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.cxx }}" ]; then export CXX="${{ matrix.cxx }}"; fi
+          cmake -S . -B build-audit -DCMAKE_BUILD_TYPE=Release -DCATENAE_CXX_STANDARD=${{ matrix.std }} -DCATENAE_CHECKS=audit
+          cmake --build build-audit --config Release -j 4
+          ctest --test-dir build-audit -C Release ${{ env.CTEST_COMMON }}
+
+      - name: Fetch waf and GoogleTest (pinned)
+        shell: bash
+        run: |
+          curl -sfLo waf "$WAF_URL"
+          echo "$WAF_SHA256  waf" | sha256sum -c -
+          git init -q "$RUNNER_TEMP/googletest"
+          git -C "$RUNNER_TEMP/googletest" fetch -q --depth 1 https://github.com/google/googletest.git "$GTEST_COMMIT"
+          git -C "$RUNNER_TEMP/googletest" checkout -q FETCH_HEAD
+
+      # Windows' python3 can be the Store's stub; its python is the runner's interpreter.
+      - name: Configure, build and test (waf, boundary then audit)
+        shell: bash
+        run: |
+          if [ -n "${{ matrix.cxx }}" ]; then export CXX="${{ matrix.cxx }}"; fi
+          py=python3
+          if [ "$RUNNER_OS" = Windows ]; then py=python; fi
+          for level in boundary audit; do
+            echo "::group::waf, $level"
+            "$py" waf configure --std=${{ matrix.std }} --checks=$level --gtest="$RUNNER_TEMP/googletest"
+            "$py" waf build --alltests
+            echo "::endgroup::"
+          done
+
+  # The address and undefined-behaviour sanitizers at C++17 (a later standard defines shifts
+  # that C++17 does not), and the thread sanitizer, which every junction and the mailbox run
+  # under from C1; until then it runs the battery as it stands.
+  sanitizers:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ASan + UBSan, C++17
+            flags: -fsanitize=address,undefined -fno-sanitize-recover=all -fno-omit-frame-pointer
+          - name: TSan, C++17
+            flags: -fsanitize=thread
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install Clang's runtime libraries
+        run: scripts/apt_install.sh --no-install-recommends libclang-rt-18-dev
+
+      # The kernel's mmap randomization on the runner images is wider than TSan's shadow
+      # mapping allows.
+      - name: Narrow mmap randomization for TSan
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Configure, build and test (boundary)
+        env:
+          CXX: clang++-18
+          TSAN_OPTIONS: halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: |
+          cmake -S . -B build-boundary -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCATENAE_CXX_STANDARD=17 -DCATENAE_CHECKS=boundary \
+            -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"
+          cmake --build build-boundary -j 4
+          ctest --test-dir build-boundary ${{ env.CTEST_COMMON }}
+
+      - name: Configure, build and test (audit)
+        env:
+          CXX: clang++-18
+          TSAN_OPTIONS: halt_on_error=1
+          UBSAN_OPTIONS: print_stacktrace=1
+        run: |
+          cmake -S . -B build-audit -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCATENAE_CXX_STANDARD=17 -DCATENAE_CHECKS=audit \
+            -DCMAKE_CXX_FLAGS="${{ matrix.flags }}" -DCMAKE_EXE_LINKER_FLAGS="${{ matrix.flags }}"
+          cmake --build build-audit -j 4
+          ctest --test-dir build-audit ${{ env.CTEST_COMMON }}
+
+  # Real weakly ordered hardware (PLAN.md section 7.3): x86 cannot reorder as Arm does and
+  # QEMU does not help. The junctions' and the mailbox's stress runs here from C1, under the
+  # thread sanitizer; until then the battery runs natively and under TSan.
+  arm64:
+    name: Linux arm64 (native), GCC and TSan
+    runs-on: ubuntu-24.04-arm
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Compiler
+        run: g++ --version | head -1
+
+      - name: Configure, build and test (boundary, then audit)
+        run: |
+          for level in boundary audit; do
+            echo "::group::$level"
+            cmake -S . -B build-$level -DCMAKE_BUILD_TYPE=Release -DCATENAE_CHECKS=$level
+            cmake --build build-$level -j 4
+            ctest --test-dir build-$level ${{ env.CTEST_COMMON }}
+            echo "::endgroup::"
+          done
+
+      - name: Narrow mmap randomization for TSan
+        run: sudo sysctl vm.mmap_rnd_bits=28
+
+      - name: Configure, build and test under TSan (boundary, then audit)
+        env:
+          TSAN_OPTIONS: halt_on_error=1
+        run: |
+          for level in boundary audit; do
+            echo "::group::TSan, $level"
+            cmake -S . -B build-tsan-$level -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCATENAE_CHECKS=$level \
+              -DCMAKE_CXX_FLAGS=-fsanitize=thread -DCMAKE_EXE_LINKER_FLAGS=-fsanitize=thread
+            cmake --build build-tsan-$level -j 4
+            ctest --test-dir build-tsan-$level ${{ env.CTEST_COMMON }}
+            echo "::endgroup::"
+          done
+
+  # The bare-metal Cortex-M legs under qemu-system-arm (newlib + semihosting), one-shot mode
+  # (tests/CMakeLists.txt): the M4 soft-float and M4F on mps2-an386, the M33 on mps2-an505 and
+  # the M55 on mps3-an547, built as an embedded consumer builds, -Os with --gc-sections. The
+  # image is pinned so the toolchain under the recorded sizes does not move without a diff
+  # here; the "Toolchain versions" step is the drift detector.
+  cortex-m:
+    name: ${{ matrix.name }} (QEMU)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Cortex-M4, soft float
+            toolchain: cmake/arm-cortex-m4-mps2.cmake
+            extra: -DCATENAE_M4_FPU=OFF
+          - name: Cortex-M4F
+            toolchain: cmake/arm-cortex-m4-mps2.cmake
+            extra: -DCATENAE_M4_FPU=ON
+          - name: Cortex-M33
+            toolchain: cmake/arm-cortex-m33-mps2.cmake
+            extra: ""
+          - name: Cortex-M55
+            toolchain: cmake/arm-cortex-m55-mps3.cmake
+            extra: ""
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      # The Arm toolchain is ~600 MB of .debs and the runners' apt mirror throttles; cached
+      # .debs make the install an index refresh (DspTap's and SampleRateTap's experience).
+      - name: Runner image (for the package cache key)
+        id: apt-image
+        run: |
+          echo "os=${ImageOS:-unknown}-${ImageVersion:-unknown}" >> "$GITHUB_OUTPUT"
+          echo "family=${ImageOS:-unknown}" >> "$GITHUB_OUTPUT"
+      - name: Cache the Arm toolchain packages
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: ~/apt-archives
+          key: apt-arm-toolchain-${{ steps.apt-image.outputs.os }}-1
+          restore-keys: apt-arm-toolchain-${{ steps.apt-image.outputs.family }}-
+      - name: Install the Arm GNU toolchain and QEMU
+        run: >
+          scripts/apt_install.sh --archives "$HOME/apt-archives" --no-install-recommends
+          gcc-arm-none-eabi libnewlib-arm-none-eabi libstdc++-arm-none-eabi-newlib qemu-system-arm
+
+      - name: Toolchain versions
+        run: |
+          arm-none-eabi-gcc --version | head -1
+          qemu-system-arm --version | head -1
+
+      # The link tests of PLAN.md section 3.4 run here, at -Os with --gc-sections.
+      - name: Configure, build and test under emulation (boundary)
+        run: |
+          cmake -S . -B build-boundary -DCMAKE_BUILD_TYPE=MinSizeRel -DCATENAE_CHECKS=boundary \
+            -DCMAKE_TOOLCHAIN_FILE=${{ matrix.toolchain }} ${{ matrix.extra }}
+          cmake --build build-boundary -j 4
+          ctest --test-dir build-boundary --no-tests=error -V
+
+      - name: Configure, build and test under emulation (audit)
+        run: |
+          cmake -S . -B build-audit -DCMAKE_BUILD_TYPE=MinSizeRel -DCATENAE_CHECKS=audit \
+            -DCMAKE_TOOLCHAIN_FILE=${{ matrix.toolchain }} ${{ matrix.extra }}
+          cmake --build build-audit -j 4
+          ctest --test-dir build-audit --no-tests=error -V
+
+  # Hexagon (Linux/musl) under qemu-hexagon user-mode emulation: the CodeLinaro toolchain
+  # (clang 19), pinned by digest, and the distribution's qemu-user.
+  hexagon:
+    name: Hexagon (QEMU)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    env:
+      HEXAGON_TOOLCHAIN_URL: https://artifacts.codelinaro.org/artifactory/codelinaro-toolchain-for-hexagon/19.1.5/clang+llvm-19.1.5-cross-hexagon-unknown-linux-musl.tar.zst
+      HEXAGON_TOOLCHAIN_SHA256: "55b41922318f6331590ab7baa7f5dbdd99c109327a9c44a52c5e9878fab148c1"
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install qemu-user
+        run: scripts/apt_install.sh --no-install-recommends qemu-user zstd
+
+      # Keyed on the pinned digest: every job that writes it verifies the same pin.
+      - name: Cache the Hexagon toolchain
+        uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5
+        with:
+          path: ~/hexagon
+          key: hexagon-toolchain-${{ env.HEXAGON_TOOLCHAIN_SHA256 }}-1
+
+      - name: Fetch and verify the Hexagon toolchain
+        run: scripts/fetch_hexagon_toolchain.sh "$HOME/hexagon" | tail -1 >> "$GITHUB_ENV"
+
+      - name: Toolchain versions
+        run: |
+          "$HEXAGON_TOOLCHAIN_ROOT/bin/hexagon-unknown-linux-musl-clang++" --version | head -1
+          qemu-hexagon --version | head -1
+
+      - name: Configure, build and test under emulation (boundary)
+        run: |
+          cmake -S . -B build-boundary -DCMAKE_BUILD_TYPE=Release -DCATENAE_CHECKS=boundary \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/hexagon-linux-musl.cmake
+          cmake --build build-boundary -j 4
+          ctest --test-dir build-boundary ${{ env.CTEST_COMMON }}
+
+      - name: Configure, build and test under emulation (audit)
+        run: |
+          cmake -S . -B build-audit -DCMAKE_BUILD_TYPE=Release -DCATENAE_CHECKS=audit \
+            -DCMAKE_TOOLCHAIN_FILE=cmake/hexagon-linux-musl.cmake
+          cmake --build build-audit -j 4
+          ctest --test-dir build-audit ${{ env.CTEST_COMMON }}
+
+  # The amalgamation (D26, PLAN.md section 7.4): catenae.cpp generated, compiled alone as a
+  # consumer of no build system would, and the battery run against it. Contraction off is the
+  # amalgamation's assumption of use. The generated files are the artifact.
+  amalgamation:
+    name: Amalgamation (Linux GCC 13)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Generate catenae.cpp
+        run: python3 scripts/amalgamate.py --out dist/catenae
+
+      # The core, the default trapping handler beside it, and an example.
+      - name: Compile it and an example with nothing but the compiler
+        run: |
+          g++-13 -std=c++17 -O2 -fno-exceptions -fno-rtti -ffp-contract=off -Idist/catenae/include \
+            -c dist/catenae/catenae.cpp -o catenae.o
+          g++-13 -std=c++17 -O2 -fno-exceptions -fno-rtti -Idist/catenae/include \
+            -c dist/catenae/check_failed_trap.cpp -o check_failed_trap.o
+          g++-13 -std=c++17 -O2 -fno-exceptions -fno-rtti -Idist/catenae/include \
+            examples/print_version.cpp catenae.o check_failed_trap.o -o print_version
+          ./print_version | tee print_version.txt
+          grep -q "CATENAE_EXAMPLE_DONE ok=1" print_version.txt
+
+      - name: The battery against the amalgamation (boundary, then audit)
+        env:
+          CXX: g++-13
+        run: |
+          for level in boundary audit; do
+            echo "::group::$level"
+            cmake -S . -B build-$level -DCMAKE_BUILD_TYPE=Release -DCATENAE_AMALGAMATION=ON -DCATENAE_CHECKS=$level
+            cmake --build build-$level -j 4
+            ctest --test-dir build-$level ${{ env.CTEST_COMMON }}
+            echo "::endgroup::"
+          done
+
+      - name: Upload the amalgamation
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: catenae-amalgamation
+          path: dist/catenae
+          if-no-files-found: error
+
+  # Statement and branch coverage of the compiled core and of each instantiation the battery
+  # makes (PLAN.md section 8), on the configuration that ships (optimised, boundary level):
+  # measured and reported, never gated.
+  coverage:
+    name: Coverage (Clang 18, Release)
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+
+      - name: Install Clang's runtime libraries
+        run: scripts/apt_install.sh --no-install-recommends libclang-rt-18-dev
+
+      - name: Configure and build with coverage
+        env:
+          CXX: clang++-18
+        run: |
+          cmake -S . -B build -DCMAKE_BUILD_TYPE=Release -DCATENAE_COVERAGE=ON
+          cmake --build build -j 4
+
+      - name: Measure
+        run: python3 scripts/coverage.py --build-dir build --summary coverage.md --html coverage-html
+
+      - name: Summary
+        run: cat coverage.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the annotated sources
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: coverage-html
+          path: coverage-html
+          if-no-files-found: error

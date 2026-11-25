@@ -1,0 +1,4 @@
+# GCC, the compiled core and the header-alone checks only (PLAN.md section 7.3).
+# The per-function frame limit, the same on every GCC leg. The functions admitted above it (a
+# design's make()) are listed here with their reason when the first one arrives; there are none.
+-Wstack-usage=512

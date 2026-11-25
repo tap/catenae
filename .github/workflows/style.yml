@@ -1,0 +1,92 @@
+# Copyright 2026 Timothy Place and the catenae contributors
+#
+# The house style and the checks a compiler cannot make (PLAN.md section 7.3, D20, D30, D31,
+# D40): clang-format through the pinned pre-commit hook, clang-tidy with every finding an
+# error, and the scripts the plan relies on, each proven first by its own battery. Carried
+# from SampleRateTap's style.yml and ci.yml's clang-format job (NOTICE.md); catenae owns its
+# style files, so there is no drift check against TapHouse (D20).
+name: Style
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: style-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  clang-format:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      # The same pinned clang-format and file scope developers get from `pre-commit install`.
+      - name: Check formatting (pre-commit)
+        run: |
+          pipx install pre-commit
+          pre-commit run --all-files --show-diff-on-failure
+
+  # Every translation unit of catenae's own code, each file once (a file compiled several
+  # times would otherwise be checked n^2 times), the bench targets included. The compile
+  # database is Clang's: clang-tidy and clang-query are clang front ends, and GCC's warning
+  # flags are not theirs.
+  clang-tidy:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Install tools
+        run: scripts/apt_install.sh --no-install-recommends clang-tidy-18
+      - name: clang-tidy (every finding an error)
+        env:
+          TIDY_BUILD: build
+          CLANG_TIDY: clang-tidy-18
+          CXX: clang++-18
+        run: scripts/tidy.sh
+
+  # The scripts PLAN.md relies on, after their own battery (scripts/tests/) has shown that
+  # each refuses what it exists to refuse.
+  checks:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6
+      - name: Install tools
+        run: scripts/apt_install.sh --no-install-recommends clang-tools-18
+      - name: The scripts' own battery
+        env:
+          CI: "true"
+        run: python3 -m unittest discover -s scripts/tests -v
+      - name: Compile database (Clang)
+        env:
+          CXX: clang++-18
+        run: cmake -S . -B build -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCATENAE_BUILD_BENCH=ON
+      - name: Naming (D30's prefixes by access)
+        if: ${{ !cancelled() }}
+        run: python3 scripts/check_naming.py -p build
+      - name: Include guards (D40)
+        if: ${{ !cancelled() }}
+        run: python3 scripts/check_guards.py
+      - name: Raw signed shifts
+        if: ${{ !cancelled() }}
+        run: python3 scripts/check_shifts.py -p build
+      - name: Suppressions counted against the deviation log (D31)
+        if: ${{ !cancelled() }}
+        run: python3 scripts/check_suppressions.py
+      - name: The @req trace
+        if: ${{ !cancelled() }}
+        run: |
+          python3 scripts/check_requirements.py --trace trace.md
+          { echo "### The @req trace"; echo; cat trace.md; } >> "$GITHUB_STEP_SUMMARY"
+      - name: The length budgets
+        if: ${{ !cancelled() }}
+        run: python3 scripts/check_budgets.py
+      - name: The ceilings table matches bench/ceilings.json
+        if: ${{ !cancelled() }}
+        run: python3 scripts/ceilings.py docs --check

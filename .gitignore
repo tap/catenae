@@ -1,0 +1,14 @@
+build*/
+.cache/
+compile_commands.json
+CMakeUserPresets.json
+.vscode/
+.idea/
+.claude/*
+!.claude/settings.json
+!.claude/hooks/
+__pycache__/
+# waf's build directory, lock file and configuration cache
+.lock-waf*
+.waf*
+/waf

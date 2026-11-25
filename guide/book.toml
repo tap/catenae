@@ -1,0 +1,22 @@
+# Copyright 2026 Timothy Place and the catenae contributors
+#
+# The guide (D46, PLAN.md section 11): mdBook, its code included from compiled examples.
+# Build from the repository root: mdbook build guide. The site puts it at /, with the
+# reference (Doxygen) at /api/.
+[book]
+title = "catenae"
+authors = ["Timothy Place and the catenae contributors"]
+language = "en"
+multilingual = false
+src = "src"
+
+[build]
+build-dir = "../build-docs/guide"
+create-missing = false
+
+[output.html]
+default-theme = "light"
+preferred-dark-theme = "navy"
+no-section-label = true
+# The site is served from the project path on GitHub Pages; the 404 page links through it.
+site-url = "/catenae/"

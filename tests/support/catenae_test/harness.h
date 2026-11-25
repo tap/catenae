@@ -24,10 +24,12 @@
 #include <numeric>
 #include <string>
 #include <type_traits>
+#include <utility>
 #include <vector>
 
 #include <gtest/gtest.h>
 
+#include "catenae/chain.h"
 #include "catenae/ratio.h"
 #include "catenae/span.h"
 #include "catenae/stage_traits.h"
@@ -83,7 +85,7 @@ namespace catenae_test {
         /// stage whose bound is wrong is caught by the count test rather than overrunning it.
         std::size_t run(const std::vector<value_type>& in, std::size_t from, std::size_t n,
                         std::vector<out_value>& out) {
-            const std::size_t room = std::max(Stage::max_outputs_for(n), Stage::outputs_for(m_state, n));
+            const std::size_t room = std::max(Stage::max_outputs_for(n), m_configuration.outputs_for(m_state, n));
             m_scratch.assign(room * out_channels, out_value{});
             const std::size_t written = m_configuration.run(
                 m_state, m_workspace, catenae::span<const value_type>(in.data() + from * in_channels, n * in_channels),
@@ -168,14 +170,14 @@ namespace catenae_test {
         std::size_t                                    at = 0;
         for (const std::size_t n : chunks(frames, 150, 4)) {
             for (std::size_t k = 0; k <= 40; ++k) {
-                const std::size_t need = Stage::frames_needed(d.current(), k);
-                if (Stage::outputs_for(d.current(), need) < k
-                    || (need > 0 && Stage::outputs_for(d.current(), need - 1) >= k)) {
+                const std::size_t need = configuration.frames_needed(d.current(), k);
+                if (configuration.outputs_for(d.current(), need) < k
+                    || (need > 0 && configuration.outputs_for(d.current(), need - 1) >= k)) {
                     return ::testing::AssertionFailure()
                            << "frames_needed(" << k << ") = " << need << " is not the smallest n that writes " << k;
                 }
             }
-            const std::size_t predicted = Stage::outputs_for(d.current(), n);
+            const std::size_t predicted = configuration.outputs_for(d.current(), n);
             const std::size_t written   = d.run(in, at, n, out);
             at += n;
             if (written != predicted) {
@@ -272,17 +274,34 @@ namespace catenae_test {
         return quantum;
     }
 
-    /// The law at one divisor q of the group: the trail and lead within the published numbers
-    /// scaled, every count a multiple of output_quantum, and, frame by frame and when `exact`, the
-    /// published numbers reached.
+    /// The bound on trail and lead at calls of q frames. A stage's is its published numbers by
+    /// the law; a chain's is its stages' composed at q (PLAN.md section 4: a chain is composed
+    /// through, so its own numbers scaled by the law are not its bound at q).
+    template <typename Stage>
+    std::pair<catenae::ratio, catenae::ratio> bound_at(std::size_t q) {
+        using traits = catenae::stage_traits<Stage>;
+        if constexpr (catenae::is_chain<Stage>::value) {
+            const auto leaves = catenae::detail::leaves_of<Stage>::get();
+            const auto pace   = catenae::detail::composed_pace(leaves.data(), leaves.size(), q);
+            return {pace.shortfall, pace.lead};
+        }
+        else {
+            const auto scale = law_scale(traits::input_group, q);
+            return {traits::max_shortfall * scale, traits::max_lead * scale};
+        }
+    }
+
+    /// The law at one divisor q of the group: the trail and lead within the bound at q, every
+    /// count a multiple of output_quantum, and, frame by frame and when `exact`, the published
+    /// numbers reached.
     template <typename Stage>
     ::testing::AssertionResult law_holds_at(const Stage& configuration, std::size_t q, std::size_t horizon,
                                             bool exact) {
         using traits        = catenae::stage_traits<Stage>;
         const arrival found = arrival_at(configuration, q, horizon);
-        const auto    scale = law_scale(traits::input_group, q);
+        const auto    bound = bound_at<Stage>(q);
         const auto    print = [](catenae::ratio r) { return std::to_string(r.up) + "/" + std::to_string(r.down); };
-        if (found.trail > traits::max_shortfall * scale || found.lead > traits::max_lead * scale) {
+        if (found.trail > bound.first || found.lead > bound.second) {
             return ::testing::AssertionFailure()
                    << "at calls of " << q << " frames the output trails by " << print(found.trail) << " and leads by "
                    << print(found.lead) << ", beyond the law's bound";

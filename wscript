@@ -152,7 +152,10 @@ def build(bld):
                 cxxflags=warnings(env, "library"))
     # Each compile-fail case without its defect: the cases are CMake's (tests/compile_fail).
     bld.objects(target="catenae_cf_controls", source=bld.path.ant_glob("tests/compile_fail/*.cpp"),
-                includes=includes + ["tests/compile_fail"], defines=["CATENAE_CF_CONTROL"],
+                includes=includes + ["tests/compile_fail", "tests/fixtures"], defines=["CATENAE_CF_CONTROL"],
+                cxxflags=warnings(env, "test"))
+    # Each stage's contract instantiated for q31 (D47), as CMake's catenae_q31_traits.
+    bld.objects(target="catenae_q31_traits", source=["tests/q31_traits.cpp"], includes=includes,
                 cxxflags=warnings(env, "test"))
 
     if not env.CATENAE_GTEST:
@@ -176,19 +179,29 @@ def build(bld):
     bld.program(
         target="catenae_tests",
         features="cxx cxxprogram test",
-        source=bld.path.ant_glob("tests/test_*.cpp") + ["tests/support/catenae_test/check_trap.cpp"],
-        includes=includes + ["tests/support", "tests/fixtures"],
+        source=bld.path.ant_glob("tests/test_*.cpp")
+        + ["tests/support/catenae_test/check_trap.cpp", "examples/difference_battery.cpp"],
+        includes=includes + ["tests/support", "tests/fixtures", "examples"],
         use=["catenae", "catenae_gtest_main", "catenae_gtest"],
         defines=["CATENAE_TEST_PROJECT_VERSION_MAJOR=" + major, "CATENAE_TEST_PROJECT_VERSION_MINOR=" + minor,
                  "CATENAE_TEST_PROJECT_VERSION_PATCH=" + patch, "CATENAE_TEST_THREADS"],
-        cxxflags=system + warnings(env, "test"),
+        # The battery pins the numeric contracts at contraction off, as CMake's does.
+        cxxflags=system + warnings(env, "test") + list(env.CATENAE_CONTRACTION),
     )
-    for example in bld.path.ant_glob("examples/*.cpp"):
+    # The examples the guide includes, as examples/CMakeLists.txt builds them: each a program
+    # that the test step runs, the strawman graph with its nodes' source beside it.
+    examples = {
+        "print_version": ["examples/print_version.cpp"],
+        "stages_and_chains": ["examples/stages_and_chains.cpp"],
+        "writing_a_stage": ["examples/writing_a_stage.cpp"],
+        "run_time_graph": ["examples/run_time_graph_main.cpp", "examples/run_time_graph.cpp"],
+    }
+    for name, sources in sorted(examples.items()):
         bld.program(
-            target="catenae_example_" + os.path.splitext(example.name)[0],
+            target="catenae_example_" + name,
             features="cxx cxxprogram test",
-            source=[example],
-            includes=includes,
+            source=sources,
+            includes=includes + ["examples"],
             use=["catenae", "catenae_trap_handler"],
             cxxflags=warnings(env, "test"),
         )

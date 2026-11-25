@@ -21,8 +21,14 @@ ALIASES                = "req{1}=\xrefitem req \"Requirement\" \"Requirements\" 
 EXTRACT_ALL            = NO
 EXTRACT_PRIVATE        = NO
 EXTRACT_STATIC         = NO
-# catenae's own internals: a name in a detail namespace is not the reference's.
-EXCLUDE_SYMBOLS        = detail detail::* *::detail *::detail::*
+# catenae's own internals: a name in a detail namespace is not the reference's. And the members
+# of the stage contract, which every stage declares: documented once, on the stage contract's
+# page, and excluded here by name (PLAN.md section 11.2, rule 2).
+EXCLUDE_SYMBOLS        = detail detail::* *::detail *::detail::* \
+                         rate_ratio input_group max_shortfall max_lead output_quantum is_in_place \
+                         has_exact_latency exact_latency rests_at_zero is_frame_synchronous \
+                         outputs_for frames_needed max_outputs_for tail_frames practical_tail_frames \
+                         flush_residue
 # Every public member has a line, and every warning fails the run. A brief names its
 # arguments, as a card's fields do (PLAN.md section 11.2, rule 2): no @param table is asked for.
 # A macro is documented on the branch Doxygen's preprocessor takes, GCC's and Clang's.

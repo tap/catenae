@@ -73,6 +73,16 @@ namespace catenae {
         template <typename T>
         struct analyzer_traits;
 
+        enum class tail : std::uint8_t;
+        template <typename State, typename Workspace>
+        struct memory;
+        template <std::size_t Block, typename... Stages>
+        class chain_body;
+        template <typename... Stages>
+        class chain;
+        template <std::size_t Block, typename... Stages>
+        class blocked_chain;
+
     } // namespace CATENAE_ABI
 } // namespace catenae
 

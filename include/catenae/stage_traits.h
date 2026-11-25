@@ -250,7 +250,9 @@ namespace catenae {
             static_assert(detail::k_is_detected_exact<const std::size_t, detail::output_quantum_op, T>,
                           "catenae: a stage declares static constexpr std::size_t output_quantum");
             static_assert(detail::output_quantum_of<T>::value >= 1, "catenae: a stage's output_quantum is at least 1");
-            static_assert(!detail::k_is_detected<detail::is_frame_synchronous_op, T>,
+            // A chain carries its own, derived from its composed input_group by the library and
+            // never written by hand (PLAN.md 9.4, 9.5); every other stage leaves it to the traits.
+            static_assert(!detail::k_is_detected<detail::is_frame_synchronous_op, T> || is_chain<T>::value,
                           "catenae: a stage never declares is_frame_synchronous: stage_traits derives it (D35)");
             static_assert(detail::k_is_detected_exact<const bool, detail::is_in_place_op, T>,
                           "catenae: a stage declares static constexpr bool is_in_place");

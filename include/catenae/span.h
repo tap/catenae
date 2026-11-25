@@ -124,8 +124,10 @@ namespace catenae {
                 detail::check_audit(Extent == dynamic_extent || count == Extent, check::index_out_of_range);
             }
 
-            /// The elements from `from` up to `to`.
-            constexpr span(pointer from, pointer to) noexcept
+            /// The elements from `from` up to `to`. A template, so that a count of 0 is a count
+            /// and never a null pointer.
+            template <typename P, std::enable_if_t<std::is_same<P, pointer>::value, int> = 0>
+            constexpr span(pointer from, P to) noexcept
                 : span(from, static_cast<size_type>(to - from)) {}
 
             /// A built-in array.

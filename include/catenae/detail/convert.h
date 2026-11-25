@@ -22,6 +22,10 @@ namespace catenae {
     inline namespace CATENAE_ABI {
         namespace detail {
 
+            /// False, for a static_assert that fires only when its template is instantiated.
+            template <typename... Ts>
+            inline constexpr bool k_never = false;
+
             /// Whether an integer is below zero, with no comparison an unsigned type makes trivially.
             template <typename I>
             constexpr bool is_negative(I value) noexcept {

@@ -12,3 +12,16 @@ function(catenae_add_example name)
 endfunction()
 
 catenae_add_example(print_version)
+catenae_add_example(stages_and_chains)
+catenae_add_example(writing_a_stage)
+target_include_directories(catenae_example_writing_a_stage PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+
+# The guide's strawman: what one would naturally write instead of a chain. Its nodes are a
+# library of their own so that the ratchet's workload counts the same code.
+add_library(catenae_example_graph STATIC run_time_graph.cpp)
+target_include_directories(catenae_example_graph PUBLIC "${CMAKE_CURRENT_SOURCE_DIR}")
+target_link_libraries(catenae_example_graph PRIVATE catenae_test_warnings catenae_no_exceptions)
+add_executable(catenae_example_run_time_graph run_time_graph_main.cpp)
+target_link_libraries(catenae_example_run_time_graph PRIVATE catenae_example_graph catenae_test_warnings)
+add_test(NAME example.run_time_graph COMMAND catenae_example_run_time_graph)
+set_tests_properties(example.run_time_graph PROPERTIES PASS_REGULAR_EXPRESSION "CATENAE_EXAMPLE_DONE ok=1" TIMEOUT 120)

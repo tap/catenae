@@ -22,5 +22,8 @@ namespace catenae_test {
     catenae::layout planar() noexcept {
         return catenae::layout::planar;
     }
+    catenae::align by_caller() noexcept {
+        return catenae::align::by_caller;
+    }
 
 } // namespace catenae_test

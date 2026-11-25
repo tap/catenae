@@ -12,6 +12,8 @@
 
 #include "catenae/expected.h"
 #include "catenae/fwd.h"
+#include "catenae/gain.h"
+#include "catenae/parallel.h"
 #include "catenae/port.h"
 #include "catenae/ratio.h"
 #include "catenae/sample_format.h"
@@ -30,12 +32,17 @@ namespace {
         EXPECT_EQ(catenae_test::pass_expected(&e), &e);
         EXPECT_EQ(catenae_test::pass_port(&p), &p);
         EXPECT_EQ(catenae_test::planar(), catenae::layout::planar);
+        EXPECT_EQ(catenae_test::by_caller(), catenae::align::by_caller);
         // fwd.h gives the default arguments, the defining headers use them.
         static_assert(std::is_same<catenae::span<float>, catenae::span<float, catenae::dynamic_extent>>::value,
                       "span's default extent");
         static_assert(
             std::is_same<catenae::port<float, 2>, catenae::port<float, 2, catenae::layout::interleaved>>::value,
             "port's default layout");
+        static_assert(
+            std::is_same<catenae::parallel<catenae::gain<1>, catenae::gain<1>>,
+                         catenae::parallel<catenae::gain<1>, catenae::gain<1>, catenae::align::by_type>>::value,
+            "parallel's default alignment");
     }
 
 } // namespace

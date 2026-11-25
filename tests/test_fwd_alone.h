@@ -16,6 +16,7 @@ namespace catenae_test {
     const catenae::port<catenae::fixed<std::int32_t, 31>, 2>*
                     pass_port(const catenae::port<catenae::fixed<std::int32_t, 31>, 2>* p) noexcept;
     catenae::layout planar() noexcept;
+    catenae::align  by_caller() noexcept;
 
 } // namespace catenae_test
 

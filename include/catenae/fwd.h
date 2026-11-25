@@ -82,6 +82,15 @@ namespace catenae {
         class chain;
         template <std::size_t Block, typename... Stages>
         class blocked_chain;
+        template <typename Config>
+        class steady;
+        /// How parallel<> aligns its two arms' latencies (D43).
+        enum class align : std::uint8_t {
+            by_type,   ///< a delay the types size, in the arm that is ahead
+            by_caller, ///< none: the caller places a delay in an arm
+        };
+        template <typename A, typename B, align Align = align::by_type>
+        class parallel;
 
     } // namespace CATENAE_ABI
 } // namespace catenae

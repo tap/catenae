@@ -14,7 +14,9 @@ and pinned by a test.
 **Status: the chain and its first stages.** The builds, CI on every target, the measurement
 harness and the contracts are in place, and a chain of stages written as a type runs on every
 target: `map`, a `gain` that ramps, a fixed `delay`, the layout converters and `convert` among
-`float`, `q15`, `q31` and Q4.27. The combinators, the junctions and the mailbox follow.
+`float`, `q15`, `q31` and Q4.27. `steady` makes a stage that works in blocks frame-synchronous,
+and `parallel` runs two chains on two groups of a port's channels. The junctions and the
+mailbox follow.
 The design, its decisions and the milestones are in [`PLAN.md`](PLAN.md); the guide and the
 reference are published at <https://tap.github.io/catenae/>.
 

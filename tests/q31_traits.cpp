@@ -15,7 +15,9 @@
 #include "catenae/gain.h"
 #include "catenae/interleave.h"
 #include "catenae/map.h"
+#include "catenae/parallel.h"
 #include "catenae/stage_traits.h"
+#include "catenae/steady.h"
 
 namespace {
 
@@ -38,5 +40,10 @@ namespace {
     static_assert(contract<catenae::convert<catenae::q31, float, 2>>(), "convert from q31");
     static_assert(contract<catenae::convert<float, catenae::q31, 2>>(), "convert to q31");
     static_assert(contract<catenae::chain<catenae::gain_q31<2>, catenae::delay_q31<2, 4>>>(), "a q31 chain");
+    static_assert(contract<catenae::steady<catenae::delay_q31<2, 4>>>(), "steady around q31");
+    static_assert(contract<catenae::parallel<catenae::delay_q31<1, 4>, catenae::gain_q31<2>>>(), "parallel in q31");
+    static_assert(contract<catenae::parallel<catenae::deinterleave_q31<2>, catenae::deinterleave_q31<1>,
+                                             catenae::align::by_caller>>(),
+                  "parallel in q31, planar out, aligned by the caller");
 
 } // namespace

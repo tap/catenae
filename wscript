@@ -191,6 +191,7 @@ def build(bld):
     # The examples the guide includes, as examples/CMakeLists.txt builds them: each a program
     # that the test step runs, the strawman graph with its nodes' source beside it.
     examples = {
+        "bursts_and_buffering": ["examples/bursts_and_buffering.cpp"],
         "print_version": ["examples/print_version.cpp"],
         "stages_and_chains": ["examples/stages_and_chains.cpp"],
         "writing_a_stage": ["examples/writing_a_stage.cpp"],

@@ -208,5 +208,30 @@ class Budgets(Tree):
                            "README.md: 1001 words", "guide/src/page.md: 1501 words", "include/catenae/h.h:1: a header comment of 61 lines")
 
 
+class SteadyFigure(unittest.TestCase):
+    TRACE = ("call,frames_in,bare_out,fifo_held,steady_out\n"
+             "1,64,0,63,64\n2,64,128,127,64\n"
+             "CATENAE_EXAMPLE_DONE ok=1\n")
+
+    def test_draws_a_lane_a_column_and_a_bar_a_call(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            trace = pathlib.Path(tmp) / "trace.txt"
+            trace.write_text(self.TRACE)
+            done = run("figure_steady.py", str(trace))
+            self.assertEqual(done.returncode, 0, done.stderr)
+            svg = done.stdout
+            self.assertEqual(svg.count('class="title"'), 4)
+            self.assertEqual(svg.count("call 1:"), 4)  # one bar, or a mark for none, in each lane
+            self.assertEqual(svg.count('class="axis"'), 2)
+            self.assertIn("holds 63 or 127 frames", svg)
+            self.assertIn("@media (prefers-color-scheme: dark)", svg)
+
+    def test_is_the_same_drawing_every_time(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            trace = pathlib.Path(tmp) / "trace.txt"
+            trace.write_text(self.TRACE)
+            self.assertEqual(run("figure_steady.py", str(trace)).stdout, run("figure_steady.py", str(trace)).stdout)
+
+
 if __name__ == "__main__":
     unittest.main()

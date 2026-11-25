@@ -6,14 +6,14 @@
 
 namespace cf {
     catenae::expected<int, catenae::status> make(int v) noexcept;
-    void                                    discard(int v) noexcept;
+    void                                    discard_expected(int v) noexcept;
 } // namespace cf
 
 catenae::expected<int, catenae::status> cf::make(int v) noexcept {
     return v;
 }
 
-void cf::discard(int v) noexcept {
+void cf::discard_expected(int v) noexcept {
 #ifdef CATENAE_CF_CONTROL
     static_cast<void>(make(v));
 #else

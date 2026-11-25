@@ -13,6 +13,17 @@ namespace catenae_test {
         return the_trap;
     }
 
+    bool fails_a_check(void (*body)(void*), void* context) noexcept {
+        check_trap& t = trap();
+        t.armed       = true;
+        if (setjmp(t.resume) == 0) {
+            body(context);
+            t.armed = false;
+            return false;
+        }
+        return true;
+    }
+
 } // namespace catenae_test
 
 namespace catenae {

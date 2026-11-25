@@ -51,6 +51,17 @@
 namespace catenae {
     inline namespace CATENAE_ABI {
 
+        namespace detail {
+            /// The frames a fixed delay holds, and nothing at all when it holds none: a
+            /// std::array of 0 is not plain storage everywhere (MSVC's initialises its element).
+            template <typename T, std::size_t N>
+            struct delay_line {
+                std::array<T, N> values; ///< the last N values, circular
+            };
+            template <typename T>
+            struct delay_line<T, 0> {};
+        } // namespace detail
+
         /// @brief Arm A on the first of a port's channels and arm B on the rest, side by side;
         /// with `align::by_type` their latencies aligned by a delay the types size.
         template <typename A, typename B, align Align>
@@ -128,10 +139,10 @@ namespace catenae {
 
             /// The arms' states, and the line of the delay on the arm that is ahead.
             struct state {
-                state_of<A>                                         a;     ///< A's own
-                state_of<B>                                         b;     ///< B's own
-                std::array<out_value, k_delay * k_delayed_channels> line;  ///< the delay's last frames
-                std::uint32_t                                       write; ///< the frame the next replaces
+                state_of<A>                                                 a;     ///< A's own
+                state_of<B>                                                 b;     ///< B's own
+                detail::delay_line<out_value, k_delay * k_delayed_channels> line;  ///< the delay's last frames
+                std::uint32_t                                               write; ///< the frame the next replaces
             };
             /// The arms' workspaces, and a block of each arm's input and output.
             struct workspace {
@@ -175,7 +186,9 @@ namespace catenae {
             void reset(state& st) const noexcept {
                 traits_a::reset(m_a, st.a);
                 traits_b::reset(m_b, st.b);
-                std::fill(st.line.begin(), st.line.end(), out_value{});
+                if constexpr (k_delay > 0) {
+                    std::fill(st.line.values.begin(), st.line.values.end(), out_value{});
+                }
                 st.write = 0;
             }
 
@@ -222,10 +235,10 @@ namespace catenae {
                 if constexpr (k_delay > 0) {
                     (k_delays_a ? a : b).nominal += static_cast<float>(k_delay);
                 }
-                const float later   = a.nominal > b.nominal ? a.nominal : b.nominal;
-                const float earlier = a.nominal > b.nominal ? b.nominal : a.nominal;
-                const float spread  = a.deviation > b.deviation ? a.deviation : b.deviation;
-                return {later, spread + (later - earlier)};
+                const float last_arm  = a.nominal > b.nominal ? a.nominal : b.nominal;
+                const float first_arm = a.nominal > b.nominal ? b.nominal : a.nominal;
+                const float widest    = a.deviation > b.deviation ? a.deviation : b.deviation;
+                return {last_arm, widest + (last_arm - first_arm)};
             }
             /// The larger of each arm's tail and what the delay on its output holds.
             std::size_t tail_frames() const noexcept { return longer(m_a.tail_frames(), m_b.tail_frames()); }
@@ -286,10 +299,10 @@ namespace catenae {
                 std::size_t           at  = st.write;
                 for (std::size_t f = 0; f < n; ++f) {
                     for (std::size_t c = 0; c < k_delayed_channels; ++c) {
-                        out_value&      value                = block[slot<k_planar_out, k_delayed_channels>(cap, f, c)];
-                        const out_value arriving             = value;
-                        value                                = st.line[at * k_delayed_channels + c];
-                        st.line[at * k_delayed_channels + c] = arriving;
+                        out_value&      value    = block[slot<k_planar_out, k_delayed_channels>(cap, f, c)];
+                        const out_value arriving = value;
+                        value                    = st.line.values[at * k_delayed_channels + c];
+                        st.line.values[at * k_delayed_channels + c] = arriving;
                     }
                     at = at + 1 == k_delay ? 0 : at + 1;
                 }

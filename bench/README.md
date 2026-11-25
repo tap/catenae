@@ -68,7 +68,26 @@ scripts/ceilings.py measure --key m33 --build-dir build-size
 ```
 
 <!-- ceilings:begin (scripts/ceilings.py docs; do not edit by hand) -->
+Probe `version`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
 
+| figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
+|---|--:|--:|--:|--:|--:|
+| `image.bss` | 1,020 / 1,088 | 1,020 / 1,088 | 1,020 / 1,088 | 1,020 / 1,088 | 292 / 320 |
+| `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
+| `image.rodata` | 88 / 128 | 88 / 128 | 88 / 128 | 88 / 128 | 40 / 64 |
+| `image.text` | 7,384 / 7,616 | 7,448 / 7,680 | 7,296 / 7,552 | 7,300 / 7,552 | 7,092 / 7,360 |
+| `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.text` | 4 / 64 | 4 / 64 | 4 / 64 | 4 / 64 | 4 / 64 |
+| `unit.bss` | 4 / 64 | 4 / 64 | 4 / 64 | 4 / 64 | 4 / 64 |
+| `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.text` | 26 / 64 | 26 / 64 | 26 / 64 | 26 / 64 | 36 / 64 |
+| `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
+| `stack.version.measured` | 8 / 16 | 8 / 16 | 8 / 16 | 8 / 16 |  |
+| `stack.version.static` | 8 / 16 | 8 / 16 | 8 / 16 | 8 / 16 |  |
 <!-- ceilings:end -->
 
 ## The link-stage gate
@@ -81,4 +100,26 @@ symbol: the gate cannot see it there, and a test pins that limit.
 
 ## Recorded
 
-Nothing is recorded yet.
+| What | From |
+|---|---|
+| `baselines.json`, every key; `ceilings.json`, every key but `host` | Bench run [45614209215](https://github.com/tap/catenae/actions/runs/45614209215) at `c4d0c87`, 2026-11-25: its `measured-<key>` artifacts, copied unchanged, the ceilings computed by `scripts/ceilings.py`'s rule |
+
+That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
+(Ubuntu's `gcc-arm-none-eabi` 15:13.2.rel1-2) and `qemu-system-arm` 8.2.2 for the Arm keys;
+CodeLinaro clang 19.1.5 and `qemu-hexagon` 8.2.2, built with plugins, for `hexagon`; GCC 13.3.0
+and valgrind's callgrind for `host`. Every key counted C++20 and C++23 equal to C++17, every
+workload's checksum is `94eb5aa73e186ba5`, and the counts equal those measured beforehand in a
+development container with the same packages.
+
+| Key | `version` (whole run) | `callmax_version` (worst call) |
+|---|--:|--:|
+| `m4-softfp` | 31,871 | 9 |
+| `m4f` | 31,887 | 9 |
+| `m33` | 31,916 | 9 |
+| `m55` | 31,921 | 9 |
+| `hexagon` | 20,886 packets | 5 |
+| `host` | 21,013 (inside `catenae_host_counted()`) | (QEMU keys only) |
+
+The whole-run counts are almost all start-up and the semihosted `printf`: the thousand calls
+to `catenae::version()` cost 9 instructions each, a call and a return. They are the harness
+proving itself on the first compiled unit, not a cost of the library.

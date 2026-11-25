@@ -10,3 +10,6 @@
 # Fires inside span and on every indexed kernel loop (PLAN.md section 7.3).
 -Wno-switch-default
 # Contradicts -Wswitch-enum, which is kept: an enumerated switch names every enumerator.
+-Wno-poison-system-directories
+# A diagnostic about the toolchain's own search path, not the code: AppleClang reports
+# /usr/local/include, which macOS puts on its default path, as unsafe for cross-compilation.

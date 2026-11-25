@@ -13,6 +13,12 @@ file(GLOB _catenae_fit_tests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*/tes
 if(NOT _catenae_fit_tests)
     message(FATAL_ERROR "fit/: no test_*.cpp under any skeleton's directory")
 endif()
+# GoogleTest's feature macros as tests/CMakeLists.txt sets them for bare metal: they are
+# directory-scoped there, so this directory sets them for its own target.
+if(CATENAE_BARE_METAL)
+    add_compile_definitions(GTEST_HAS_POSIX_RE=0 GTEST_HAS_STREAM_REDIRECTION=0 GTEST_HAS_FILE_SYSTEM=0)
+endif()
+
 # The battery's check handler and generic harness, and its fixture stages, as the battery has
 # them (tests/CMakeLists.txt).
 catenae_add_gtest_executable(catenae_fit_tests

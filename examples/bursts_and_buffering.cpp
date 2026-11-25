@@ -49,20 +49,21 @@ int main() {
     region.reset(s_region.state);
     smooth.reset(s_smooth.state);
 
-    std::array<float, 64>  in{};
-    std::array<float, 128> burst{};
-    std::array<float, 64>  out{};
+    std::array<float, 64>             in{};
+    std::array<float, 128>            burst{};
+    std::array<float, 64>             out{};
     static std::array<float, 8 * 128> bare_all{};
     static std::array<float, 8 * 64>  smooth_all{};
-    std::size_t                bare_total = 0;
-    bool                       ok         = true;
+    std::size_t                       bare_total = 0;
+    bool                              ok         = true;
 
     std::printf("call,frames_in,bare_out,fifo_held,steady_out\n");
     for (std::size_t call = 1; call <= 8; ++call) {
         for (std::size_t i = 0; i < 64; ++i) {
             in[i] = static_cast<float>((call - 1) * 64 + i + 1); // the frame's own number
         }
-        const std::size_t bare_out = region.process(s_region, catenae::span<const float>(in), catenae::span<float>(burst));
+        const std::size_t bare_out =
+            region.process(s_region, catenae::span<const float>(in), catenae::span<float>(burst));
         for (std::size_t i = 0; i < bare_out; ++i) {
             bare_all[bare_total + i] = burst[i];
         }

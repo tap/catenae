@@ -25,7 +25,7 @@ foreach(_case IN LISTS _catenae_cf_cases)
     endif()
     list(APPEND _catenae_cf_controls "${_case}")
     add_library(catenae_cf_${_name} OBJECT EXCLUDE_FROM_ALL "${_case}")
-    target_include_directories(catenae_cf_${_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_include_directories(catenae_cf_${_name} PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../fixtures")
     target_link_libraries(catenae_cf_${_name} PRIVATE catenae::catenae catenae_test_warnings)
     # A case does not compile, so it stays out of the compile database the tidy gate and the
     # naming and shift scripts read; its control is there in its place.
@@ -38,6 +38,6 @@ foreach(_case IN LISTS _catenae_cf_cases)
 endforeach()
 
 add_library(catenae_cf_controls OBJECT ${_catenae_cf_controls})
-target_include_directories(catenae_cf_controls PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+target_include_directories(catenae_cf_controls PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_CURRENT_SOURCE_DIR}/../fixtures")
 target_compile_definitions(catenae_cf_controls PRIVATE CATENAE_CF_CONTROL)
 target_link_libraries(catenae_cf_controls PRIVATE catenae::catenae catenae_test_warnings)

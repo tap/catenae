@@ -13,7 +13,11 @@ threads.
 CF, then C2 to C9. **C0a** (the builds, CI, the warning sets, the scripts and the harness) and
 **C0b** (the contracts: the vocabulary, the checks and their handler, the traits a stage, a
 junction and an analyzer meet, the compile-fail battery, the link tests and the generic
-harness, with the contract pages in `docs/`) are done; the next one is **C1**, the chain.
+harness, with the contract pages in `docs/`) are done. **C1** is under way in four pull
+requests, each green on every leg before the next goes up: the chain, its composition and its
+first stages (`map`, `gain`, `delay`, `interleave` / `deinterleave`, `convert`); `steady` and
+`parallel`; `handoff`, `mailbox`, `feeding` and `fed_by`; and the harness rows (the link-stage
+gate's probe image, the layout benchmark, the example chain's pinned numbers).
 
 ## How to work here
 
@@ -136,6 +140,11 @@ and the header checks each time; the measurements are of the shipping level, `bo
 | The ratchet and the ceilings (`bench.yml`, six keys) | each key's | 17, 20, 23 (counts); 17 (sizes) | Release; MinSizeRel | boundary |
 
 The `constinit_dynamic` case is GCC's and Clang's only: on MSVC the macro is empty (DEV-001).
+The battery is built with contraction off (`catenae_contraction`), as the compiled core is: the
+numeric contracts are pinned there, and a header template under a consumer's flags may differ
+by what a fused multiply-add moves. A stage of another namespace joins a chain through
+`catenae::chain(a) | b` or `using catenae::operator|;`: argument-dependent lookup does not
+reach catenae's `|` from it.
 
 The harness (`bench/README.md`): `-DCATENAE_BUILD_BENCH=ON` builds the ratchet's workloads,
 the size and stack probes and the link-gate fixtures; `scripts/icount.py` counts and gates
@@ -146,13 +155,14 @@ measured it, and the run is named in `bench/README.md`.
 Where things are: `include/catenae/` and `src/` are the library (`src/handler/` the default
 handler); `tests/` the battery, with `tests/fixtures/` (the fixture stages, junction and
 analyzer) and `tests/support/` (the check trap and the generic harness every stage runs);
-`examples/` what the guide includes; `bench/` the harness's workloads and records; `cmake/`
-and `platform/` the targets; `tools/warnings/` the warning sets, read by both builds;
-`scripts/` the checks and the harness; `guide/` the mdBook source and `docs/Doxyfile` the
-reference's, over the headers and `docs/contracts/` (the stage, junction and analyzer contract
-pages, the glossary, the card and `@req` conventions), `docs/assumptions.md` (AOU-nnn) and
-`docs/deviations.md` (DEV-nnn); `.github/workflows/` CI (`ci.yml`, `style.yml`, `bench.yml`,
-`docs.yml`).
+`examples/` what the guide includes (its strip, a stage of the reader's own with its battery,
+and the run-time graph the guide measures the chain against); `bench/` the harness's workloads
+and records; `cmake/` and `platform/` the targets; `tools/warnings/` the warning sets, read by
+both builds; `scripts/` the checks and the harness; `guide/` the mdBook source and
+`docs/Doxyfile` the reference's, over the headers and `docs/contracts/` (the stage, chain,
+junction and analyzer contract pages, the glossary, the card and `@req` conventions),
+`docs/assumptions.md` (AOU-nnn) and `docs/deviations.md` (DEV-nnn); `.github/workflows/` CI
+(`ci.yml`, `style.yml`, `bench.yml`, `docs.yml`).
 `docs/sketches/config-state/` is still throwaway evidence for the plan: none of the above
 builds on it, and its own `verify.sh` and `measure.sh` still print what `PLAN.md` section 9
 quotes.

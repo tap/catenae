@@ -7,6 +7,7 @@ requirement with an identifier, and every identifier is collected on the
 The contracts a type of yours meets, their members documented once:
 
 - @ref stage_contract
+- @ref chain_contract
 - @ref junction_contract
 - @ref analyzer_contract
 

@@ -60,7 +60,10 @@ function(catenae_add_gtest_executable target)
         message(FATAL_ERROR "catenae_add_gtest_executable(${target}): SOURCES is required")
     endif()
     add_executable(${target} ${arg_SOURCES})
-    target_link_libraries(${target} PRIVATE catenae::catenae catenae_test_warnings)
+    # The battery pins the numeric contracts at contraction off (PLAN.md section 4): the
+    # compiled core is built so, and the header templates are tested so; a consumer's own
+    # flags are its own, and each card says what they can move.
+    target_link_libraries(${target} PRIVATE catenae::catenae catenae_test_warnings catenae_contraction)
     if(CATENAE_BARE_METAL)
         target_sources(${target} PRIVATE ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/bare_metal_main.cpp)
         target_link_libraries(${target} PRIVATE GTest::gtest)
@@ -94,23 +97,32 @@ catenae_add_gtest_executable(catenae_tests
     SOURCES
         support/catenae_test/check_trap.cpp
         test_analyzer_traits.cpp
+        test_chain.cpp
+        test_chain_composition.cpp
         test_check.cpp
         test_compiler.cpp
+        test_convert.cpp
         test_convert_shift.cpp
+        test_delay.cpp
         test_expected.cpp
         test_fwd.cpp
         test_fwd_alone.cpp
+        test_gain.cpp
         test_harness.cpp
+        test_interleave.cpp
         test_junction_traits.cpp
+        test_map.cpp
         test_port.cpp
         test_ratio.cpp
         test_sample_format.cpp
         test_sample_traits.cpp
         test_span.cpp
         test_stage_traits.cpp
-        test_version.cpp)
+        test_version.cpp
+        # The guide's stage of its own (examples/difference.h): its battery runs with this one.
+        ../examples/difference_battery.cpp)
 # The battery's support (its check_failed, the generic harness) and the fixture stages.
-target_include_directories(catenae_tests PRIVATE support fixtures)
+target_include_directories(catenae_tests PRIVATE support fixtures ../examples)
 # The message-passing test needs a second thread: hosted builds that have one.
 if(Threads_FOUND)
     target_compile_definitions(catenae_tests PRIVATE CATENAE_TEST_THREADS)
@@ -121,6 +133,11 @@ target_compile_definitions(catenae_tests PRIVATE
     CATENAE_TEST_PROJECT_VERSION_MAJOR=${PROJECT_VERSION_MAJOR}
     CATENAE_TEST_PROJECT_VERSION_MINOR=${PROJECT_VERSION_MINOR}
     CATENAE_TEST_PROJECT_VERSION_PATCH=${PROJECT_VERSION_PATCH})
+
+# Every stage a template on its sample format, its contract (not its arithmetic) instantiated
+# for q31 (D47): an object built on every leg.
+add_library(catenae_q31_traits OBJECT q31_traits.cpp)
+target_link_libraries(catenae_q31_traits PRIVATE catenae::catenae catenae_test_warnings)
 
 # What must not compile (tests/compile_fail) and what must and must not link (tests/link).
 add_subdirectory(compile_fail)

@@ -29,7 +29,8 @@ documented here, once, and nowhere else (PLAN.md section 11.2, rule 2). The word
 | `tail_frames()`, `practical_tail_frames()`, `flush_residue()` | Zero input frames after which the output is silence within the residue, and the frames to -120 dB re full scale. |
 
 `stage_traits<T>` derives `is_frame_synchronous`, which is `input_group == 1`: every call of
-n frames writes exactly n L/M. A stage never declares it (D35).
+n frames writes exactly n L/M. A stage never declares it (D35); a chain carries its own,
+derived the same way from its composed `input_group`.
 
 **The law.** When frames reach a stage in whole multiples of q, it trails or leads by at most
 its `max_shortfall` or `max_lead` scaled by (group - gcd(q, group)) / (group - 1), and by
@@ -48,7 +49,7 @@ default member initialiser fails to compile.
 that rests at zero and calls the other's `reset`, whatever the storage held.
 
 @req{CAT-STAGE-004} `is_frame_synchronous` is `input_group == 1`; a stage that declares it
-fails to compile.
+fails to compile, unless it is a chain, which derives its own from its composed group.
 
 @req{CAT-STAGE-005} A stage is in place only with one port type, `input_group` 1 and
 `max_outputs_for(n) == n` (read at fourteen values of n from 0 to 4096); any other in-place

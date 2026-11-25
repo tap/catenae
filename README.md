@@ -11,11 +11,10 @@ A C++17 library of audio processing *stages*, the *chain* that composes them, th
 value between threads. No heap, no exceptions, no RTTI; every contract is stated as numbers
 and pinned by a test.
 
-**Status: the contracts are written, and there is no chain to build yet.** The builds, CI on
-every target and the measurement harness are in place, and so are the contracts the rest
-is built on: the vocabulary (`span`, `expected`, the sample formats, the ports), the checks
-and their handler, and the traits that read and check what a stage, a junction and an
-analyzer declare. The chain and the first stages arrive with the next milestone.
+**Status: the chain and its first stages.** The builds, CI on every target, the measurement
+harness and the contracts are in place, and a chain of stages written as a type runs on every
+target: `map`, a `gain` that ramps, a fixed `delay`, the layout converters and `convert` among
+`float`, `q15`, `q31` and Q4.27. The combinators, the junctions and the mailbox follow.
 The design, its decisions and the milestones are in [`PLAN.md`](PLAN.md); the guide and the
 reference are published at <https://tap.github.io/catenae/>.
 
@@ -39,11 +38,22 @@ build; the library's checks of its own promises run when you build with
 and code built at one level does not link with code built at the other.
 
 ```cpp
-#include "catenae/version.h"
+#include <array>
 
-// Whether the compiled core this program linked was built from the headers it included.
-inline bool linked_these_headers() noexcept {
-    return catenae::version() == CATENAE_VERSION;
+#include "catenae/delay.h"
+#include "catenae/gain.h"
+
+// A stereo strip, as a type: a level that ramps over 96 frames when it changes, then a
+// delay of exactly 32 frames. The configuration is a constant; joints are checked here.
+constexpr auto strip = catenae::gain<2>{0.5f, 96} | catenae::delay<2, 32>{};
+
+// Its memory: one instance's state and the thread's workspace, plain storage.
+inline catenae::memory_of<decltype(strip)> strip_memory{};
+
+// strip.reset(strip_memory.state) once, then every callback. The blocks are arrays, so
+// every size is checked by the compiler.
+inline void audio_callback(const std::array<float, 64 * 2>& in, std::array<float, 64 * 2>& out) noexcept {
+    static_cast<void>(strip.process(strip_memory, in, out));
 }
 ```
 

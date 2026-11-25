@@ -155,7 +155,7 @@ namespace catenae {
             static_assert(!(out::k_kind == signal_kind::audio && in::k_kind == signal_kind::spectrum),
                           "catenae: a time-domain port cannot feed a spectrum");
             static_assert(
-                out::k_kind == in::k_kind || (out::k_kind != signal_kind::wire && in::k_kind != signal_kind::wire),
+                out::k_kind != signal_kind::wire && in::k_kind != signal_kind::wire,
                 "catenae: a wire port joins nothing inside a chain: only unpack reads one and pack writes one");
             static constexpr bool same_kind = out::k_kind == in::k_kind; ///< the kinds agree
             static_assert(!same_kind || std::is_same<typename out::format, typename in::format>::value,

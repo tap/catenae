@@ -51,6 +51,23 @@ endfunction()
 catenae_add_icount(version icount/version_main.cpp DEFINITIONS CATENAE_ICOUNT_BRACKET=0)
 catenae_add_icount(callmax_version icount/version_main.cpp DEFINITIONS CATENAE_ICOUNT_BRACKET=1)
 
+# The guide's "Stages and chains": the strip of examples/strip.h as a chain, and as virtual
+# nodes joined at run time (examples/run_time_graph.h), the strawman built here from its source.
+catenae_add_icount(strip_chain icount/strip_main.cpp DEFINITIONS CATENAE_STRIP_GRAPH=0)
+catenae_add_icount(strip_graph icount/strip_main.cpp DEFINITIONS CATENAE_STRIP_GRAPH=1)
+foreach(_strip IN ITEMS strip_chain strip_graph)
+    target_sources(catenae_icount_${_strip} PRIVATE "${PROJECT_SOURCE_DIR}/examples/run_time_graph.cpp")
+    target_include_directories(catenae_icount_${_strip} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
+endforeach()
+if(NOT _catenae_bare_metal)
+    # The same output, bit for bit: the two print one checksum.
+    add_test(NAME bench.strip_chain_and_graph_agree
+             COMMAND ${CMAKE_COMMAND} -DFIRST=$<TARGET_FILE:catenae_icount_strip_chain>
+                     -DSECOND=$<TARGET_FILE:catenae_icount_strip_graph> "-DEMULATOR=${CMAKE_CROSSCOMPILING_EMULATOR}"
+                     -P ${CMAKE_CURRENT_SOURCE_DIR}/icount/agree.cmake)
+    set_tests_properties(bench.strip_chain_and_graph_agree PROPERTIES LABELS bench)
+endif()
+
 # --- The size and stack probes -----------------------------------------------------------
 function(catenae_add_probe set source)
     set(_size catenae_probe_${set})

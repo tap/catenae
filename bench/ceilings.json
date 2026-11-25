@@ -1,5 +1,167 @@
 {
   "hexagon": {
+    "c1": {
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 4992,
+        "recorded": 4844
+      },
+      "image.data": {
+        "ceiling": 64,
+        "recorded": 4
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 72
+      },
+      "image.text": {
+        "ceiling": 10368,
+        "recorded": 10036
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.bss": {
+        "ceiling": 4736,
+        "recorded": 4560
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 36
+      },
+      "unit.text": {
+        "ceiling": 2944,
+        "recorded": 2828
+      }
+    },
+    "strip": {
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 1152,
+        "recorded": 1092
+      },
+      "image.data": {
+        "ceiling": 64,
+        "recorded": 4
+      },
+      "image.rodata": {
+        "ceiling": 64,
+        "recorded": 48
+      },
+      "image.text": {
+        "ceiling": 8320,
+        "recorded": 8020
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.bss": {
+        "ceiling": 832,
+        "recorded": 804
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 12
+      },
+      "unit.text": {
+        "ceiling": 960,
+        "recorded": 884
+      }
+    },
+    "strip_object": {
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 2880,
+        "recorded": 2760
+      },
+      "image.data": {
+        "ceiling": 192,
+        "recorded": 184
+      },
+      "image.rodata": {
+        "ceiling": 21376,
+        "recorded": 20732
+      },
+      "image.text": {
+        "ceiling": 191040,
+        "recorded": 185444
+      },
+      "startup.functions": {
+        "ceiling": 1,
+        "recorded": 1
+      },
+      "unit.bss": {
+        "ceiling": 64,
+        "recorded": 32
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.text": {
+        "ceiling": 448,
+        "recorded": 380
+      }
+    },
     "version": {
       "core.bss": {
         "ceiling": 0,
@@ -56,7 +218,261 @@
     }
   },
   "m33": {
+    "c1": {
+      "code.process": {
+        "ceiling": 1216,
+        "recorded": 1128
+      },
+      "code.reset": {
+        "ceiling": 384,
+        "recorded": 324
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 5760,
+        "recorded": 5576
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 124
+      },
+      "image.text": {
+        "ceiling": 8896,
+        "recorded": 8588
+      },
+      "sizeof.state": {
+        "ceiling": 768,
+        "recorded": 696
+      },
+      "sizeof.workspace": {
+        "ceiling": 4032,
+        "recorded": 3864
+      },
+      "stack.process.measured": {
+        "ceiling": 48,
+        "recorded": 40
+      },
+      "stack.process.static": {
+        "ceiling": 48,
+        "recorded": 40
+      },
+      "stack.reset.measured": {
+        "ceiling": 56,
+        "recorded": 48
+      },
+      "stack.reset.static": {
+        "ceiling": 56,
+        "recorded": 48
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 4736,
+        "recorded": 4560
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 36
+      },
+      "unit.text": {
+        "ceiling": 1280,
+        "recorded": 1232
+      }
+    },
+    "strip": {
+      "code.process": {
+        "ceiling": 384,
+        "recorded": 320
+      },
+      "code.reset": {
+        "ceiling": 256,
+        "recorded": 218
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 1920,
+        "recorded": 1820
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 100
+      },
+      "image.text": {
+        "ceiling": 8000,
+        "recorded": 7712
+      },
+      "sizeof.state": {
+        "ceiling": 320,
+        "recorded": 288
+      },
+      "sizeof.workspace": {
+        "ceiling": 576,
+        "recorded": 516
+      },
+      "stack.process.measured": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "stack.process.static": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "stack.reset.measured": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "stack.reset.static": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 832,
+        "recorded": 804
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 12
+      },
+      "unit.text": {
+        "ceiling": 384,
+        "recorded": 354
+      }
+    },
+    "strip_object": {
+      "code.process": {
+        "ceiling": 192,
+        "recorded": 136
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "heap.used": {
+        "ceiling": 1408,
+        "recorded": 1360
+      },
+      "image.bss": {
+        "ceiling": 1152,
+        "recorded": 1092
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1380
+      },
+      "image.rodata": {
+        "ceiling": 896,
+        "recorded": 861
+      },
+      "image.text": {
+        "ceiling": 18688,
+        "recorded": 18100
+      },
+      "stack.process.measured": {
+        "ceiling": 24,
+        "recorded": 16
+      },
+      "stack.process.static": {
+        "ceiling": 24,
+        "recorded": 16
+      },
+      "startup.functions": {
+        "ceiling": 1,
+        "recorded": 1
+      },
+      "unit.bss": {
+        "ceiling": 64,
+        "recorded": 32
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.text": {
+        "ceiling": 320,
+        "recorded": 292
+      }
+    },
     "version": {
+      "code.version": {
+        "ceiling": 64,
+        "recorded": 20
+      },
       "core.bss": {
         "ceiling": 0,
         "recorded": 0
@@ -124,7 +540,261 @@
     }
   },
   "m4-softfp": {
+    "c1": {
+      "code.process": {
+        "ceiling": 2944,
+        "recorded": 2856
+      },
+      "code.reset": {
+        "ceiling": 384,
+        "recorded": 324
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 5760,
+        "recorded": 5576
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 124
+      },
+      "image.text": {
+        "ceiling": 10560,
+        "recorded": 10200
+      },
+      "sizeof.state": {
+        "ceiling": 768,
+        "recorded": 696
+      },
+      "sizeof.workspace": {
+        "ceiling": 4032,
+        "recorded": 3864
+      },
+      "stack.process.measured": {
+        "ceiling": 80,
+        "recorded": 72
+      },
+      "stack.process.static": {
+        "ceiling": 80,
+        "recorded": 72
+      },
+      "stack.reset.measured": {
+        "ceiling": 48,
+        "recorded": 44
+      },
+      "stack.reset.static": {
+        "ceiling": 48,
+        "recorded": 44
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 4736,
+        "recorded": 4560
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 36
+      },
+      "unit.text": {
+        "ceiling": 1280,
+        "recorded": 1236
+      }
+    },
+    "strip": {
+      "code.process": {
+        "ceiling": 1472,
+        "recorded": 1370
+      },
+      "code.reset": {
+        "ceiling": 256,
+        "recorded": 218
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 1920,
+        "recorded": 1820
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 100
+      },
+      "image.text": {
+        "ceiling": 9344,
+        "recorded": 9048
+      },
+      "sizeof.state": {
+        "ceiling": 320,
+        "recorded": 288
+      },
+      "sizeof.workspace": {
+        "ceiling": 576,
+        "recorded": 516
+      },
+      "stack.process.measured": {
+        "ceiling": 48,
+        "recorded": 40
+      },
+      "stack.process.static": {
+        "ceiling": 48,
+        "recorded": 40
+      },
+      "stack.reset.measured": {
+        "ceiling": 32,
+        "recorded": 28
+      },
+      "stack.reset.static": {
+        "ceiling": 32,
+        "recorded": 28
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 832,
+        "recorded": 804
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 12
+      },
+      "unit.text": {
+        "ceiling": 384,
+        "recorded": 342
+      }
+    },
+    "strip_object": {
+      "code.process": {
+        "ceiling": 960,
+        "recorded": 876
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "heap.used": {
+        "ceiling": 1408,
+        "recorded": 1360
+      },
+      "image.bss": {
+        "ceiling": 1152,
+        "recorded": 1092
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1380
+      },
+      "image.rodata": {
+        "ceiling": 896,
+        "recorded": 861
+      },
+      "image.text": {
+        "ceiling": 20224,
+        "recorded": 19608
+      },
+      "stack.process.measured": {
+        "ceiling": 56,
+        "recorded": 52
+      },
+      "stack.process.static": {
+        "ceiling": 64,
+        "recorded": 56
+      },
+      "startup.functions": {
+        "ceiling": 1,
+        "recorded": 1
+      },
+      "unit.bss": {
+        "ceiling": 64,
+        "recorded": 32
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.text": {
+        "ceiling": 384,
+        "recorded": 320
+      }
+    },
     "version": {
+      "code.version": {
+        "ceiling": 64,
+        "recorded": 20
+      },
       "core.bss": {
         "ceiling": 0,
         "recorded": 0
@@ -192,7 +862,261 @@
     }
   },
   "m4f": {
+    "c1": {
+      "code.process": {
+        "ceiling": 1216,
+        "recorded": 1128
+      },
+      "code.reset": {
+        "ceiling": 384,
+        "recorded": 324
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 5760,
+        "recorded": 5576
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 124
+      },
+      "image.text": {
+        "ceiling": 9024,
+        "recorded": 8728
+      },
+      "sizeof.state": {
+        "ceiling": 768,
+        "recorded": 696
+      },
+      "sizeof.workspace": {
+        "ceiling": 4032,
+        "recorded": 3864
+      },
+      "stack.process.measured": {
+        "ceiling": 48,
+        "recorded": 40
+      },
+      "stack.process.static": {
+        "ceiling": 48,
+        "recorded": 40
+      },
+      "stack.reset.measured": {
+        "ceiling": 48,
+        "recorded": 44
+      },
+      "stack.reset.static": {
+        "ceiling": 48,
+        "recorded": 44
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 4736,
+        "recorded": 4560
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 36
+      },
+      "unit.text": {
+        "ceiling": 1280,
+        "recorded": 1232
+      }
+    },
+    "strip": {
+      "code.process": {
+        "ceiling": 384,
+        "recorded": 320
+      },
+      "code.reset": {
+        "ceiling": 256,
+        "recorded": 218
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 1920,
+        "recorded": 1820
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 100
+      },
+      "image.text": {
+        "ceiling": 8128,
+        "recorded": 7832
+      },
+      "sizeof.state": {
+        "ceiling": 320,
+        "recorded": 288
+      },
+      "sizeof.workspace": {
+        "ceiling": 576,
+        "recorded": 516
+      },
+      "stack.process.measured": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "stack.process.static": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "stack.reset.measured": {
+        "ceiling": 32,
+        "recorded": 28
+      },
+      "stack.reset.static": {
+        "ceiling": 32,
+        "recorded": 28
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 832,
+        "recorded": 804
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 12
+      },
+      "unit.text": {
+        "ceiling": 384,
+        "recorded": 354
+      }
+    },
+    "strip_object": {
+      "code.process": {
+        "ceiling": 192,
+        "recorded": 136
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "heap.used": {
+        "ceiling": 1408,
+        "recorded": 1360
+      },
+      "image.bss": {
+        "ceiling": 1152,
+        "recorded": 1092
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1380
+      },
+      "image.rodata": {
+        "ceiling": 896,
+        "recorded": 861
+      },
+      "image.text": {
+        "ceiling": 19328,
+        "recorded": 18712
+      },
+      "stack.process.measured": {
+        "ceiling": 24,
+        "recorded": 16
+      },
+      "stack.process.static": {
+        "ceiling": 24,
+        "recorded": 16
+      },
+      "startup.functions": {
+        "ceiling": 1,
+        "recorded": 1
+      },
+      "unit.bss": {
+        "ceiling": 64,
+        "recorded": 32
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.text": {
+        "ceiling": 320,
+        "recorded": 292
+      }
+    },
     "version": {
+      "code.version": {
+        "ceiling": 64,
+        "recorded": 20
+      },
       "core.bss": {
         "ceiling": 0,
         "recorded": 0
@@ -260,7 +1184,261 @@
     }
   },
   "m55": {
+    "c1": {
+      "code.process": {
+        "ceiling": 1280,
+        "recorded": 1196
+      },
+      "code.reset": {
+        "ceiling": 384,
+        "recorded": 324
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 5760,
+        "recorded": 5576
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 124
+      },
+      "image.text": {
+        "ceiling": 8960,
+        "recorded": 8664
+      },
+      "sizeof.state": {
+        "ceiling": 768,
+        "recorded": 696
+      },
+      "sizeof.workspace": {
+        "ceiling": 4032,
+        "recorded": 3864
+      },
+      "stack.process.measured": {
+        "ceiling": 48,
+        "recorded": 40
+      },
+      "stack.process.static": {
+        "ceiling": 48,
+        "recorded": 40
+      },
+      "stack.reset.measured": {
+        "ceiling": 56,
+        "recorded": 48
+      },
+      "stack.reset.static": {
+        "ceiling": 56,
+        "recorded": 48
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 4736,
+        "recorded": 4560
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 36
+      },
+      "unit.text": {
+        "ceiling": 1344,
+        "recorded": 1302
+      }
+    },
+    "strip": {
+      "code.process": {
+        "ceiling": 384,
+        "recorded": 344
+      },
+      "code.reset": {
+        "ceiling": 256,
+        "recorded": 218
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 1920,
+        "recorded": 1820
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 100
+      },
+      "image.text": {
+        "ceiling": 8000,
+        "recorded": 7740
+      },
+      "sizeof.state": {
+        "ceiling": 320,
+        "recorded": 288
+      },
+      "sizeof.workspace": {
+        "ceiling": 576,
+        "recorded": 516
+      },
+      "stack.process.measured": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "stack.process.static": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "stack.reset.measured": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "stack.reset.static": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 832,
+        "recorded": 804
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 12
+      },
+      "unit.text": {
+        "ceiling": 448,
+        "recorded": 380
+      }
+    },
+    "strip_object": {
+      "code.process": {
+        "ceiling": 192,
+        "recorded": 136
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "heap.used": {
+        "ceiling": 1408,
+        "recorded": 1360
+      },
+      "image.bss": {
+        "ceiling": 1152,
+        "recorded": 1092
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1380
+      },
+      "image.rodata": {
+        "ceiling": 896,
+        "recorded": 861
+      },
+      "image.text": {
+        "ceiling": 18688,
+        "recorded": 18108
+      },
+      "stack.process.measured": {
+        "ceiling": 24,
+        "recorded": 16
+      },
+      "stack.process.static": {
+        "ceiling": 24,
+        "recorded": 16
+      },
+      "startup.functions": {
+        "ceiling": 1,
+        "recorded": 1
+      },
+      "unit.bss": {
+        "ceiling": 64,
+        "recorded": 32
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.text": {
+        "ceiling": 320,
+        "recorded": 294
+      }
+    },
     "version": {
+      "code.version": {
+        "ceiling": 64,
+        "recorded": 20
+      },
       "core.bss": {
         "ceiling": 0,
         "recorded": 0

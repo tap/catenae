@@ -6,14 +6,14 @@
 
 namespace cf {
     catenae::status apply(int v) noexcept;
-    void            discard(int v) noexcept;
+    void            discard_status(int v) noexcept;
 } // namespace cf
 
 catenae::status cf::apply(int v) noexcept {
     return v < 0 ? catenae::status::invalid_argument : catenae::status::out_of_range;
 }
 
-void cf::discard(int v) noexcept {
+void cf::discard_status(int v) noexcept {
 #ifdef CATENAE_CF_CONTROL
     static_cast<void>(apply(v));
 #else

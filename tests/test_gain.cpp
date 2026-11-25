@@ -44,6 +44,40 @@ namespace {
         EXPECT_EQ(std::memcmp(same.data(), out.data(), same.size() * sizeof(TypeParam)), 0);
     }
 
+    // Verifies CAT-GAIN-001. The steady level is applied in runs of 16 samples with a remainder,
+    // by one loop when the buffers are one and by another when they are apart: every length up
+    // to three runs, both ways, and nothing written past the frames given.
+    TYPED_TEST(gain_formats, EveryLengthIsExactInPlaceAndApart) {
+        using g_t = catenae::basic_gain<TypeParam, 3>;
+        constexpr g_t           g{static_cast<TypeParam>(0.75), 0};
+        typename g_t::workspace ws{};
+        const TypeParam         untouched = TypeParam{-99};
+        for (std::size_t frames = 0; frames <= 17; ++frames) {
+            const std::size_t      samples = 3 * frames;
+            std::vector<TypeParam> in(samples + 1, untouched);
+            for (std::size_t i = 0; i < samples; ++i) {
+                in[i] = static_cast<TypeParam>(i) - TypeParam{7};
+            }
+            std::vector<TypeParam> apart(samples + 1, untouched);
+            std::vector<TypeParam> same = in;
+            typename g_t::state    a{};
+            typename g_t::state    b{};
+            catenae::stage_traits<g_t>::reset(g, a);
+            catenae::stage_traits<g_t>::reset(g, b);
+            EXPECT_EQ(g.run(a, ws, catenae::span<const TypeParam>(in.data(), samples),
+                            catenae::span<TypeParam>(apart.data(), samples)),
+                      frames);
+            EXPECT_EQ(g.run(b, ws, catenae::span<const TypeParam>(same.data(), samples),
+                            catenae::span<TypeParam>(same.data(), samples)),
+                      frames);
+            for (std::size_t i = 0; i < samples; ++i) {
+                EXPECT_EQ(apart[i], in[i] * static_cast<TypeParam>(0.75)) << frames << " frames, sample " << i;
+            }
+            EXPECT_EQ(std::memcmp(same.data(), apart.data(), (samples + 1) * sizeof(TypeParam)), 0) << frames;
+            EXPECT_EQ(apart[samples], untouched) << frames;
+        }
+    }
+
     // Verifies CAT-GAIN-002.
     TYPED_TEST(gain_formats, ANewLevelIsReachedOverTheRamp) {
         using g_t = catenae::basic_gain<TypeParam, 1>;
@@ -70,6 +104,33 @@ namespace {
         jump.set_level(TypeParam{3});
         static_cast<void>(jump.run(st, ws, catenae::span<const TypeParam>(in), catenae::span<TypeParam>(out)));
         EXPECT_EQ(out[0], TypeParam{3});
+    }
+
+    // Verifies CAT-GAIN-002. A ramp that ends inside a call hands over to the steady level in
+    // the same call: the ramp's frames by the formula, every later frame at the goal exactly,
+    // and the same in place as apart.
+    TYPED_TEST(gain_formats, ARampThatEndsInsideACallMeetsTheGoal) {
+        using g_t = catenae::basic_gain<TypeParam, 2>;
+        g_t                     g{TypeParam{1}, 5};
+        typename g_t::workspace ws{};
+        typename g_t::state     a{};
+        typename g_t::state     b{};
+        catenae::stage_traits<g_t>::reset(g, a);
+        catenae::stage_traits<g_t>::reset(g, b);
+        g.set_level(static_cast<TypeParam>(0.25));
+        const std::vector<TypeParam> in = ones<TypeParam>(2 * 40);
+        std::vector<TypeParam>       apart(in.size());
+        std::vector<TypeParam>       same = in;
+        static_cast<void>(g.run(a, ws, catenae::span<const TypeParam>(in), catenae::span<TypeParam>(apart)));
+        static_cast<void>(g.run(b, ws, catenae::span<const TypeParam>(same), catenae::span<TypeParam>(same)));
+        const TypeParam step = (static_cast<TypeParam>(0.25) - TypeParam{1}) / TypeParam{5};
+        for (std::uint32_t k = 1; k <= 40; ++k) {
+            const TypeParam level = k <= 5 ? static_cast<TypeParam>(0.25) - step * static_cast<TypeParam>(5 - k)
+                                           : static_cast<TypeParam>(0.25);
+            EXPECT_EQ(apart[2 * (k - 1)], level) << k;
+            EXPECT_EQ(apart[2 * (k - 1) + 1], level) << k;
+        }
+        EXPECT_EQ(std::memcmp(same.data(), apart.data(), apart.size() * sizeof(TypeParam)), 0);
     }
 
     // Verifies CAT-GAIN-003.

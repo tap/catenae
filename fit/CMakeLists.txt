@@ -13,5 +13,9 @@ file(GLOB _catenae_fit_tests CONFIGURE_DEPENDS ${CMAKE_CURRENT_SOURCE_DIR}/*/tes
 if(NOT _catenae_fit_tests)
     message(FATAL_ERROR "fit/: no test_*.cpp under any skeleton's directory")
 endif()
-catenae_add_gtest_executable(catenae_fit_tests SOURCES ${_catenae_fit_tests} LABELS fit)
-target_include_directories(catenae_fit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/tests)
+# The battery's check handler and generic harness, and its fixture stages, as the battery has
+# them (tests/CMakeLists.txt).
+catenae_add_gtest_executable(catenae_fit_tests
+    SOURCES ${_catenae_fit_tests} ${PROJECT_SOURCE_DIR}/tests/support/catenae_test/check_trap.cpp LABELS fit)
+target_include_directories(catenae_fit_tests PRIVATE ${CMAKE_CURRENT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/tests/support
+                                                      ${PROJECT_SOURCE_DIR}/tests/fixtures)

@@ -30,8 +30,8 @@
         "recorded": 72
       },
       "image.text": {
-        "ceiling": 10368,
-        "recorded": 10036
+        "ceiling": 10816,
+        "recorded": 10484
       },
       "startup.functions": {
         "ceiling": 0,
@@ -50,8 +50,8 @@
         "recorded": 36
       },
       "unit.text": {
-        "ceiling": 2944,
-        "recorded": 2828
+        "ceiling": 3392,
+        "recorded": 3284
       }
     },
     "strip": {
@@ -84,8 +84,8 @@
         "recorded": 48
       },
       "image.text": {
-        "ceiling": 8320,
-        "recorded": 8020
+        "ceiling": 8512,
+        "recorded": 8244
       },
       "startup.functions": {
         "ceiling": 0,
@@ -104,8 +104,8 @@
         "recorded": 12
       },
       "unit.text": {
-        "ceiling": 960,
-        "recorded": 884
+        "ceiling": 1152,
+        "recorded": 1108
       }
     },
     "strip_object": {
@@ -220,12 +220,12 @@
   "m33": {
     "c1": {
       "code.process": {
-        "ceiling": 1216,
-        "recorded": 1128
+        "ceiling": 1472,
+        "recorded": 1400
       },
       "code.reset": {
-        "ceiling": 384,
-        "recorded": 324
+        "ceiling": 320,
+        "recorded": 302
       },
       "core.bss": {
         "ceiling": 0,
@@ -256,8 +256,8 @@
         "recorded": 124
       },
       "image.text": {
-        "ceiling": 8896,
-        "recorded": 8588
+        "ceiling": 9152,
+        "recorded": 8884
       },
       "sizeof.state": {
         "ceiling": 768,
@@ -276,12 +276,12 @@
         "recorded": 40
       },
       "stack.reset.measured": {
-        "ceiling": 56,
-        "recorded": 48
+        "ceiling": 40,
+        "recorded": 32
       },
       "stack.reset.static": {
-        "ceiling": 56,
-        "recorded": 48
+        "ceiling": 40,
+        "recorded": 32
       },
       "startup.functions": {
         "ceiling": 0,
@@ -304,14 +304,14 @@
         "recorded": 36
       },
       "unit.text": {
-        "ceiling": 1280,
-        "recorded": 1232
+        "ceiling": 1600,
+        "recorded": 1526
       }
     },
     "strip": {
       "code.process": {
-        "ceiling": 384,
-        "recorded": 320
+        "ceiling": 512,
+        "recorded": 488
       },
       "code.reset": {
         "ceiling": 256,
@@ -346,8 +346,8 @@
         "recorded": 100
       },
       "image.text": {
-        "ceiling": 8000,
-        "recorded": 7712
+        "ceiling": 8128,
+        "recorded": 7880
       },
       "sizeof.state": {
         "ceiling": 320,
@@ -358,12 +358,12 @@
         "recorded": 516
       },
       "stack.process.measured": {
-        "ceiling": 40,
-        "recorded": 32
+        "ceiling": 48,
+        "recorded": 40
       },
       "stack.process.static": {
-        "ceiling": 40,
-        "recorded": 32
+        "ceiling": 48,
+        "recorded": 40
       },
       "stack.reset.measured": {
         "ceiling": 40,
@@ -394,8 +394,8 @@
         "recorded": 12
       },
       "unit.text": {
-        "ceiling": 384,
-        "recorded": 354
+        "ceiling": 576,
+        "recorded": 522
       }
     },
     "strip_object": {
@@ -542,12 +542,12 @@
   "m4-softfp": {
     "c1": {
       "code.process": {
-        "ceiling": 2944,
-        "recorded": 2856
+        "ceiling": 3264,
+        "recorded": 3168
       },
       "code.reset": {
-        "ceiling": 384,
-        "recorded": 324
+        "ceiling": 320,
+        "recorded": 302
       },
       "core.bss": {
         "ceiling": 0,
@@ -578,8 +578,8 @@
         "recorded": 124
       },
       "image.text": {
-        "ceiling": 10560,
-        "recorded": 10200
+        "ceiling": 10944,
+        "recorded": 10584
       },
       "sizeof.state": {
         "ceiling": 768,
@@ -590,20 +590,20 @@
         "recorded": 3864
       },
       "stack.process.measured": {
-        "ceiling": 80,
-        "recorded": 72
+        "ceiling": 104,
+        "recorded": 96
       },
       "stack.process.static": {
-        "ceiling": 80,
-        "recorded": 72
+        "ceiling": 104,
+        "recorded": 96
       },
       "stack.reset.measured": {
-        "ceiling": 48,
-        "recorded": 44
+        "ceiling": 32,
+        "recorded": 28
       },
       "stack.reset.static": {
-        "ceiling": 48,
-        "recorded": 44
+        "ceiling": 32,
+        "recorded": 28
       },
       "startup.functions": {
         "ceiling": 0,
@@ -626,14 +626,14 @@
         "recorded": 36
       },
       "unit.text": {
-        "ceiling": 1280,
-        "recorded": 1236
+        "ceiling": 1664,
+        "recorded": 1570
       }
     },
     "strip": {
       "code.process": {
-        "ceiling": 1472,
-        "recorded": 1370
+        "ceiling": 1664,
+        "recorded": 1566
       },
       "code.reset": {
         "ceiling": 256,
@@ -668,8 +668,8 @@
         "recorded": 100
       },
       "image.text": {
-        "ceiling": 9344,
-        "recorded": 9048
+        "ceiling": 9536,
+        "recorded": 9240
       },
       "sizeof.state": {
         "ceiling": 320,
@@ -680,12 +680,12 @@
         "recorded": 516
       },
       "stack.process.measured": {
-        "ceiling": 48,
-        "recorded": 40
+        "ceiling": 72,
+        "recorded": 64
       },
       "stack.process.static": {
-        "ceiling": 48,
-        "recorded": 40
+        "ceiling": 72,
+        "recorded": 64
       },
       "stack.reset.measured": {
         "ceiling": 32,
@@ -716,8 +716,8 @@
         "recorded": 12
       },
       "unit.text": {
-        "ceiling": 384,
-        "recorded": 342
+        "ceiling": 576,
+        "recorded": 538
       }
     },
     "strip_object": {
@@ -864,12 +864,12 @@
   "m4f": {
     "c1": {
       "code.process": {
-        "ceiling": 1216,
-        "recorded": 1128
+        "ceiling": 1472,
+        "recorded": 1400
       },
       "code.reset": {
-        "ceiling": 384,
-        "recorded": 324
+        "ceiling": 320,
+        "recorded": 302
       },
       "core.bss": {
         "ceiling": 0,
@@ -900,8 +900,8 @@
         "recorded": 124
       },
       "image.text": {
-        "ceiling": 9024,
-        "recorded": 8728
+        "ceiling": 9280,
+        "recorded": 8984
       },
       "sizeof.state": {
         "ceiling": 768,
@@ -920,12 +920,12 @@
         "recorded": 40
       },
       "stack.reset.measured": {
-        "ceiling": 48,
-        "recorded": 44
+        "ceiling": 32,
+        "recorded": 28
       },
       "stack.reset.static": {
-        "ceiling": 48,
-        "recorded": 44
+        "ceiling": 32,
+        "recorded": 28
       },
       "startup.functions": {
         "ceiling": 0,
@@ -948,14 +948,14 @@
         "recorded": 36
       },
       "unit.text": {
-        "ceiling": 1280,
-        "recorded": 1232
+        "ceiling": 1600,
+        "recorded": 1526
       }
     },
     "strip": {
       "code.process": {
-        "ceiling": 384,
-        "recorded": 320
+        "ceiling": 512,
+        "recorded": 488
       },
       "code.reset": {
         "ceiling": 256,
@@ -990,8 +990,8 @@
         "recorded": 100
       },
       "image.text": {
-        "ceiling": 8128,
-        "recorded": 7832
+        "ceiling": 8320,
+        "recorded": 8024
       },
       "sizeof.state": {
         "ceiling": 320,
@@ -1002,12 +1002,12 @@
         "recorded": 516
       },
       "stack.process.measured": {
-        "ceiling": 40,
-        "recorded": 32
+        "ceiling": 48,
+        "recorded": 40
       },
       "stack.process.static": {
-        "ceiling": 40,
-        "recorded": 32
+        "ceiling": 48,
+        "recorded": 40
       },
       "stack.reset.measured": {
         "ceiling": 32,
@@ -1038,8 +1038,8 @@
         "recorded": 12
       },
       "unit.text": {
-        "ceiling": 384,
-        "recorded": 354
+        "ceiling": 576,
+        "recorded": 522
       }
     },
     "strip_object": {
@@ -1186,12 +1186,12 @@
   "m55": {
     "c1": {
       "code.process": {
-        "ceiling": 1280,
-        "recorded": 1196
+        "ceiling": 1600,
+        "recorded": 1552
       },
       "code.reset": {
-        "ceiling": 384,
-        "recorded": 324
+        "ceiling": 320,
+        "recorded": 302
       },
       "core.bss": {
         "ceiling": 0,
@@ -1222,8 +1222,8 @@
         "recorded": 124
       },
       "image.text": {
-        "ceiling": 8960,
-        "recorded": 8664
+        "ceiling": 9344,
+        "recorded": 9044
       },
       "sizeof.state": {
         "ceiling": 768,
@@ -1242,12 +1242,12 @@
         "recorded": 40
       },
       "stack.reset.measured": {
-        "ceiling": 56,
-        "recorded": 48
+        "ceiling": 40,
+        "recorded": 32
       },
       "stack.reset.static": {
-        "ceiling": 56,
-        "recorded": 48
+        "ceiling": 40,
+        "recorded": 32
       },
       "startup.functions": {
         "ceiling": 0,
@@ -1270,14 +1270,14 @@
         "recorded": 36
       },
       "unit.text": {
-        "ceiling": 1344,
-        "recorded": 1302
+        "ceiling": 1792,
+        "recorded": 1680
       }
     },
     "strip": {
       "code.process": {
-        "ceiling": 384,
-        "recorded": 344
+        "ceiling": 576,
+        "recorded": 552
       },
       "code.reset": {
         "ceiling": 256,
@@ -1312,8 +1312,8 @@
         "recorded": 100
       },
       "image.text": {
-        "ceiling": 8000,
-        "recorded": 7740
+        "ceiling": 8192,
+        "recorded": 7948
       },
       "sizeof.state": {
         "ceiling": 320,
@@ -1324,12 +1324,12 @@
         "recorded": 516
       },
       "stack.process.measured": {
-        "ceiling": 40,
-        "recorded": 32
+        "ceiling": 48,
+        "recorded": 40
       },
       "stack.process.static": {
-        "ceiling": 40,
-        "recorded": 32
+        "ceiling": 48,
+        "recorded": 40
       },
       "stack.reset.measured": {
         "ceiling": 40,
@@ -1360,8 +1360,8 @@
         "recorded": 12
       },
       "unit.text": {
-        "ceiling": 448,
-        "recorded": 380
+        "ceiling": 640,
+        "recorded": 588
       }
     },
     "strip_object": {

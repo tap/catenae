@@ -38,18 +38,18 @@ figures are bytes, except the count of start-up functions.
 
 | Figure | `strip_object` | `strip` |
 |---|--:|--:|
-| The whole image's `.text`, runtime included | 18,100 | 7,712 |
+| The whole image's `.text`, runtime included | 18,100 | 7,880 |
 | The probe's own `.bss` | 32 | 804 |
 | The probe's own `.data` | 0 | 0 |
 | Start-up functions the probe's own code adds | 1 | 0 |
 | What the heap holds after start-up | 1,360 | not measured |
 | The start-up's worst-case stack, static | no static bound | 12 |
-| `process`: worst-case stack, static / measured | 16 / 16 | 32 / 32 |
-| `process`: code it can reach | 136 | 320 |
+| `process`: worst-case stack, static / measured | 16 / 16 | 40 / 40 |
+| `process`: code it can reach | 136 | 488 |
 | `reset`: stack / code it can reach | none: the constructor | 32 / 218 |
 
 The numbers are from
-[bench run 45704804502](https://github.com/tap/catenae/actions/runs/45704804502). They are
+[bench run 45715344934](https://github.com/tap/catenae/actions/runs/45715344934). They are
 recorded in `bench/ceilings.json`, and this reproduces them:
 
 ```sh
@@ -60,7 +60,7 @@ scripts/ceilings.py measure --key m33 --build-dir build-size
 ```
 
 A start-up function is one the runtime calls before `main`. The strip's 12 bytes of
-start-up stack are the C library's own (newlib's `register_fini`), not catenae's. The 320
+start-up stack are the C library's own (newlib's `register_fini`), not catenae's. The 488
 bytes that the strip's `process` can reach include `memcmp`, and the 218 of its `reset`
 include `memset`.
 
@@ -91,8 +91,8 @@ The first command prints three entries. Run on `catenae_probe_strip`, it prints 
 
 Two things in this table do not favour catenae, and they are part of the measurement.
 
-The object's `process` is the smaller one: 136 bytes of code and 16 of stack, against 320
-and 32 for the chain. What the heap object costs is at start-up and in the map, not in
+The object's `process` is the smaller one: 136 bytes of code and 16 of stack, against 488
+and 40 for the chain. What the heap object costs is at start-up and in the map, not in
 its loop.
 
 And neither image is free of an allocator. The test platform's C library, newlib with

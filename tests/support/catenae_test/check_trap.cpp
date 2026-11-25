@@ -13,6 +13,12 @@ namespace catenae_test {
         return the_trap;
     }
 
+    // MSVC warns at every setjmp in C++ (C4611), whatever the frame holds; this one holds
+    // nothing with a destructor, and the jump crosses only the statement's frames.
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(push)
+#pragma warning(disable : 4611) // DEV-015
+#endif
     bool fails_a_check(void (*body)(void*), void* context) noexcept {
         check_trap& t = trap();
         t.armed       = true;
@@ -23,6 +29,9 @@ namespace catenae_test {
         }
         return true;
     }
+#if defined(_MSC_VER) && !defined(__clang__)
+#pragma warning(pop)
+#endif
 
 } // namespace catenae_test
 

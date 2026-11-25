@@ -73,6 +73,9 @@ jobs:
       - name: Include guards (D40)
         if: ${{ !cancelled() }}
         run: python3 scripts/check_guards.py
+      - name: The mailbox's lifetime rule (CAT-MAILBOX-003)
+        if: ${{ !cancelled() }}
+        run: python3 scripts/check_slots.py
       - name: Raw signed shifts
         if: ${{ !cancelled() }}
         run: python3 scripts/check_shifts.py -p build

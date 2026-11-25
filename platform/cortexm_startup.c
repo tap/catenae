@@ -13,6 +13,9 @@
  *   - fault handlers that print CATENAE_TESTS_FAULT over semihosting and
  *     exit, so a fault fails the CTest run in seconds with a diagnostic
  *     instead of parking until the timeout
+ *   - a weak SysTick_Handler, the unexpected-exception handler unless a test
+ *     defines its own (tests/bare_metal/interrupt.cpp: a timer interrupt as
+ *     one side of a mailbox and a junction, PLAN.md section 7.3)
  *   - deterministic _sbrk over the linker-defined heap region (overrides
  *     librdimon's weak version, whose limit depends on the semihosting
  *     SYS_HEAPINFO call returning sensible values for this board)
@@ -186,6 +189,8 @@ void HardFault_Handler(void) {
     fault_exit("HardFault");
 }
 
+void SysTick_Handler(void) __attribute__((weak, alias("Default_Handler")));
+
 __attribute__((section(".vectors"), used)) static const uintptr_t vectors[16] = {
     (uintptr_t)&__stack_top,
     (uintptr_t)&Reset_Handler,
@@ -202,7 +207,7 @@ __attribute__((section(".vectors"), used)) static const uintptr_t vectors[16] = 
     (uintptr_t)&Default_Handler, /* DebugMonitor */
     0,
     (uintptr_t)&Default_Handler, /* PendSV */
-    (uintptr_t)&Default_Handler, /* SysTick */
+    (uintptr_t)&SysTick_Handler, /* SysTick */
 };
 
 #ifdef __cplusplus

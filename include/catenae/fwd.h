@@ -92,6 +92,18 @@ namespace catenae {
         template <typename A, typename B, align Align = align::by_type>
         class parallel;
 
+        template <typename S, std::size_t Ch, std::size_t Capacity, std::size_t Target, std::size_t Push>
+        class handoff;
+        struct handoff_report;
+        template <typename T>
+        class mailbox;
+        template <typename Chain>
+        struct feeding_scratch;
+        template <typename Chain>
+        struct fed_by_memory;
+        template <typename Chain, std::size_t MaxRequest>
+        struct fed_by_scratch;
+
     } // namespace CATENAE_ABI
 } // namespace catenae
 

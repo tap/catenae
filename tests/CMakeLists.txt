@@ -105,12 +105,15 @@ catenae_add_gtest_executable(catenae_tests
         test_convert_shift.cpp
         test_delay.cpp
         test_expected.cpp
+        test_feeding.cpp
         test_fwd.cpp
         test_fwd_alone.cpp
         test_gain.cpp
+        test_handoff.cpp
         test_harness.cpp
         test_interleave.cpp
         test_junction_traits.cpp
+        test_mailbox.cpp
         test_map.cpp
         test_parallel.cpp
         test_port.cpp
@@ -123,6 +126,10 @@ catenae_add_gtest_executable(catenae_tests
         test_version.cpp
         # The guide's stage of its own (examples/difference.h): its battery runs with this one.
         ../examples/difference_battery.cpp)
+# On a bare-metal leg a timer interrupt is one side of a mailbox and a junction (PLAN.md 7.3).
+if(CATENAE_BARE_METAL)
+    target_sources(catenae_tests PRIVATE bare_metal/interrupt.cpp)
+endif()
 # The battery's support (its check_failed, the generic harness) and the fixture stages.
 target_include_directories(catenae_tests PRIVATE support fixtures ../examples)
 # The message-passing test needs a second thread: hosted builds that have one.

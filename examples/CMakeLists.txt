@@ -31,6 +31,25 @@ if(NOT CMAKE_CROSSCOMPILING)
     endif()
 endif()
 
+# Threads and clocks: a mailbox and a junction across threads, on a host that has them.
+if(NOT CATENAE_BARE_METAL)
+    find_package(Threads QUIET)
+endif()
+if(Threads_FOUND)
+    catenae_add_example(threads_and_clocks)
+    target_link_libraries(catenae_example_threads_and_clocks PRIVATE Threads::Threads)
+    # What one would naturally write instead (guide: Threads and clocks), built only under the
+    # thread sanitizer, where it passes when the sanitizer reports its data race: it never runs
+    # in the battery, and the race is the point.
+    if(CMAKE_CXX_FLAGS MATCHES "-fsanitize=thread")
+        add_executable(catenae_example_racy_level racy_level.cpp)
+        target_link_libraries(catenae_example_racy_level PRIVATE catenae_test_warnings Threads::Threads)
+        add_test(NAME example.racy_level_is_a_data_race COMMAND catenae_example_racy_level)
+        set_tests_properties(example.racy_level_is_a_data_race PROPERTIES
+                             PASS_REGULAR_EXPRESSION "WARNING: ThreadSanitizer: data race" TIMEOUT 120)
+    endif()
+endif()
+
 # The guide's strawman: what one would naturally write instead of a chain. Its nodes are a
 # library of their own so that the ratchet's workload counts the same code.
 add_library(catenae_example_graph STATIC run_time_graph.cpp)

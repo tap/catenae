@@ -194,6 +194,7 @@ def build(bld):
         "bursts_and_buffering": ["examples/bursts_and_buffering.cpp"],
         "print_version": ["examples/print_version.cpp"],
         "stages_and_chains": ["examples/stages_and_chains.cpp"],
+        "threads_and_clocks": ["examples/threads_and_clocks.cpp"],
         "writing_a_stage": ["examples/writing_a_stage.cpp"],
         "run_time_graph": ["examples/run_time_graph_main.cpp", "examples/run_time_graph.cpp"],
     }

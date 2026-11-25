@@ -11,12 +11,14 @@ A C++17 library of audio processing *stages*, the *chain* that composes them, th
 value between threads. No heap, no exceptions, no RTTI; every contract is stated as numbers
 and pinned by a test.
 
-**Status: the chain and its first stages.** The builds, CI on every target, the measurement
-harness and the contracts are in place, and a chain of stages written as a type runs on every
-target: `map`, a `gain` that ramps, a fixed `delay`, the layout converters and `convert` among
-`float`, `q15`, `q31` and Q4.27. `steady` makes a stage that works in blocks frame-synchronous,
-and `parallel` runs two chains on two groups of a port's channels. The junctions and the
-mailbox follow.
+**Status: the chain, its first stages, the first junction and the mailbox.** The builds, CI
+on every target, the measurement harness and the contracts are in place, and a chain of
+stages written as a type runs on every target: `map`, a `gain` that ramps, a fixed `delay`,
+the layout converters and `convert` among `float`, `q15`, `q31` and Q4.27. `steady` makes a
+stage that works in blocks frame-synchronous, and `parallel` runs two chains on two groups of
+a port's channels. `handoff` joins two threads of one clock with a fill policy stated as
+numbers, `feeding` and `fed_by` run a chain on either side of it, and a `mailbox` carries a
+value from one thread to another; none of them waits.
 The design, its decisions and the milestones are in [`PLAN.md`](PLAN.md); the guide and the
 reference are published at <https://tap.github.io/catenae/>.
 

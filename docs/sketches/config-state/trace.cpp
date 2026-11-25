@@ -6,7 +6,7 @@
 
 #include "sketch.h"
 
-[[noreturn]] void catenae_check_failed(int /*code*/) noexcept {
+[[noreturn]] void catenae::check_failed(int /*code*/) noexcept {
     std::abort();
 }
 
@@ -19,9 +19,11 @@ struct halve {
 int main() {
     using region_t = blockwise<128, halve>;
     constexpr auto bare   = chain(region_t{halve{}});
-    constexpr auto smooth = chain(steady<region_t>{region_t{halve{}}});
-    static state_of<decltype(bare)>   s_bare;
-    static state_of<decltype(smooth)> s_smooth;
+    constexpr auto smooth = chain(steady{region_t{halve{}}});
+    static memory_of<decltype(bare)>   s_bare;
+    static memory_of<decltype(smooth)> s_smooth;
+    bare.reset(s_bare.state);
+    smooth.reset(s_smooth.state);
 
     std::array<float, 64>  in{};
     std::array<float, 128> burst{};
@@ -30,8 +32,8 @@ int main() {
     for (int call = 1; call <= 8; ++call) {
         const std::size_t bare_out   = bare.process(s_bare, span<const float>(in), span<float>(burst));
         const std::size_t steady_out = smooth.process(s_smooth, in, out);
-        const long        held       = 127 + static_cast<long>(std::get<0>(s_smooth.stages).surplus);
-        std::printf("%d,%zu,%zu,%ld,%zu\n", call, in.size(), bare_out, held, steady_out);
+        const std::size_t held       = s_smooth.state.stages.first.held;
+        std::printf("%d,%zu,%zu,%zu,%zu\n", call, in.size(), bare_out, held, steady_out);
     }
     return 0;
 }

@@ -1,9 +1,9 @@
 // Copyright 2026 Timothy Place and the catenae contributors
 //
-// A THROWAWAY SKETCH for decisions D34 and D35 of PLAN.md. It exists to show what the code
-// would look like and to measure where the memory lands. It is not the library: the rate
-// changers are toys (a linear-interpolating up2, a pair-averaging down2), there is one sample
-// type, and nothing here is a contract.
+// A THROWAWAY SKETCH for PLAN.md. It exists to show what the code would look like and to
+// measure where the memory lands. It is not the library: the rate changers are toys (a
+// linear-interpolating up2, a pair-averaging down2), there is one sample type and one layout,
+// and nothing here is a contract. README.md lists what it covers and what it does not.
 #ifndef CATENAE_SKETCHES_CONFIG_STATE_SKETCH_H
 #define CATENAE_SKETCHES_CONFIG_STATE_SKETCH_H
 
@@ -13,21 +13,38 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
+#include <limits>
+#include <new>
 #include <numeric>
 #include <tuple>
 #include <type_traits>
 #include <utility>
 
-// The integrator defines this (PLAN.md 3.3). It must not return.
-[[noreturn]] void catenae_check_failed(int code) noexcept;
-
 namespace catenae {
 
-    inline void expects(bool ok, int code) noexcept {
+    // The integrator defines this (PLAN.md 3.4), as `void catenae::check_failed(int) noexcept`.
+    // It must not return. It is declared inside the namespace so that, in the library, it
+    // carries the inline namespace's configuration tag like every other symbol.
+    [[noreturn]] void check_failed(int code) noexcept;
+
+    /// A boundary check: on in every build. constexpr, so that a checked accessor can be used
+    /// in a constant expression, where a failure is a compile error.
+    constexpr void expects(bool ok, int code) noexcept {
         if (!ok) {
-            catenae_check_failed(code);
+            check_failed(code);
         }
     }
+    /// An audit check, on the library's own promises: only with CATENAE_SKETCH_AUDIT.
+#if defined(CATENAE_SKETCH_AUDIT)
+    constexpr void audits(bool ok, int code) noexcept {
+        if (!ok) {
+            check_failed(code);
+        }
+    }
+#else
+    constexpr void audits(bool /*ok*/, int /*code*/) noexcept {}
+#endif
 
     // ---- the small vocabulary -----------------------------------------------------------
 
@@ -43,6 +60,19 @@ namespace catenae {
         const std::size_t d = a.down * b.down;
         const std::size_t g = std::gcd(u, d);
         return ratio{u / g, d / g};
+    }
+    constexpr ratio operator+(ratio a, ratio b) noexcept {
+        const std::size_t u = a.up * b.down + b.up * a.down;
+        const std::size_t d = a.down * b.down;
+        const std::size_t g = std::gcd(u, d);
+        return ratio{u / g, d / g};
+    }
+    constexpr ratio lesser(ratio a, ratio b) noexcept {
+        return a.up * b.down < b.up * a.down ? a : b;
+    }
+    /// The smallest whole number not below r.
+    constexpr std::size_t ceiling(ratio r) noexcept {
+        return (r.up + r.down - 1) / r.down;
     }
 
     template <typename S, std::size_t Ch>
@@ -89,8 +119,48 @@ namespace catenae {
 
     // =====================================================================================
     // D34. A stage is a CONFIGURATION: a small constant value. What it remembers between
-    // calls is a separate STATE, which is valid when every byte of it is zero.
+    // calls is a separate STATE: plain storage, with no constructor and no initialisers, so a
+    // static one is in .bss. The configuration RESETS the state before its first use; storage
+    // that is all zero means "not yet reset", not "at rest". A stage whose rest state is all
+    // zero writes no reset: the default zeroes the state in place. What a stage needs only
+    // while a call runs is a WORKSPACE, which carries nothing between calls and so is shared
+    // by every state run on one thread (most stages have none); it needs no reset.
+    //
+    // D35. A stage also publishes two numbers about how its output arrives:
+    //   input_group    the smallest n for which calls of whole multiples of n frames, from the
+    //                  reset state, always write exactly n L/M: 1 for a stage that keeps pace
+    //                  frame by frame, M for a decimator, the hop for a stage that works in blocks;
+    //   max_shortfall  the most output frames by which its output can trail n L/M, from any
+    //                  state (a ratio, since half an output frame is a real answer for down2).
     // =====================================================================================
+
+    /// A stage with no scratch says so with this.
+    struct no_workspace {};
+
+    namespace detail {
+        // The one member a stage may leave out: reset. This is the only place that looks.
+        template <typename Stage, typename = void>
+        struct has_reset : std::false_type {};
+        template <typename Stage>
+        struct has_reset<Stage, std::void_t<decltype(std::declval<const Stage&>().reset(
+                                    std::declval<typename Stage::state&>()))>> : std::true_type {};
+    } // namespace detail
+
+    /// Puts a state at rest, in place: the stage's own reset() where it has one, zeros where
+    /// it has not. No temporary the size of the state is ever built.
+    template <typename Stage>
+    void reset_state(const Stage& stage, typename Stage::state& st) noexcept {
+        static_assert(std::is_trivially_copyable_v<typename Stage::state> && std::is_standard_layout_v<typename Stage::state>,
+                      "catenae: a state is a plain aggregate (trivially copyable, standard layout)");
+        static_assert(std::numeric_limits<float>::is_iec559, "catenae: zero bytes are a zero float");
+        if constexpr (detail::has_reset<Stage>::value) {
+            stage.reset(st);
+        }
+        else {
+            static_cast<void>(stage);
+            std::memset(&st, 0, sizeof st);
+        }
+    }
 
     /// out = f(in), a sample at a time.
     template <std::size_t Ch, typename F>
@@ -98,10 +168,12 @@ namespace catenae {
       public:
         using input_port  = port<float, Ch>;
         using output_port = port<float, Ch>;
-        static constexpr ratio rate_ratio{1, 1};
-        static constexpr bool  is_frame_synchronous = true;
+        static constexpr ratio       rate_ratio{1, 1};
+        static constexpr std::size_t input_group = 1;
+        static constexpr ratio       max_shortfall{0, 1};
 
         struct state {};
+        using workspace = no_workspace;
 
         explicit constexpr map(F f) noexcept
             : m_f(f) {}
@@ -109,7 +181,7 @@ namespace catenae {
         constexpr const F& function() const noexcept { return m_f; }
         constexpr F&       function() noexcept { return m_f; }
 
-        std::size_t run(state& /*unused*/, span<const float> in, span<float> out) const noexcept {
+        std::size_t run(state& /*unused*/, workspace& /*unused*/, span<const float> in, span<float> out) const noexcept {
             std::transform(in.begin(), in.end(), out.begin(), m_f);
             return in.size() / Ch;
         }
@@ -139,16 +211,17 @@ namespace catenae {
       public:
         using input_port  = port<float, Ch>;
         using output_port = port<float, Ch>;
-        static constexpr ratio rate_ratio{1, 1};
-        static constexpr bool  is_frame_synchronous = true;
+        static constexpr ratio       rate_ratio{1, 1};
+        static constexpr std::size_t input_group = 1;
+        static constexpr ratio       max_shortfall{0, 1};
 
         struct state {
             float         current;   // the level being applied now
             float         goal;      // the level the ramp is heading for
             float         step;      // per frame, while a ramp runs
             std::uint32_t remaining; // frames of ramp left
-            std::uint32_t started;   // 0 until the first call, which starts at the level with no fade-in
         };
+        using workspace = no_workspace;
 
         constexpr gain(float level, std::uint32_t ramp_frames) noexcept
             : m_level(level)
@@ -159,12 +232,15 @@ namespace catenae {
         /// that runs the chain, between calls.
         constexpr void set_level(float level) noexcept { m_level = level; }
 
-        std::size_t run(state& st, span<const float> in, span<float> out) const noexcept {
-            if (st.started == 0) {
-                st.current = m_level;
-                st.goal    = m_level;
-                st.started = 1;
-            }
+        /// At rest the gain is at its level, not at zero: so this stage writes its reset.
+        void reset(state& st) const noexcept {
+            st.current   = m_level;
+            st.goal      = m_level;
+            st.step      = 0.0f;
+            st.remaining = 0;
+        }
+
+        std::size_t run(state& st, workspace& /*unused*/, span<const float> in, span<float> out) const noexcept {
             if (st.goal < m_level || st.goal > m_level) { // the level was changed: head for it
                 st.goal      = m_level;
                 st.remaining = m_ramp_frames;
@@ -210,9 +286,13 @@ namespace catenae {
         E value;
     };
 
-    /// A value or the reason there is none, after std::expected. No heap, no exceptions.
+    /// A value or the reason there is none, after std::expected. No heap, no exceptions. T and
+    /// E are trivially destructible (a design, a status), which is what lets it be constexpr.
     template <typename T, typename E>
     class [[nodiscard]] expected {
+        static_assert(std::is_trivially_destructible_v<T> && std::is_trivially_destructible_v<E>,
+                      "catenae: expected<T, E> holds trivially destructible types");
+
       public:
         constexpr expected(const T& value) noexcept // NOLINT: converting, as std::expected
             : m_value(value)
@@ -269,7 +349,14 @@ namespace catenae {
         }
 
         /// For a table that a generator wrote: the same value with no designer in the image.
+        /// What can be checked without libm is checked: the poles are inside the unit circle
+        /// (|a2| < 1 and |a1| < 1 + a2). A bad table that initialises a constexpr design does
+        /// not compile; one met at run time reaches the handler.
         static constexpr lowpass_design from_table(const std::array<S, 5>& coefficients, float latency_frames) noexcept {
+            const S a1 = coefficients[3];
+            const S a2 = coefficients[4];
+            expects(a2 < S(1) && a2 > S(-1), 6);
+            expects(a1 < S(1) + a2 && a1 > -(S(1) + a2), 6);
             return lowpass_design(coefficients, latency_frames);
         }
 
@@ -291,12 +378,14 @@ namespace catenae {
       public:
         using input_port  = port<float, Ch>;
         using output_port = port<float, Ch>;
-        static constexpr ratio rate_ratio{1, 1};
-        static constexpr bool  is_frame_synchronous = true;
+        static constexpr ratio       rate_ratio{1, 1};
+        static constexpr std::size_t input_group = 1;
+        static constexpr ratio       max_shortfall{0, 1};
 
         struct state {
             std::array<std::array<float, 2>, Ch> z; // transposed direct form II, per channel
         };
+        using workspace = no_workspace;
 
         explicit constexpr lowpass(const lowpass_design<float>& design) noexcept
             : m_design(design) {}
@@ -307,7 +396,7 @@ namespace catenae {
         constexpr void  set_design(const lowpass_design<float>& design) noexcept { m_design = design; }
         constexpr float nominal_latency() const noexcept { return m_design.nominal_latency(); }
 
-        std::size_t run(state& st, span<const float> in, span<float> out) const noexcept {
+        std::size_t run(state& st, workspace& /*unused*/, span<const float> in, span<float> out) const noexcept {
             const std::array<float, 5>& k      = m_design.coefficients();
             const std::size_t           frames = in.size() / Ch;
             for (std::size_t i = 0; i < frames; ++i) {
@@ -337,23 +426,25 @@ namespace catenae {
       public:
         using input_port  = port<float, Ch>;
         using output_port = port<float, Ch>;
-        static constexpr ratio rate_ratio{2, 1};
-        static constexpr bool  is_frame_synchronous = true;
+        static constexpr ratio       rate_ratio{2, 1};
+        static constexpr std::size_t input_group = 1;
+        static constexpr ratio       max_shortfall{0, 1};
 
         struct state {
-            std::array<float, Ch> previous; // zero: silence before the stream, which is right
+            std::array<float, Ch> previous; // at rest: silence before the stream, so the default reset serves
         };
+        using workspace = no_workspace;
 
         constexpr up2() noexcept = default;
 
-        std::size_t run(state& st, span<const float> in, span<float> out) const noexcept {
+        std::size_t run(state& st, workspace& /*unused*/, span<const float> in, span<float> out) const noexcept {
             const std::size_t frames = in.size() / Ch;
             for (std::size_t i = 0; i < frames; ++i) {
                 for (std::size_t c = 0; c < Ch; ++c) {
-                    const float x           = in[i * Ch + c];
-                    out[(2 * i) * Ch + c]   = 0.5f * (st.previous[c] + x);
+                    const float x             = in[i * Ch + c];
+                    out[(2 * i) * Ch + c]     = 0.5f * (st.previous[c] + x);
                     out[(2 * i + 1) * Ch + c] = x;
-                    st.previous[c]          = x;
+                    st.previous[c]            = x;
                 }
             }
             return 2 * frames;
@@ -365,23 +456,26 @@ namespace catenae {
     template <std::size_t Ch>
     struct is_stage<up2<Ch>> : std::true_type {};
 
-    /// Half the rate, by averaging pairs (a toy). It remembers a held frame and a phase.
+    /// Half the rate, by averaging pairs (a toy). It remembers a held frame and a phase. Its
+    /// input group is a pair, and with one frame held it is half an output frame behind.
     template <std::size_t Ch>
     class down2 {
       public:
         using input_port  = port<float, Ch>;
         using output_port = port<float, Ch>;
-        static constexpr ratio rate_ratio{1, 2};
-        static constexpr bool  is_frame_synchronous = true; // for calls of a whole number of pairs
+        static constexpr ratio       rate_ratio{1, 2};
+        static constexpr std::size_t input_group = 2;
+        static constexpr ratio       max_shortfall{1, 2};
 
         struct state {
             std::array<float, Ch> held;
             std::size_t           have; // 0 or 1 frames waiting for their pair
         };
+        using workspace = no_workspace;
 
         constexpr down2() noexcept = default;
 
-        std::size_t run(state& st, span<const float> in, span<float> out) const noexcept {
+        std::size_t run(state& st, workspace& /*unused*/, span<const float> in, span<float> out) const noexcept {
             const std::size_t frames = in.size() / Ch;
             std::size_t       made   = 0;
             for (std::size_t i = 0; i < frames; ++i) {
@@ -413,23 +507,26 @@ namespace catenae {
     /// Works on whole blocks of Hop frames: nothing comes out until a block is in, then Hop
     /// frames come out at once. This is how stft | spectral stage | istft behaves per call,
     /// and it stands in for that region here (mono, f applied to each sample of the block).
+    /// Its input group is the hop, and it can be Hop - 1 frames behind.
     template <std::size_t Hop, typename F>
     class blockwise {
       public:
         using input_port  = port<float, 1>;
         using output_port = port<float, 1>;
-        static constexpr ratio rate_ratio{1, 1};
-        static constexpr bool  is_frame_synchronous = false; // 1:1 in the long run only (D35)
+        static constexpr ratio       rate_ratio{1, 1};
+        static constexpr std::size_t input_group = Hop;
+        static constexpr ratio       max_shortfall{Hop - 1, 1};
 
         struct state {
             std::array<float, Hop> block;
             std::size_t            have;
         };
+        using workspace = no_workspace;
 
         explicit constexpr blockwise(F f) noexcept
             : m_f(f) {}
 
-        std::size_t run(state& st, span<const float> in, span<float> out) const noexcept {
+        std::size_t run(state& st, workspace& /*unused*/, span<const float> in, span<float> out) const noexcept {
             std::size_t made = 0;
             for (std::size_t i = 0; i < in.size(); ++i) {
                 st.block[st.have] = in[i];
@@ -460,8 +557,107 @@ namespace catenae {
 
     inline constexpr std::size_t k_block = 64; // frames of the chain's input worked on at a time
 
+    /// The memory of a chain or a stage: what one instance (one voice) remembers.
+    template <typename Config>
+    using state_of = typename Config::state;
+    /// The scratch of a chain or a stage: one per thread, shared by every state of that type.
+    /// Nothing in it needs initialising and nothing in it survives a call.
+    template <typename Config>
+    using workspace_of = typename Config::workspace;
+    /// Both, for the common case of one instance.
+    template <typename Config>
+    struct memory {
+        state_of<Config>     state;
+        workspace_of<Config> workspace;
+    };
+    template <typename Config>
+    using memory_of = memory<std::remove_cv_t<Config>>;
+
+    namespace detail {
+
+        // The states of a chain's stages, one after another: a plain recursive aggregate
+        // (std::tuple is neither trivially copyable nor standard layout).
+        template <typename... Ts>
+        struct pack;
+        template <typename T>
+        struct pack<T> {
+            T first;
+        };
+        template <typename T, typename U, typename... Rest>
+        struct pack<T, U, Rest...> {
+            T                 first;
+            pack<U, Rest...> rest;
+        };
+        template <std::size_t I, typename T, typename... Rest>
+        constexpr auto& item(pack<T, Rest...>& p) noexcept {
+            if constexpr (I == 0) {
+                return p.first;
+            }
+            else {
+                return item<I - 1>(p.rest);
+            }
+        }
+        template <std::size_t I, typename T, typename... Rest>
+        constexpr const auto& item(const pack<T, Rest...>& p) noexcept {
+            if constexpr (I == 0) {
+                return p.first;
+            }
+            else {
+                return item<I - 1>(p.rest);
+            }
+        }
+
+        // One joint: a stage's output port is the next stage's input port. The chain derives
+        // from joints<>, so every joint is checked when the chain's type is formed, whether or
+        // not anything is ever called on it.
+        template <std::size_t Index, typename OutputPort, typename InputPort>
+        struct joint {
+            static_assert(std::is_same_v<OutputPort, InputPort>,
+                          "catenae: one stage's output port is not the next stage's input port");
+        };
+        template <std::size_t Index, typename... Stages>
+        struct joints {};
+        template <std::size_t Index, typename A, typename B, typename... Rest>
+        struct joints<Index, A, B, Rest...>
+            : joint<Index, typename A::output_port, typename B::input_port>
+            , joints<Index + 1, B, Rest...> {};
+
+        // The smallest n for which the frames arriving at every stage are a whole number of
+        // that stage's input groups.
+        template <typename... Stages>
+        constexpr std::size_t composed_group() noexcept {
+            const std::size_t groups[] = {Stages::input_group...};
+            const ratio       ratios[] = {Stages::rate_ratio...};
+            std::size_t       n        = 1;
+            ratio             before{1, 1}; // the ratio from the chain's input to this stage's input
+            for (std::size_t i = 0; i < sizeof...(Stages); ++i) {
+                const std::size_t need = before.down * groups[i]; // n * before.up must be a multiple of this
+                n                      = n * (need / std::gcd(n * before.up, need));
+                before                 = before * ratios[i];
+            }
+            return n;
+        }
+
+        // Each stage's worst shortfall, carried to the chain's output rate, and summed: a bound
+        // on the chain's, sufficient and not always tight.
+        template <typename... Stages>
+        constexpr ratio composed_shortfall() noexcept {
+            const ratio shortfalls[] = {Stages::max_shortfall...};
+            const ratio ratios[]     = {Stages::rate_ratio...};
+            ratio       sum{0, 1};
+            ratio       after{1, 1}; // the ratio from this stage's output to the chain's output
+            for (std::size_t i = sizeof...(Stages); i > 0; --i) {
+                sum   = sum + shortfalls[i - 1] * after;
+                after = ratios[i - 1] * after;
+            }
+            return sum;
+        }
+
+    } // namespace detail
+
     template <typename... Stages>
-    class chain {
+    class chain : private detail::joints<0, Stages...> {
+        static_assert(sizeof...(Stages) > 0, "catenae: a chain has at least one stage");
         static constexpr std::size_t k_count = sizeof...(Stages);
         template <std::size_t I>
         using stage_t = std::tuple_element_t<I, std::tuple<Stages...>>;
@@ -476,19 +672,6 @@ namespace catenae {
                 return stage_t<I>::max_outputs_for(bound<I - 1>());
             }
         }
-
-        // One joint: the output port of stage I is the input port of stage I + 1.
-        template <std::size_t I>
-        static constexpr bool joint() noexcept {
-            static_assert(std::is_same_v<typename stage_t<I>::output_port, typename stage_t<I + 1>::input_port>,
-                          "catenae: one stage's output port is not the next stage's input port");
-            return true;
-        }
-        template <std::size_t... I>
-        static constexpr bool joints(std::index_sequence<I...> /*unused*/) noexcept {
-            return (joint<I>() && ...);
-        }
-        static constexpr bool k_joints_ok = joints(std::make_index_sequence<k_count - 1>{});
 
         template <std::size_t I>
         using scratch_t = std::array<typename stage_t<I>::output_port::value_type, bound<I>() * stage_t<I>::output_port::width>;
@@ -505,17 +688,29 @@ namespace catenae {
         using sample_in   = typename input_port::value_type;
         using sample_out  = typename output_port::value_type;
 
-        static constexpr ratio rate_ratio           = (Stages::rate_ratio * ...);
-        static constexpr bool  is_frame_synchronous = (Stages::is_frame_synchronous && ...);
+        static constexpr ratio       rate_ratio  = (Stages::rate_ratio * ...);
+        static constexpr std::size_t input_group = detail::composed_group<Stages...>();
+        /// Derived, never declared: n frames in always write exactly n L/M, for any n.
+        static constexpr bool  is_frame_synchronous = input_group == 1;
+        /// The smaller of two bounds: the stages' shortfalls summed, and one frame short of an
+        /// input group (the output has caught up exactly at every whole group).
+        static constexpr ratio max_shortfall =
+            lesser(detail::composed_shortfall<Stages...>(), ratio{input_group - 1, 1} * rate_ratio);
 
-        /// Everything the chain remembers and all of its scratch. All zero is its reset value,
-        /// so a static one is in .bss: no flash, no start-up code.
+        /// What one instance remembers: its stages' histories and nothing else. Plain storage,
+        /// so a static one is in .bss: no flash, no start-up code. reset() makes it ready.
         struct state {
-            std::tuple<typename Stages::state...>                                 stages;
+            detail::pack<typename Stages::state...> stages;
+            std::uint32_t                           ready; // k_ready once reset; always present, checked at the audit level
+        };
+        /// What a call needs and no instance keeps: the buffers between the stages, and the
+        /// stages' own scratch. One per thread serves every state of this chain type.
+        struct workspace {
+            std::tuple<typename Stages::workspace...>                             stages;
             typename scratch_of<std::make_index_sequence<k_count - 1>>::type scratch;
         };
 
-        explicit constexpr chain(Stages... stages) noexcept
+        explicit constexpr chain(const Stages&... stages) noexcept
             : m_stages(stages...) {}
 
         constexpr const std::tuple<Stages...>& stages() const noexcept { return m_stages; }
@@ -530,6 +725,14 @@ namespace catenae {
             return std::get<I>(m_stages);
         }
 
+        /// Puts a state at rest: each stage resets its own part, in place. Before the first
+        /// process(), and afterwards only between calls, on the thread that runs the chain.
+        void reset(state& st) const noexcept {
+            reset_each<0>(st);
+            st.ready = k_ready;
+        }
+
+        /// Non-decreasing in n, as every stage's is: scratch and FIFOs are sized from it.
         static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return fold_max<0>(n); }
         constexpr std::size_t outputs_for(const state& st, std::size_t n) const noexcept { return fold_out<0>(st, n); }
         constexpr std::size_t frames_needed(const state& st, std::size_t k) const noexcept {
@@ -537,14 +740,14 @@ namespace catenae {
         }
 
         /// The trusted form: what an enclosing chain or an adapter calls.
-        std::size_t run(state& st, span<const sample_in> in, span<sample_out> out) const noexcept {
+        std::size_t run(state& st, workspace& ws, span<const sample_in> in, span<sample_out> out) const noexcept {
             const std::size_t width  = input_port::width;
             const std::size_t frames = in.size() / width;
             std::size_t       done   = 0;
             std::size_t       made   = 0;
             while (done < frames) {
                 const std::size_t n = std::min(k_block, frames - done);
-                made += step<0>(st, span<const sample_in>(in.data() + done * width, n * width),
+                made += step<0>(st, ws, span<const sample_in>(in.data() + done * width, n * width),
                                 out.subspan(made * output_port::width));
                 done += n;
             }
@@ -552,39 +755,64 @@ namespace catenae {
         }
 
         /// The caller's entry: the one run-time check, then run().
-        [[nodiscard]] std::size_t process(state& st, span<const sample_in> in, span<sample_out> out) const noexcept {
+        [[nodiscard]] std::size_t process(state& st, workspace& ws, span<const sample_in> in,
+                                          span<sample_out> out) const noexcept {
             expects(in.size() % input_port::width == 0, 1);
             expects(out.size() >= outputs_for(st, in.size() / input_port::width) * output_port::width, 2);
-            return run(st, in, out);
+            audits(st.ready == k_ready, 10); // reset() was never called on this state
+            return run(st, ws, in, out);
+        }
+        [[nodiscard]] std::size_t process(memory<chain>& both, span<const sample_in> in,
+                                          span<sample_out> out) const noexcept {
+            return process(both.state, both.workspace, in, out);
         }
 
         /// The caller's entry for fixed blocks: checked by the compiler, nothing at run time.
+        /// A block that is a whole number of input groups is written as exactly N L/M frames
+        /// as long as every call on this state is such a block.
         template <std::size_t N, std::size_t M>
-        [[nodiscard]] std::size_t process(state& st, const std::array<sample_in, N>& in,
+        [[nodiscard]] std::size_t process(state& st, workspace& ws, const std::array<sample_in, N>& in,
                                           std::array<sample_out, M>& out) const noexcept {
-            static_assert(is_frame_synchronous,
-                          "catenae: a fixed block needs a frame-synchronous chain; wrap it in steady<>");
             static_assert(N % input_port::width == 0, "catenae: the input is not a whole number of frames");
+            static_assert((N / input_port::width) % input_group == 0,
+                          "catenae: a fixed block must be a whole number of the chain's input groups; wrap the chain in steady<>");
             static_assert(M >= max_outputs_for(N / input_port::width) * output_port::width,
                           "catenae: the output block is too small for this input block");
-            return run(st, span<const sample_in>(in), span<sample_out>(out));
+            audits(st.ready == k_ready, 10);
+            return run(st, ws, span<const sample_in>(in), span<sample_out>(out));
+        }
+        template <std::size_t N, std::size_t M>
+        [[nodiscard]] std::size_t process(memory<chain>& both, const std::array<sample_in, N>& in,
+                                          std::array<sample_out, M>& out) const noexcept {
+            return process(both.state, both.workspace, in, out);
         }
 
       private:
+        static constexpr std::uint32_t k_ready = 0x72656164U;
+
         template <std::size_t I>
-        std::size_t step(state& st, span<const typename stage_t<I>::input_port::value_type> in,
+        void reset_each(state& st) const noexcept {
+            reset_state(std::get<I>(m_stages), detail::item<I>(st.stages));
+            if constexpr (I + 1 < k_count) {
+                reset_each<I + 1>(st);
+            }
+        }
+        template <std::size_t I>
+        std::size_t step(state& st, workspace& ws, span<const typename stage_t<I>::input_port::value_type> in,
                          span<sample_out> out) const noexcept {
             const auto& stage = std::get<I>(m_stages);
-            auto&       mine  = std::get<I>(st.stages);
+            auto&       mine  = detail::item<I>(st.stages);
+            auto&       work  = std::get<I>(ws.stages);
             if constexpr (I + 1 == k_count) {
-                return stage.run(mine, in, out);
+                return stage.run(mine, work, in, out);
             }
             else {
-                auto&             buffer = std::get<I>(st.scratch);
-                const std::size_t made   = stage.run(mine, in, span<typename scratch_t<I>::value_type>(buffer));
+                auto&             buffer = std::get<I>(ws.scratch);
+                const std::size_t made   = stage.run(mine, work, in, span<typename scratch_t<I>::value_type>(buffer));
+                audits(made <= bound<I>(), 7);
                 return step<I + 1>(
-                    st, span<const typename scratch_t<I>::value_type>(buffer.data(), made * stage_t<I>::output_port::width),
-                    out);
+                    st, ws,
+                    span<const typename scratch_t<I>::value_type>(buffer.data(), made * stage_t<I>::output_port::width), out);
             }
         }
         template <std::size_t I>
@@ -598,7 +826,7 @@ namespace catenae {
         }
         template <std::size_t I>
         constexpr std::size_t fold_out(const state& st, std::size_t n) const noexcept {
-            const std::size_t made = std::get<I>(m_stages).outputs_for(std::get<I>(st.stages), n);
+            const std::size_t made = std::get<I>(m_stages).outputs_for(detail::item<I>(st.stages), n);
             if constexpr (I + 1 == k_count) {
                 return made;
             }
@@ -608,7 +836,7 @@ namespace catenae {
         }
         template <std::size_t I>
         constexpr std::size_t fold_need(const state& st, std::size_t k) const noexcept {
-            const std::size_t n = std::get<I>(m_stages).frames_needed(std::get<I>(st.stages), k);
+            const std::size_t n = std::get<I>(m_stages).frames_needed(detail::item<I>(st.stages), k);
             if constexpr (I == 0) {
                 return n;
             }
@@ -620,20 +848,46 @@ namespace catenae {
         std::tuple<Stages...> m_stages; // the configurations: this is all a chain object holds
     };
     template <typename... Stages>
+    chain(Stages...) -> chain<Stages...>;
+    template <typename... Stages>
     struct is_stage<chain<Stages...>> : std::true_type {};
 
-    /// The memory of a chain or a stage.
-    template <typename Config>
-    using state_of = typename Config::state;
+    template <typename T>
+    struct is_chain : std::false_type {};
+    template <typename... Stages>
+    struct is_chain<chain<Stages...>> : std::true_type {};
 
-    // a | b | c composes CONFIGURATIONS, which are a few bytes each. No history moves.
-    template <typename A, typename B, std::enable_if_t<is_stage<A>::value && is_stage<B>::value, int> = 0>
-    constexpr chain<A, B> operator|(A a, B b) noexcept {
+    namespace detail {
+        template <typename... Stages>
+        constexpr chain<Stages...> chain_from(const std::tuple<Stages...>& stages) noexcept {
+            return std::apply([](const Stages&... each) { return chain<Stages...>(each...); }, stages);
+        }
+        template <typename T>
+        inline constexpr bool is_lone_stage = is_stage<T>::value && !is_chain<T>::value;
+    } // namespace detail
+
+    // a | b | c composes CONFIGURATIONS, which are a few bytes each. No history moves. It
+    // always flattens, whichever side a chain is on: (a | b) | (c | d) is chain<a, b, c, d>.
+    template <typename A, typename B, std::enable_if_t<detail::is_lone_stage<A> && detail::is_lone_stage<B>, int> = 0>
+    constexpr chain<A, B> operator|(const A& a, const B& b) noexcept {
         return chain<A, B>(a, b);
     }
-    template <typename... As, typename B, std::enable_if_t<is_stage<B>::value, int> = 0>
-    constexpr chain<As..., B> operator|(const chain<As...>& a, B b) noexcept {
-        return std::apply([&b](const As&... as) { return chain<As..., B>(as..., b); }, a.stages());
+    template <typename... As, typename B, std::enable_if_t<detail::is_lone_stage<B>, int> = 0>
+    constexpr chain<As..., B> operator|(const chain<As...>& a, const B& b) noexcept {
+        return detail::chain_from(std::tuple_cat(a.stages(), std::tuple<B>(b)));
+    }
+    template <typename A, typename... Bs, std::enable_if_t<detail::is_lone_stage<A>, int> = 0>
+    constexpr chain<A, Bs...> operator|(const A& a, const chain<Bs...>& b) noexcept {
+        return detail::chain_from(std::tuple_cat(std::tuple<A>(a), b.stages()));
+    }
+    template <typename... As, typename... Bs>
+    constexpr chain<As..., Bs...> operator|(const chain<As...>& a, const chain<Bs...>& b) noexcept {
+        return detail::chain_from(std::tuple_cat(a.stages(), b.stages()));
+    }
+    // One side a stage and the other not: say so, instead of the compiler's "no match".
+    template <typename A, typename B, std::enable_if_t<is_stage<A>::value != is_stage<B>::value, int> = 0>
+    constexpr void operator|(const A& /*unused*/, const B& /*unused*/) noexcept {
+        static_assert(is_stage<A>::value && is_stage<B>::value, "catenae: both sides of | must be stages");
     }
 
     // =====================================================================================
@@ -641,53 +895,70 @@ namespace catenae {
     // =====================================================================================
 
     /// Wraps a 1:1 configuration that writes in bursts and presents a frame-synchronous one:
-    /// n frames out for every n in. The price is a FIFO and (largest burst - 1) frames more
-    /// latency, both stated.
+    /// n frames out for every n in. The price is a FIFO and the inner configuration's worst
+    /// shortfall as added latency, both stated. Its reset primes the FIFO with that many frames
+    /// of silence, so it can always pay out n frames however far behind the inner output is.
     template <typename Inner>
     class steady {
         static_assert(Inner::rate_ratio == (ratio{1, 1}), "catenae: steady<> is for a 1:1 configuration");
         using sample = typename Inner::output_port::value_type;
         static constexpr std::size_t k_width    = Inner::output_port::width;
-        static constexpr std::size_t k_burst    = Inner::max_outputs_for(1);
-        static constexpr std::size_t k_capacity = (k_burst - 1) + Inner::max_outputs_for(k_block);
+        static constexpr std::size_t k_primed   = ceiling(Inner::max_shortfall);
+        static constexpr std::size_t k_capacity = k_primed + Inner::max_outputs_for(k_block);
 
       public:
         using input_port  = typename Inner::input_port;
         using output_port = typename Inner::output_port;
         static constexpr ratio       rate_ratio           = Inner::rate_ratio;
-        static constexpr bool        is_frame_synchronous = true;
-        static constexpr std::size_t added_latency_frames = k_burst - 1;
+        static constexpr std::size_t input_group          = 1;
+        static constexpr ratio       max_shortfall{0, 1};
+        static constexpr std::size_t added_latency_frames = k_primed;
 
         struct state {
-            state_of<Inner>                                               inner;
+            state_of<Inner>                          inner;
+            std::array<sample, k_capacity * k_width> fifo;
+            std::size_t                              read;
+            std::size_t                              held; // frames in the FIFO: k_primed at rest, never fewer than a call needs
+        };
+        struct workspace {
+            workspace_of<Inner>                                           inner;
             std::array<sample, Inner::max_outputs_for(k_block) * k_width> burst; // what one inner call wrote
-            std::array<sample, k_capacity * k_width>                      fifo;  // zeros at reset: the added latency
-            std::size_t                                                   read;
-            std::ptrdiff_t                                                surplus; // frames held beyond (k_burst - 1)
         };
 
-        explicit constexpr steady(Inner inner) noexcept
+        explicit constexpr steady(const Inner& inner) noexcept
             : m_inner(inner) {}
 
-        std::size_t run(state& st, span<const typename input_port::value_type> in, span<sample> out) const noexcept {
+        /// At rest the FIFO holds k_primed frames of silence: that is not all zeros, so this
+        /// stage writes its reset.
+        void reset(state& st) const noexcept {
+            reset_state(m_inner, st.inner);
+            st.fifo.fill(sample{});
+            st.read = 0;
+            st.held = k_primed;
+        }
+
+        std::size_t run(state& st, workspace& ws, span<const typename input_port::value_type> in,
+                        span<sample> out) const noexcept {
             const std::size_t frames = in.size() / input_port::width;
             std::size_t       done   = 0;
             while (done < frames) {
                 const std::size_t n    = std::min(k_block, frames - done);
                 const std::size_t made = m_inner.run(
-                    st.inner, span<const typename input_port::value_type>(in.data() + done * input_port::width,
-                                                                          n * input_port::width),
-                    span<sample>(st.burst));
-                const std::size_t held  = static_cast<std::size_t>(static_cast<std::ptrdiff_t>(k_burst - 1) + st.surplus);
-                const std::size_t write = (st.read + held) % k_capacity;
+                    st.inner, ws.inner,
+                    span<const typename input_port::value_type>(in.data() + done * input_port::width, n * input_port::width),
+                    span<sample>(ws.burst));
+                const std::size_t write = (st.read + st.held) % k_capacity;
                 for (std::size_t i = 0; i < made * k_width; ++i) {
-                    st.fifo[(write * k_width + i) % (k_capacity * k_width)] = st.burst[i];
+                    st.fifo[(write * k_width + i) % (k_capacity * k_width)] = ws.burst[i];
                 }
+                // The inner configuration never falls further behind than its max_shortfall, so
+                // the FIFO always holds the n frames this call pays out. Checked at the audit level.
+                audits(st.held + made >= n, 5);
                 for (std::size_t i = 0; i < n * k_width; ++i) {
                     out[done * k_width + i] = st.fifo[(st.read * k_width + i) % (k_capacity * k_width)];
                 }
                 st.read = (st.read + n) % k_capacity;
-                st.surplus += static_cast<std::ptrdiff_t>(made) - static_cast<std::ptrdiff_t>(n);
+                st.held = st.held + made - n;
                 done += n;
             }
             return frames;
@@ -700,47 +971,124 @@ namespace catenae {
         Inner m_inner;
     };
     template <typename Inner>
+    steady(Inner) -> steady<Inner>;
+    template <typename Inner>
     struct is_stage<steady<Inner>> : std::true_type {};
 
     // ---- a junction, and the pull side that delivers exactly what was asked ---------------
 
-    /// A single-producer, single-consumer ring of frames (shared clock, two threads).
-    template <std::size_t Ch, std::size_t Capacity>
+    /// What a third thread may read of a junction. Each field is read on its own.
+    struct handoff_report {
+        bool          running; // false while the ring fills to its target
+        std::uint32_t fill_frames;
+        std::uint32_t underruns;
+        std::uint32_t overruns;
+    };
+
+    /// A single-producer, single-consumer ring of frames (shared clock, two threads). Like a
+    /// stage it is a configuration and a state; its configuration is its template arguments,
+    /// so the object is empty.
+    ///
+    /// Its fill policy, as numbers: pull delivers silence until the ring first holds Target
+    /// frames, then real frames; a pull the ring cannot fill is an underrun, delivers what
+    /// there is, and sends the ring back to filling; a push the ring cannot hold is an overrun
+    /// and drops the newest frames. So the fill a pull sees after start-up, or after an
+    /// underrun, is Target: that is the junction's nominal latency, whichever side ran first.
+    /// Target is at least the consumer's largest pull, and at most Capacity less the
+    /// producer's largest push.
+    template <std::size_t Ch, std::size_t Capacity, std::size_t Target>
     class handoff {
         static_assert((Capacity & (Capacity - 1)) == 0, "catenae: a handoff's capacity is a power of two");
+        static_assert(Target > 0 && Target <= Capacity, "catenae: a handoff's target fill is within its capacity");
+        static_assert(std::atomic<std::uint32_t>::is_always_lock_free, "catenae: a handoff needs a lock-free 32-bit atomic");
 
       public:
         using sink_port   = port<float, Ch>;
         using source_port = port<float, Ch>;
+        static constexpr std::size_t capacity_frames = Capacity;
+        static constexpr std::size_t latency_frames  = Target; // nominal; it moves by what either side misses
 
-        [[nodiscard]] std::size_t push(span<const float> in) noexcept {
-            const std::uint32_t head   = m_head.load(std::memory_order_relaxed);
-            const std::uint32_t tail   = m_tail.load(std::memory_order_acquire);
+        struct state {
+            std::array<float, Capacity * Ch> ring;
+            std::atomic<std::uint32_t>       head;      // written by the producer
+            std::atomic<std::uint32_t>       tail;      // written by the consumer
+            std::atomic<std::uint32_t>       running;   // written by the consumer; 0 is filling
+            std::atomic<std::uint32_t>       underruns; // written by the consumer
+            std::atomic<std::uint32_t>       overruns;  // written by the producer
+        };
+
+        constexpr handoff() noexcept = default;
+
+        /// Empties the ring and its counts. Only while neither side is running, and before the
+        /// first push or pull.
+        void reset(state& st) const noexcept {
+            st.head.store(0, std::memory_order_relaxed);
+            st.tail.store(0, std::memory_order_relaxed);
+            st.running.store(0, std::memory_order_relaxed);
+            st.underruns.store(0, std::memory_order_relaxed);
+            st.overruns.store(0, std::memory_order_release);
+        }
+
+        /// The producer's thread (exactly one). Returns the frames accepted.
+        [[nodiscard]] std::size_t push(state& st, span<const float> in) const noexcept {
+            const std::uint32_t head   = st.head.load(std::memory_order_relaxed);
+            const std::uint32_t tail   = st.tail.load(std::memory_order_acquire);
             const std::size_t   room   = Capacity - static_cast<std::size_t>(head - tail);
-            const std::size_t   frames = std::min(in.size() / Ch, room);
+            const std::size_t   asked  = in.size() / Ch;
+            const std::size_t   frames = std::min(asked, room);
             for (std::size_t i = 0; i < frames * Ch; ++i) {
-                m_ring[((static_cast<std::size_t>(head) % Capacity) * Ch + i) % (Capacity * Ch)] = in[i];
+                st.ring[((static_cast<std::size_t>(head) % Capacity) * Ch + i) % (Capacity * Ch)] = in[i];
             }
-            m_head.store(head + static_cast<std::uint32_t>(frames), std::memory_order_release);
+            st.head.store(head + static_cast<std::uint32_t>(frames), std::memory_order_release);
+            if (frames < asked) { // one writer, so a load and a store, not a fetch_add
+                st.overruns.store(st.overruns.load(std::memory_order_relaxed) + 1U, std::memory_order_relaxed);
+            }
             return frames;
         }
-        /// Always fills out; what it could not supply is silence. Returns the real frames.
-        [[nodiscard]] std::size_t pull(span<float> out) noexcept {
-            const std::uint32_t tail   = m_tail.load(std::memory_order_relaxed);
-            const std::uint32_t head   = m_head.load(std::memory_order_acquire);
-            const std::size_t   frames = std::min(out.size() / Ch, static_cast<std::size_t>(head - tail));
+
+        /// The consumer's thread (exactly one other). Always fills out; what it could not
+        /// supply is silence. Returns the real frames.
+        [[nodiscard]] std::size_t pull(state& st, span<float> out) const noexcept {
+            const std::uint32_t tail = st.tail.load(std::memory_order_relaxed);
+            const std::uint32_t head = st.head.load(std::memory_order_acquire);
+            const std::size_t   fill = static_cast<std::size_t>(head - tail);
+            const std::size_t   want = out.size() / Ch;
+            if (st.running.load(std::memory_order_relaxed) == 0) {
+                if (fill < Target) {
+                    std::fill(out.begin(), out.end(), 0.0f);
+                    return 0;
+                }
+                st.running.store(1, std::memory_order_relaxed);
+            }
+            const std::size_t frames = std::min(want, fill);
             for (std::size_t i = 0; i < frames * Ch; ++i) {
-                out[i] = m_ring[((static_cast<std::size_t>(tail) % Capacity) * Ch + i) % (Capacity * Ch)];
+                out[i] = st.ring[((static_cast<std::size_t>(tail) % Capacity) * Ch + i) % (Capacity * Ch)];
             }
             std::fill(out.begin() + frames * Ch, out.end(), 0.0f);
-            m_tail.store(tail + static_cast<std::uint32_t>(frames), std::memory_order_release);
+            st.tail.store(tail + static_cast<std::uint32_t>(frames), std::memory_order_release);
+            if (frames < want) {
+                st.underruns.store(st.underruns.load(std::memory_order_relaxed) + 1U, std::memory_order_relaxed);
+                st.running.store(0, std::memory_order_relaxed); // fill to the target again
+            }
             return frames;
         }
 
-      private:
-        std::array<float, Capacity * Ch> m_ring{};
-        std::atomic<std::uint32_t>       m_head{0};
-        std::atomic<std::uint32_t>       m_tail{0};
+        /// The consumer's thread, while the producer runs: discard what is buffered and fill
+        /// to the target again. (reset() needs both sides at rest; this does not.)
+        void restart(state& st) const noexcept {
+            st.tail.store(st.head.load(std::memory_order_acquire), std::memory_order_release);
+            st.running.store(0, std::memory_order_relaxed);
+        }
+
+        /// Any thread. The consumer's index is read first and the producer's second, so the
+        /// difference can only over-estimate, and it is clamped to the capacity.
+        handoff_report report(const state& st) const noexcept {
+            const std::uint32_t tail = st.tail.load(std::memory_order_acquire);
+            const std::uint32_t head = st.head.load(std::memory_order_acquire);
+            return handoff_report{st.running.load(std::memory_order_relaxed) != 0,
+                                  std::min(head - tail, static_cast<std::uint32_t>(Capacity)),
+                                  st.underruns.load(std::memory_order_relaxed), st.overruns.load(std::memory_order_relaxed)};
+        }
     };
 
     // ---- crossing threads without a lock: a mailbox ------------------------------------------
@@ -752,101 +1100,162 @@ namespace catenae {
     /// Three slots: the poster's, the taker's, and one in the middle. A post writes the poster's
     /// slot and swaps it with the middle one; a take swaps the taker's with the middle one when
     /// that holds something new. Each side only ever touches its own slot, so a value is never
-    /// read while it is being written. Valid when all zero.
+    /// read while it is being written. A mailbox is an object with a constant constructor, not
+    /// a state: it starts empty, a static one is in .bss, and reset() empties it again.
+    ///
+    /// A posted value owns everything it refers to: no pointer, span or view inside it. The
+    /// compiler cannot check that; it is an assumption of use.
     template <typename T>
     class mailbox {
-        static_assert(std::is_trivially_copyable_v<T>, "catenae: a mailbox carries a trivially copyable value");
+        static_assert(std::is_trivially_copyable_v<T> && std::is_copy_constructible_v<T> &&
+                          std::is_trivially_destructible_v<T>,
+                      "catenae: a mailbox carries a trivially copyable value");
+        static_assert(std::atomic<std::uint32_t>::is_always_lock_free, "catenae: a mailbox needs a lock-free 32-bit atomic");
 
       public:
-        /// The posting thread (exactly one). Never waits.
+        /// The posting thread (exactly one). Never waits. The value is constructed in the
+        /// poster's slot (assignment could not start the lifetime of a T with no trivial
+        /// default constructor, which a design is).
         void post(const T& value) noexcept {
-            m_slots[m_poster].value = value;
-            const std::uint8_t was = m_middle.exchange(static_cast<std::uint8_t>(to_middle(m_poster) | k_fresh),
-                                                       std::memory_order_acq_rel);
-            m_poster = from_middle(was);
+            ::new (static_cast<void*>(&m_slots[m_poster])) T(value);
+            const std::uint32_t was = m_middle.exchange(to_middle(m_poster) | k_fresh, std::memory_order_acq_rel);
+            m_poster                = from_middle(was);
+        }
+
+        /// Empties the mailbox. Only while neither side is running.
+        void reset() noexcept {
+            m_middle.store(0, std::memory_order_release);
+            m_poster = 0;
+            m_taker  = 0;
         }
 
         /// The taking thread (exactly one). If a value has arrived since the last take, calls
         /// apply(value) and returns true. Never waits.
         template <typename Apply>
-        bool take(Apply&& apply) noexcept {
+        bool take(Apply apply) noexcept {
             if ((m_middle.load(std::memory_order_acquire) & k_fresh) == 0) {
                 return false;
             }
-            const std::uint8_t mine = static_cast<std::uint8_t>((m_taker + 2U) % 3U); // the taker's slot
-            const std::uint8_t was  = m_middle.exchange(to_middle(mine), std::memory_order_acq_rel);
-            const std::uint8_t now  = from_middle(was);
-            m_taker                 = static_cast<std::uint8_t>((now + 1U) % 3U);
-            apply(static_cast<const T&>(m_slots[now].value));
+            const std::uint32_t mine = before(m_taker); // the taker's slot
+            const std::uint32_t was  = m_middle.exchange(to_middle(mine), std::memory_order_acq_rel);
+            const std::uint32_t now  = from_middle(was);
+            m_taker                  = after(now);
+            apply(static_cast<const T&>(*std::launder(reinterpret_cast<const T*>(&m_slots[now]))));
             return true;
         }
 
       private:
         // Stored so that zero is the starting arrangement: poster in slot 0, middle 1, taker 2.
-        static constexpr std::uint8_t k_fresh = 4;
-        static constexpr std::uint8_t to_middle(std::uint8_t slot) noexcept {
-            return static_cast<std::uint8_t>((slot + 2U) % 3U);
-        }
-        static constexpr std::uint8_t from_middle(std::uint8_t stored) noexcept {
-            return static_cast<std::uint8_t>(((stored & 3U) + 1U) % 3U);
-        }
-        union slot {
-            unsigned char unused;
-            T             value;
+        // Slots are counted round a ring of three with a compare, not a division.
+        static constexpr std::uint32_t k_fresh = 4;
+        static constexpr std::uint32_t after(std::uint32_t slot) noexcept { return slot == 2U ? 0U : slot + 1U; }
+        static constexpr std::uint32_t before(std::uint32_t slot) noexcept { return slot == 0U ? 2U : slot - 1U; }
+        static constexpr std::uint32_t to_middle(std::uint32_t slot) noexcept { return before(slot); }
+        static constexpr std::uint32_t from_middle(std::uint32_t stored) noexcept { return after(stored & 3U); }
+
+        struct slot {
+            alignas(T) unsigned char bytes[sizeof(T)];
         };
 
-        std::array<slot, 3>       m_slots{};
-        std::atomic<std::uint8_t> m_middle{0};
-        std::uint8_t              m_poster = 0; // touched by the posting thread only
-        std::uint8_t              m_taker  = 0; // touched by the taking thread only
+        std::array<slot, 3>        m_slots{};
+        std::atomic<std::uint32_t> m_middle{0};  // a word of its own: it shares with neither side's index
+        std::uint32_t              m_poster = 0; // touched by the posting thread only
+        std::uint32_t              m_taker  = 0; // touched by the taking thread only
     };
 
-    /// What the pull side remembers: the chain's state, the frames in transit, and the
-    /// holdover that lets it deliver exactly the frames asked for. Valid when all zero.
+    // ---- the pull side ------------------------------------------------------------------
+
+    namespace detail {
+        // The most input frames a chain can need to write k output frames, from any state.
+        template <typename Chain>
+        constexpr std::size_t max_frames_needed(std::size_t k) noexcept {
+            const ratio r = Chain::rate_ratio;
+            return ((k + ceiling(Chain::max_shortfall)) * r.down + r.up - 1) / r.up;
+        }
+    } // namespace detail
+
+    /// What the pull side remembers: the chain's state and the holdover that lets it deliver
+    /// exactly the frames asked for. Plain storage; reset(chain, state) makes it ready.
     template <typename Chain>
     struct fed_by_memory {
-        static constexpr std::size_t k_in_width  = Chain::input_port::width;
         static constexpr std::size_t k_out_width = Chain::output_port::width;
         static constexpr std::size_t k_overshoot = Chain::max_outputs_for(1) - 1; // frames, at most
 
-        state_of<Chain>                                                                          chain;
-        std::array<typename Chain::input_port::value_type, k_block * k_in_width>                   pulled;
-        std::array<typename Chain::output_port::value_type, Chain::max_outputs_for(k_block) * k_out_width> made;
-        std::array<typename Chain::output_port::value_type, (k_overshoot + 1) * k_out_width>     holdover;
-        std::size_t                                                                              held;    // frames in holdover
-        std::size_t                                                                              starved; // input frames that were silence
+        state_of<Chain>                                                                      chain;
+        std::array<typename Chain::output_port::value_type, (k_overshoot + 1) * k_out_width> holdover;
+        std::size_t                                                                          held;    // frames in holdover
+        std::size_t                                                                          starved; // input frames that were silence
     };
     template <typename Chain>
     using fed_by_state = fed_by_memory<std::remove_cv_t<Chain>>;
 
+    template <typename Chain>
+    void reset(const Chain& chain, fed_by_memory<Chain>& st) noexcept {
+        reset_state(chain, st.chain);
+        st.held    = 0;
+        st.starved = 0;
+    }
+
+    /// What the pull side needs while a call runs: the chain's workspace and the staging for
+    /// one pull. MaxRequest is the largest request, in output frames: a request makes exactly
+    /// one pull on the junction, so the staging holds everything that request can need.
+    template <typename Chain, std::size_t MaxRequest>
+    struct fed_by_scratch {
+        static constexpr std::size_t k_in_width  = Chain::input_port::width;
+        static constexpr std::size_t k_out_width = Chain::output_port::width;
+        static constexpr std::size_t k_max_pull  = detail::max_frames_needed<Chain>(MaxRequest);
+
+        workspace_of<Chain>                                                                                chain;
+        std::array<typename Chain::input_port::value_type, k_max_pull * k_in_width>                        pulled;
+        std::array<typename Chain::output_port::value_type, Chain::max_outputs_for(k_block) * k_out_width> made;
+    };
+    template <typename Chain, std::size_t MaxRequest>
+    using fed_by_workspace = fed_by_scratch<std::remove_cv_t<Chain>, MaxRequest>;
+
     /// Fills `out` with exactly out.size() / width frames of the chain's output, pulling what
-    /// the chain needs from the junction. This is where SampleRateTap's pull(out, k) lands.
-    template <typename Junction, typename Chain>
-    std::size_t fed_by(Junction& junction, const Chain& chain, fed_by_memory<Chain>& st,
-                       span<typename Chain::output_port::value_type> out) noexcept {
-        using state_t          = fed_by_memory<Chain>;
-        const std::size_t want = out.size() / state_t::k_out_width;
-        std::size_t       done = std::min(st.held, want);
-        std::copy(st.holdover.begin(), st.holdover.begin() + static_cast<std::ptrdiff_t>(done * state_t::k_out_width),
-                  out.begin());
-        std::copy(st.holdover.begin() + static_cast<std::ptrdiff_t>(done * state_t::k_out_width),
-                  st.holdover.begin() + static_cast<std::ptrdiff_t>(st.held * state_t::k_out_width), st.holdover.begin());
+    /// the chain needs from the junction in ONE pull: a junction may clock a servo or a fill
+    /// policy from its pulls, so a request is never split into several. Returns the frames
+    /// written, which is all of `out`; st.starved counts the input frames that were silence.
+    /// This is where SampleRateTap's pull(out, k) lands.
+    template <typename Junction, typename Chain, std::size_t MaxRequest>
+    std::size_t fed_by(const Junction& junction, state_of<Junction>& junction_state, const Chain& chain, fed_by_memory<Chain>& st,
+                       fed_by_scratch<Chain, MaxRequest>& ws, span<typename Chain::output_port::value_type> out) noexcept {
+        using scratch_t         = fed_by_scratch<Chain, MaxRequest>;
+        using sample_in         = typename Chain::input_port::value_type;
+        using sample_out        = typename Chain::output_port::value_type;
+        const std::size_t width = scratch_t::k_out_width;
+        expects(out.size() % width == 0, 1);
+        const std::size_t want = out.size() / width;
+        expects(want <= MaxRequest, 8); // the boundary check on the request
+        std::size_t done = std::min(st.held, want);
+        std::copy(st.holdover.begin(), st.holdover.begin() + static_cast<std::ptrdiff_t>(done * width), out.begin());
+        std::copy(st.holdover.begin() + static_cast<std::ptrdiff_t>(done * width),
+                  st.holdover.begin() + static_cast<std::ptrdiff_t>(st.held * width), st.holdover.begin());
         st.held -= done;
-        while (done < want) {
-            const std::size_t n    = std::min(chain.frames_needed(st.chain, want - done), k_block);
-            const std::size_t real = junction.pull(span<typename Chain::input_port::value_type>(st.pulled.data(), n * state_t::k_in_width));
-            st.starved += n - real;
-            const std::size_t made = chain.run(
-                st.chain, span<const typename Chain::input_port::value_type>(st.pulled.data(), n * state_t::k_in_width),
-                span<typename Chain::output_port::value_type>(st.made));
-            const std::size_t take = std::min(made, want - done);
-            std::copy(st.made.begin(), st.made.begin() + static_cast<std::ptrdiff_t>(take * state_t::k_out_width),
-                      out.begin() + static_cast<std::ptrdiff_t>(done * state_t::k_out_width));
-            st.held = made - take; // the overshoot waits for the next call
-            std::copy(st.made.begin() + static_cast<std::ptrdiff_t>(take * state_t::k_out_width),
-                      st.made.begin() + static_cast<std::ptrdiff_t>(made * state_t::k_out_width), st.holdover.begin());
-            done += take;
+        if (done == want) {
+            return want;
         }
+        const std::size_t n = chain.frames_needed(st.chain, want - done);
+        audits(n <= scratch_t::k_max_pull, 9);
+        const std::size_t real = junction.pull(junction_state, span<sample_in>(ws.pulled.data(), n * scratch_t::k_in_width));
+        st.starved += n - real;
+        // All but the last block's worth goes straight to `out`: n is the smallest count that
+        // reaches the request, so fewer frames cannot overshoot it.
+        const std::size_t last  = std::min(n, k_block);
+        const std::size_t first = n - last;
+        done += chain.run(st.chain, ws.chain, span<const sample_in>(ws.pulled.data(), first * scratch_t::k_in_width),
+                          out.subspan(done * width));
+        const std::size_t made = chain.run(
+            st.chain, ws.chain, span<const sample_in>(ws.pulled.data() + first * scratch_t::k_in_width, last * scratch_t::k_in_width),
+            span<sample_out>(ws.made));
+        const std::size_t take = std::min(made, want - done);
+        std::copy(ws.made.begin(), ws.made.begin() + static_cast<std::ptrdiff_t>(take * width),
+                  out.begin() + static_cast<std::ptrdiff_t>(done * width));
+        st.held = made - take; // the overshoot waits for the next call
+        audits(st.held <= fed_by_memory<Chain>::k_overshoot, 9);
+        std::copy(ws.made.begin() + static_cast<std::ptrdiff_t>(take * width),
+                  ws.made.begin() + static_cast<std::ptrdiff_t>(made * width), st.holdover.begin());
+        audits(done + take == want, 9);
         return want;
     }
 

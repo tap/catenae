@@ -8,7 +8,7 @@
 
 #include "sketch.h"
 
-[[noreturn]] void catenae_check_failed(int /*code*/) noexcept {
+[[noreturn]] void catenae::check_failed(int /*code*/) noexcept {
     std::abort();
 }
 

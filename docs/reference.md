@@ -9,6 +9,7 @@ The contracts a type of yours meets, their members documented once:
 - @ref stage_contract
 - @ref chain_contract
 - @ref junction_contract
+- @ref mailbox_contract
 - @ref analyzer_contract
 
 How they are written down is @ref conventions, in the words of the @ref glossary. What the

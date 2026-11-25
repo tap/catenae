@@ -75,6 +75,12 @@ int main() {
     const std::size_t process = catenae_probe::high_water([&in, &out] { catenae_probe::probe_process(in, out); });
     std::printf("CATENAE_STACK reset %lu\n", static_cast<unsigned long>(reset));
     std::printf("CATENAE_STACK process %lu\n", static_cast<unsigned long>(process));
+    // The memory's two parts, as this target lays them out: what the chain remembers and what
+    // a call needs.
+    std::printf("CATENAE_SIZEOF state %lu\n",
+                static_cast<unsigned long>(sizeof(catenae::state_of<catenae_probe::c1_path_t>)));
+    std::printf("CATENAE_SIZEOF workspace %lu\n",
+                static_cast<unsigned long>(sizeof(catenae::workspace_of<catenae_probe::c1_path_t>)));
     const bool ok = reset < catenae_probe::paint_bytes && process < catenae_probe::paint_bytes;
     std::printf("CATENAE_PROBE_DONE ok=%d\n", ok ? 1 : 0);
 #else

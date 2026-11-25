@@ -8,7 +8,7 @@
 // where GoogleTest has no death tests. The setjmp is in fails_a_check, a frame that holds
 // nothing with a destructor, and the statement runs inside it through a trampoline; so the
 // jump crosses only that frame, the statement's and catenae's inline functions, and never a
-// test body's GoogleTest objects (which MSVC rightly refuses, C4611).
+// test body's GoogleTest objects. (MSVC warns at any setjmp in C++, C4611: DEV-015.)
 //
 //   CATENAE_EXPECT_CHECK(catenae::check::index_out_of_range, static_cast<void>(s[9]));
 #ifndef CATENAE_TESTS_SUPPORT_CATENAE_TEST_CHECK_TRAP_H

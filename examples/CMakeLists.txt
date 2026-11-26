@@ -20,6 +20,8 @@ target_include_directories(catenae_example_bursts_and_buffering PRIVATE "${CMAKE
 catenae_add_example(edges)
 catenae_add_example(audio_callback)
 target_include_directories(catenae_example_audio_callback PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+catenae_add_example(arithmetic_costs)
+target_include_directories(catenae_example_arithmetic_costs PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Its figure (guide/src/figures/steady.svg) is drawn from its output: on a host with Python, the
 # figure is drawn again and must be the committed one.

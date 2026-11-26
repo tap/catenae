@@ -221,6 +221,7 @@ def build(bld):
     # The examples the guide includes, as examples/CMakeLists.txt builds them: each a program
     # that the test step runs, the strawman graph with its nodes' source beside it.
     examples = {
+        "arithmetic_costs": ["examples/arithmetic_costs.cpp"],
         "audio_callback": ["examples/audio_callback.cpp"],
         "bursts_and_buffering": ["examples/bursts_and_buffering.cpp"],
         "edges": ["examples/edges.cpp"],

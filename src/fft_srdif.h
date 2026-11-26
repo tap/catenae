@@ -255,10 +255,12 @@ namespace catenae {
 
                 // ---- the butterflies ----
 
-                static constexpr T sqrt_half =
+                static constexpr T k_sqrt_half =
                     std::is_same<T, float>::value ? T(0x1.6a09e6p-1) : T(0x1.6a09e667f3bcdp-1);
-                static constexpr T cos_pi8 = std::is_same<T, float>::value ? T(0x1.d906bcp-1) : T(0x1.d906bcf328d46p-1);
-                static constexpr T sin_pi8 = std::is_same<T, float>::value ? T(0x1.87de2ap-2) : T(0x1.87de2a6aea963p-2);
+                static constexpr T k_cos_pi8 =
+                    std::is_same<T, float>::value ? T(0x1.d906bcp-1) : T(0x1.d906bcf328d46p-1);
+                static constexpr T k_sin_pi8 =
+                    std::is_same<T, float>::value ? T(0x1.87de2ap-2) : T(0x1.87de2a6aea963p-2);
 
                 /// a b - c d, the first product in a statement of its own for float (with
                 /// contraction off it is the same arithmetic; under Clang's contraction it is one
@@ -296,7 +298,7 @@ namespace catenae {
                     else if constexpr (Kind == tw::eighth) {
                         static_cast<void>(w1);
                         static_cast<void>(w3);
-                        const T h = sqrt_half;
+                        const T h = k_sqrt_half;
                         if constexpr (Inverse) { // u (1 - i) h, v (-1 - i) h
                             x2 = {h * (ur + ui), h * (ui - ur)};
                             x3 = {h * (vi - vr), -h * (vr + vi)};
@@ -359,10 +361,10 @@ namespace catenae {
                 /// j = e/2 = l/16: W_16^1, W_16^3; W_16^3, W_16^9 = -W_16^1; the eighth turn at l/2.
                 template <bool Inverse>
                 CATENAE_SRDIF_INLINE static void group_mid(cx* a, std::size_t e) noexcept {
-                    const cx c16{cos_pi8, sin_pi8};
-                    const cx s16{sin_pi8, cos_pi8};
-                    group<Inverse, tw::general, tw::general, tw::eighth>(a, e, c16, s16, s16, {-cos_pi8, -sin_pi8}, {},
-                                                                         {});
+                    const cx c16{k_cos_pi8, k_sin_pi8};
+                    const cx s16{k_sin_pi8, k_cos_pi8};
+                    group<Inverse, tw::general, tw::general, tw::eighth>(a, e, c16, s16, s16, {-k_cos_pi8, -k_sin_pi8},
+                                                                         {}, {});
                 }
 
                 /// j in (e/2, e), from the entry of j' = e - j by exact symmetry.
@@ -374,7 +376,7 @@ namespace catenae {
                 }
 
                 /// One group per loop step in double, two in float (DspTap's Hexagon measurement).
-                static constexpr bool one_group_per_step = sizeof(T) == 8u;
+                static constexpr bool k_one_group_per_step = sizeof(T) == 8u;
 
                 /// The fused pass over a block of l >= 128 values; the entry of j is j (m/l) steps.
                 template <bool Inverse>
@@ -384,7 +386,7 @@ namespace catenae {
                     const std::size_t stride = 12u * ((n / 2u) / l);
                     group_first<Inverse>(a, e);
                     const T* w = tables + n / 2u + 48u + stride - 12u;
-                    if constexpr (one_group_per_step) {
+                    if constexpr (k_one_group_per_step) {
                         for (std::size_t j = 1u; j < h; ++j, w += stride) {
                             group_low<Inverse>(a + j, e, w);
                         }
@@ -472,8 +474,8 @@ namespace catenae {
                     cx                    x3   = a[J + 3u * q];
                     constexpr tw          kind = J == 0u ? tw::one : (J == L / 8u ? tw::eighth : tw::general);
                     // L = 16: J = 1 takes W_16^1, W_16^3; J = 3 takes W_16^3, W_16^9 = -W_16^1.
-                    const cx w1 = J == 1u ? cx{cos_pi8, sin_pi8} : cx{sin_pi8, cos_pi8};
-                    const cx w3 = J == 1u ? cx{sin_pi8, cos_pi8} : cx{-cos_pi8, -sin_pi8};
+                    const cx w1 = J == 1u ? cx{k_cos_pi8, k_sin_pi8} : cx{k_sin_pi8, k_cos_pi8};
+                    const cx w3 = J == 1u ? cx{k_sin_pi8, k_cos_pi8} : cx{-k_cos_pi8, -k_sin_pi8};
                     bf<Inverse, kind>(x0, x1, x2, x3, w1, w3);
                     a[J]          = x0;
                     a[J + q]      = x1;

@@ -24,7 +24,8 @@ foreach(_level IN LISTS _catenae_link_levels)
 
     add_library(catenae_link_core_${_level} STATIC EXCLUDE_FROM_ALL ${_catenae_link_core_sources})
     target_include_directories(catenae_link_core_${_level} PRIVATE ${_include})
-    target_link_libraries(catenae_link_core_${_level} PRIVATE catenae_library_warnings catenae_no_exceptions)
+    target_link_libraries(catenae_link_core_${_level} PRIVATE catenae_library_warnings catenae_no_exceptions
+                                                         catenae_constexpr)
     add_library(catenae_link_handler_${_level} OBJECT EXCLUDE_FROM_ALL "${PROJECT_SOURCE_DIR}/src/handler/trap.cpp")
     target_include_directories(catenae_link_handler_${_level} PRIVATE ${_include})
     target_link_libraries(catenae_link_handler_${_level} PRIVATE catenae_library_warnings catenae_no_exceptions)

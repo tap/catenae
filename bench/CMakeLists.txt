@@ -70,6 +70,14 @@ if(NOT _catenae_bare_metal)
     set_tests_properties(bench.strip_chain_and_graph_agree PROPERTIES LABELS bench)
 endif()
 
+# The floating FFT (C4): a forward and an inverse over 2^20 samples, DspTap's rfft scenarios on
+# catenae's plan; and the worst single transform.
+catenae_add_icount(fft_f32_512 icount/fft_main.cpp DEFINITIONS CATENAE_FFT_T=float CATENAE_FFT_N=512)
+catenae_add_icount(fft_f32_2048 icount/fft_main.cpp DEFINITIONS CATENAE_FFT_T=float CATENAE_FFT_N=2048)
+catenae_add_icount(fft_f64_512 icount/fft_main.cpp DEFINITIONS CATENAE_FFT_T=double CATENAE_FFT_N=512)
+catenae_add_icount(callmax_fft_f32_512 icount/fft_main.cpp
+                   DEFINITIONS CATENAE_FFT_T=float CATENAE_FFT_N=512 CATENAE_ICOUNT_BRACKET=1)
+
 # --- The layout benchmark: interleaved against planar, informational (bench/layout/) --------
 add_subdirectory(layout)
 
@@ -96,6 +104,9 @@ catenae_add_probe(version probe/version_probe.cpp)
 catenae_add_probe(strip probe/strip_probe.cpp)
 catenae_add_probe(strip_object probe/strip_object_probe.cpp)
 catenae_add_probe(c1 probe/c1_probe.cpp)
+# C4's: a float transform of 512 both ways from the constant tables, and a plan made at run
+# time; the FFT family's image for the link-stage gate.
+catenae_add_probe(fft probe/fft_probe.cpp)
 foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip)
     target_include_directories(${_probe} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
@@ -125,6 +136,9 @@ int main() { return 0; }" CATENAE_HARDWARE_DOUBLE)
     add_test(NAME link_gate.C1ImageHasNoSoftwareDouble
              COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
                      $<TARGET_FILE:catenae_probe_c1>)
+    add_test(NAME link_gate.FftImageHasNoSoftwareDouble
+             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
+                     $<TARGET_FILE:catenae_probe_fft>)
     if(CATENAE_HARDWARE_DOUBLE)
         add_test(NAME link_gate.HardwareDoubleIsInvisible
                  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py

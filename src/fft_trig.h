@@ -121,7 +121,7 @@ namespace catenae {
                 }
 
                 /// 2 pi in Q3.61, truncated: floor(2 pi 2^61).
-                constexpr std::uint64_t two_pi_q61 = 0xc90fdaa22168c234u;
+                constexpr std::uint64_t k_two_pi_q61 = 0xc90fdaa22168c234u;
 
                 /// cos, sin, 1 - cos and 1 - sin at one first-octant angle, each with relative precision.
                 struct octant_values {
@@ -139,8 +139,8 @@ namespace catenae {
                     }
                     constexpr maclaurin c = make_maclaurin();
                     // P = k (2 pi 2^61), exact in 128 bits; theta = P 2^-(61 + log2n).
-                    const std::uint64_t p_hi = mul_hi(k, two_pi_q61);
-                    const std::uint64_t p_lo = k * two_pi_q61;
+                    const std::uint64_t p_hi = mul_hi(k, k_two_pi_q61);
+                    const std::uint64_t p_lo = k * k_two_pi_q61;
                     // theta in Q0.64 (absolute): P >> (log2n - 3); k <= 2^(log2n - 3) keeps it below 2^64.
                     const auto          s       = static_cast<unsigned>(log2n - 3);
                     const std::uint64_t theta_q = s == 0u ? p_lo : (p_lo >> s) | (p_hi << (64u - s));

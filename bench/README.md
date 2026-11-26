@@ -52,6 +52,7 @@ is rooted at a noinline `catenae_probe::probe_<call>`. The sets:
 | `strip` | The example chain, `examples/strip.h`: its memory, start-up and stack are C1's pinned numbers | `reset`, `process` |
 | `strip_object` | The same strip as a desktop program writes it, one object with its delay line on the heap: the guide's "Where memory lives" measures it against `strip` | `process` |
 | `c1` | Every C1 stage once, in one float path: the link-stage gate's first probe image | `reset`, `process` |
+| `fft` | A float transform of 512 both ways from the constant tables, and a plan of 512 made at run time (`include/catenae/fft.h`): the FFT family's image for the link-stage gate | `forward`, `inverse`, `make` |
 
 `scripts/ceilings.py` reads, per key:
 

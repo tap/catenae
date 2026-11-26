@@ -84,23 +84,23 @@ namespace catenae {
             struct fft_format;
             template <>
             struct fft_format<float> {
-                static constexpr bool built = CATENAE_FFT_F32 != CATENAE_FFT_NONE;
-                static constexpr bool ready = true;
+                static constexpr bool k_built = CATENAE_FFT_F32 != CATENAE_FFT_NONE;
+                static constexpr bool k_ready = true;
             };
             template <>
             struct fft_format<double> {
-                static constexpr bool built = CATENAE_FFT_F64 != CATENAE_FFT_NONE;
-                static constexpr bool ready = true;
+                static constexpr bool k_built = CATENAE_FFT_F64 != CATENAE_FFT_NONE;
+                static constexpr bool k_ready = true;
             };
             template <>
             struct fft_format<q15> {
-                static constexpr bool built = CATENAE_FFT_Q15 != CATENAE_FFT_NONE;
-                static constexpr bool ready = false; // the fixed-point engine arrives at C6 (D48)
+                static constexpr bool k_built = CATENAE_FFT_Q15 != CATENAE_FFT_NONE;
+                static constexpr bool k_ready = false; // the fixed-point engine arrives at C6 (D48)
             };
             template <>
             struct fft_format<q31> {
-                static constexpr bool built = CATENAE_FFT_Q31 != CATENAE_FFT_NONE;
-                static constexpr bool ready = false;
+                static constexpr bool k_built = CATENAE_FFT_Q31 != CATENAE_FFT_NONE;
+                static constexpr bool k_ready = false;
             };
 
             /// The values of the floating engine's table at length n: the post-pass's n/2, the
@@ -116,16 +116,16 @@ namespace catenae {
                 static_assert(std::is_same<S, float>::value || std::is_same<S, double>::value
                                   || std::is_same<S, q15>::value || std::is_same<S, q31>::value,
                               "catenae: an FFT is float, double, q15 or q31");
-                static_assert(!std::is_same<S, float>::value || fft_format<float>::built,
+                static_assert(!std::is_same<S, float>::value || fft_format<float>::k_built,
                               "catenae: this build has no float FFT (CATENAE_FFT_F32=none)");
-                static_assert(!std::is_same<S, double>::value || fft_format<double>::built,
+                static_assert(!std::is_same<S, double>::value || fft_format<double>::k_built,
                               "catenae: this build has no double FFT (CATENAE_FFT_F64=none)");
-                static_assert(!std::is_same<S, q15>::value || fft_format<q15>::built,
+                static_assert(!std::is_same<S, q15>::value || fft_format<q15>::k_built,
                               "catenae: this build has no q15 FFT (CATENAE_FFT_Q15=none)");
-                static_assert(!std::is_same<S, q31>::value || fft_format<q31>::built,
+                static_assert(!std::is_same<S, q31>::value || fft_format<q31>::k_built,
                               "catenae: this build has no q31 FFT (CATENAE_FFT_Q31=none)");
-                static_assert(fft_format<S>::ready, "catenae: the fixed-point FFT engine arrives at C6 (D48)");
-                static constexpr bool value = true;
+                static_assert(fft_format<S>::k_ready, "catenae: the fixed-point FFT engine arrives at C6 (D48)");
+                static constexpr bool k_ok = true;
             };
 
         } // namespace detail
@@ -150,7 +150,7 @@ namespace catenae {
         /// The values of `storage_t<S>` a length-n plan's tables hold.
         template <typename S>
         constexpr std::size_t fft_table_size(std::size_t n) noexcept {
-            static_assert(detail::fft_checked<S>::value, "");
+            static_assert(detail::fft_checked<S>::k_ok, "");
             return detail::fft_float_table_size(n);
         }
 
@@ -164,7 +164,7 @@ namespace catenae {
         /// that length. Defined in the compiled core, so an image holds only the lengths it uses.
         template <typename S, std::size_t N>
         struct fft_tables {
-            static_assert(detail::fft_checked<S>::value, "");
+            static_assert(detail::fft_checked<S>::k_ok, "");
             static_assert(fft_supports(N), "catenae: an FFT length is a power of two from 4 to 65536");
             /// The tables (src/fft_srdif.h says what is where).
             static const std::array<storage_t<S>, fft_table_size<S>(N)> values;
@@ -173,7 +173,7 @@ namespace catenae {
         /// @brief A real FFT of one length: a view of its constant tables and the length.
         template <typename S>
         class fft_plan {
-            static_assert(detail::fft_checked<S>::value, "");
+            static_assert(detail::fft_checked<S>::k_ok, "");
 
           public:
             using value_type   = storage_t<S>;        ///< a sample

@@ -126,18 +126,18 @@ namespace {
 
     // Verifies CAT-FFT-001.
     TYPED_TEST(fft_formats, ForwardIsTheExpMinusDftWithEveryBinStored) {
-        using T = TypeParam;
+        using sample = TypeParam;
         for (std::size_t n = 4; n <= 256; n *= 2u) {
-            const std::vector<T> x = noise<T>(n, 7u);
-            auto                 a = frame_of(x);
-            plan_of<T>(n).forward(catenae::span<catenae::complex<T>>(a.data(), a.size()));
+            const std::vector<sample> x = noise<sample>(n, 7u);
+            auto                      a = frame_of(x);
+            plan_of<sample>(n).forward(catenae::span<catenae::complex<sample>>(a.data(), a.size()));
             std::vector<double> xd(x.begin(), x.end());
             const auto          ref = reference_dft(xd);
             // The floors, measured on x86-64 (printed below) and pinned at twice the worst.
             const double err = relative_error(a, ref, a.size());
-            std::printf("[ floor ] %s N=%u forward vs DFT %.3g\n", std::is_same<T, float>::value ? "float" : "double",
-                        static_cast<unsigned>(n), err);
-            EXPECT_LT(err, (std::is_same<T, float>::value ? 2.0e-7 : 6.1e-16)) << n;
+            std::printf("[ floor ] %s N=%u forward vs DFT %.3g\n",
+                        std::is_same<sample, float>::value ? "float" : "double", static_cast<unsigned>(n), err);
+            EXPECT_LT(err, (std::is_same<sample, float>::value ? 2.0e-7 : 6.1e-16)) << n;
             // DC and Nyquist are real: their imaginary parts are written as exact zeros.
             EXPECT_EQ(std::fpclassify(a[0].im), FP_ZERO) << n;
             EXPECT_EQ(std::fpclassify(a[n / 2u].im), FP_ZERO) << n;
@@ -146,15 +146,16 @@ namespace {
 
     // Verifies CAT-FFT-001.
     TYPED_TEST(fft_formats, ATonesBinsAreWhereExpMinusPutsThem) {
-        using T                 = TypeParam;
+        using sample            = TypeParam;
         constexpr std::size_t n = 64;
         // x[j] = sin(2 pi 5 j / 64): X[5] = -i N/2 under exp(-i), +i N/2 under exp(+i).
-        std::vector<T> x(n);
+        std::vector<sample> x(n);
         for (std::size_t j = 0; j < n; ++j) {
-            x[j] = static_cast<T>(std::sin(6.283185307179586 * 5.0 * static_cast<double>(j) / 64.0));
+            x[j] = static_cast<sample>(std::sin(6.283185307179586 * 5.0 * static_cast<double>(j) / 64.0));
         }
         auto a = frame_of(x);
-        catenae::fft_plan<T>::template of<n>().forward(catenae::span<catenae::complex<T>>(a.data(), a.size()));
+        catenae::fft_plan<sample>::template of<n>().forward(
+            catenae::span<catenae::complex<sample>>(a.data(), a.size()));
         EXPECT_NEAR(static_cast<double>(a[5].im), -32.0, 1e-4);
         EXPECT_NEAR(static_cast<double>(a[5].re), 0.0, 1e-4);
         for (std::size_t k = 0; k <= n / 2u; ++k) {
@@ -167,13 +168,13 @@ namespace {
 
     // Verifies CAT-FFT-002.
     TYPED_TEST(fft_formats, InverseReturnsItsExponentAndRoundTrips) {
-        using T = TypeParam;
+        using sample = TypeParam;
         for (std::size_t n = 4; n <= max_n; n *= 2u) {
-            const std::vector<T> x    = noise<T>(n, 11u);
-            auto                 a    = frame_of(x);
-            const auto           plan = plan_of<T>(n);
-            plan.forward(catenae::span<catenae::complex<T>>(a.data(), a.size()));
-            const int e = plan.inverse(catenae::span<catenae::complex<T>>(a.data(), a.size()));
+            const std::vector<sample> x    = noise<sample>(n, 11u);
+            auto                      a    = frame_of(x);
+            const auto                plan = plan_of<sample>(n);
+            plan.forward(catenae::span<catenae::complex<sample>>(a.data(), a.size()));
+            const int e = plan.inverse(catenae::span<catenae::complex<sample>>(a.data(), a.size()));
             ASSERT_EQ(e, 1) << n;
             // frame x 2^e = N x, so x = frame x 2^e / N.
             const double scale = std::ldexp(1.0, e) / static_cast<double>(n);
@@ -184,20 +185,20 @@ namespace {
                 worst = std::fmax(
                     worst, std::fabs(static_cast<double>(a[i].im) * scale - static_cast<double>(x[2u * i + 1u])));
             }
-            EXPECT_LT(worst, (std::is_same<T, float>::value ? 1.0e-6 : 2.0e-15)) << n;
+            EXPECT_LT(worst, (std::is_same<sample, float>::value ? 1.0e-6 : 2.0e-15)) << n;
         }
     }
 
     // Verifies CAT-FFT-002.
     TYPED_TEST(fft_formats, InverseIsTheUnnormalizedExpPlusSum) {
-        using T                 = TypeParam;
+        using sample            = TypeParam;
         constexpr std::size_t n = 32;
         // One bin: X[3] = 1 - 2i (and its conjugate at 29, implied). The inverse is
         // 2 Re((1 - 2i) exp(+i 2 pi 3 j / 32)) = 2 cos(theta) + 4 sin(theta).
-        std::vector<catenae::complex<T>> a(n / 2u + 1u, catenae::complex<T>{T(0), T(0)});
-        a[3] = {T(1), T(-2)};
-        const int e =
-            catenae::fft_plan<T>::template of<n>().inverse(catenae::span<catenae::complex<T>>(a.data(), a.size()));
+        std::vector<catenae::complex<sample>> a(n / 2u + 1u, catenae::complex<sample>{sample(0), sample(0)});
+        a[3]        = {sample(1), sample(-2)};
+        const int e = catenae::fft_plan<sample>::template of<n>().inverse(
+            catenae::span<catenae::complex<sample>>(a.data(), a.size()));
         for (std::size_t j = 0; j < n; ++j) {
             const double theta = 6.283185307179586 * 3.0 * static_cast<double>(j) / 32.0;
             const double want  = 2.0 * std::cos(theta) + 4.0 * std::sin(theta);
@@ -249,13 +250,13 @@ namespace {
 
     // Verifies CAT-FFT-003.
     TYPED_TEST(fft_formats, OutputBitsAreThePins) {
-        using T                = TypeParam;
-        const std::uint64_t* p = std::is_same<T, float>::value ? pins::float_pins : pins::double_pins;
+        using sample           = TypeParam;
+        const std::uint64_t* p = std::is_same<sample, float>::value ? pins::float_pins : pins::double_pins;
         std::size_t          i = 0;
         for (std::size_t n = 4; n <= max_n; n *= 2u, ++i) {
-            const std::uint64_t got = fingerprint<T>(n);
+            const std::uint64_t got = fingerprint<sample>(n);
             // Plain unsigned: newlib's printf on the bare-metal legs parses neither %zu nor PRIx64.
-            std::printf("[ fingerprint ] %s N=%u 0x%08x%08x\n", std::is_same<T, float>::value ? "float" : "double",
+            std::printf("[ fingerprint ] %s N=%u 0x%08x%08x\n", std::is_same<sample, float>::value ? "float" : "double",
                         static_cast<unsigned>(n), static_cast<unsigned>(got >> 32u),
                         static_cast<unsigned>(got & 0xffffffffu));
             EXPECT_EQ(got, p[i]) << n;
@@ -285,26 +286,27 @@ namespace {
 
     // Verifies CAT-FFT-005.
     TYPED_TEST(fft_formats, APlanMadeAtRunTimeHoldsTheConstantTables) {
-        using T = TypeParam;
+        using sample = TypeParam;
         for (std::size_t n = 4; n <= max_n; n *= 2u) {
-            std::vector<T> storage(catenae::fft_workspace_size<T>(n));
-            const auto     made = catenae::fft_plan<T>::make(n, catenae::span<T>(storage.data(), storage.size()));
+            std::vector<sample> storage(catenae::fft_workspace_size<sample>(n));
+            const auto made = catenae::fft_plan<sample>::make(n, catenae::span<sample>(storage.data(), storage.size()));
             ASSERT_TRUE(made.has_value()) << n;
             EXPECT_EQ(made->size(), n);
             // The tables, bit for bit: the run-time plan's transform is the constant plan's.
-            const auto x = noise<T>(n, 5u);
+            const auto x = noise<sample>(n, 5u);
             auto       a = frame_of(x);
             auto       b = frame_of(x);
-            made->forward(catenae::span<catenae::complex<T>>(a.data(), a.size()));
-            plan_of<T>(n).forward(catenae::span<catenae::complex<T>>(b.data(), b.size()));
+            made->forward(catenae::span<catenae::complex<sample>>(a.data(), a.size()));
+            plan_of<sample>(n).forward(catenae::span<catenae::complex<sample>>(b.data(), b.size()));
             EXPECT_EQ(std::memcmp(a.data(), b.data(), a.size() * sizeof a[0]), 0) << n;
         }
         // And the table values themselves, at one length of each kind of table.
-        std::vector<T> storage(catenae::fft_workspace_size<T>(1024));
-        ASSERT_TRUE(catenae::fft_plan<T>::make(1024, catenae::span<T>(storage.data(), storage.size())).has_value());
-        const auto& constant = catenae::fft_tables<T, 1024>::values;
+        std::vector<sample> storage(catenae::fft_workspace_size<sample>(1024));
+        ASSERT_TRUE(
+            catenae::fft_plan<sample>::make(1024, catenae::span<sample>(storage.data(), storage.size())).has_value());
+        const auto& constant = catenae::fft_tables<sample, 1024>::values;
         ASSERT_EQ(constant.size(), storage.size());
-        EXPECT_EQ(std::memcmp(constant.data(), storage.data(), storage.size() * sizeof(T)), 0);
+        EXPECT_EQ(std::memcmp(constant.data(), storage.data(), storage.size() * sizeof(sample)), 0);
     }
 
     // Verifies CAT-FFT-006.

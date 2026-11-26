@@ -209,6 +209,14 @@ def parse_callgraphs(paths: list[str]):
                 frames[title] = int(m.group(1))
         for src, dst in re.findall(r'edge: \{ sourcename: "([^"]*)" targetname: "([^"]*)"', text):
             edges.setdefault(src, set()).add(dst)
+    # A function GCC compiled is titled "<file>:<symbol>" in its own graph, and a call from another
+    # file names it by its symbol alone: the symbol stands for the titled node, so a call from the
+    # probe into the compiled core walks the core's own frames.
+    for title in list(frames):
+        symbol = title.rsplit(":", 1)[-1]
+        if symbol != title and symbol not in frames:
+            frames[symbol] = frames[title]
+            edges.setdefault(symbol, set()).update(edges.get(title, ()))
     return frames, externals - set(frames), edges
 
 
@@ -246,7 +254,8 @@ def runtime_depths(binary: str):
         ins = re.match(r"^\s*[0-9a-f]+:\s+(\S+)\s*(.*)$", line)
         if cur is None or not ins:
             continue
-        mnem, ops = ins.group(1), ins.group(2).split(";")[0].strip()
+        # objdump's comment follows ";" or "@" ("sub sp, #52 @ 0x34"): it is not an operand.
+        mnem, ops = ins.group(1), ins.group(2).split(";")[0].split("@")[0].strip()
         f = funcs[cur]
         regs = re.search(r"\{([^}]*)\}", ops)
         if mnem.startswith(("push", "vpush")) or (mnem.startswith(("stmdb", "vstmdb")) and ops.startswith("sp!")):

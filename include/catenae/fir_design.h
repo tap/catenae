@@ -34,7 +34,9 @@
 /// |             | or antisymmetric exactly; `fir_any_design::from_table(taps, latency)` takes a |
 /// |             | latency finite and not negative. A failing table does not initialise a     |
 /// |             | constant, and one met at run time reaches `check::table_rejected`           |
-/// | Cost        | `make()` runs in the caller's frame, outside the audio path                 |
+/// | Cost        | `make()` runs in the caller's frame, outside the audio path. Cortex-M33, worst |
+/// |             | call (Bench run 45866666441): 63 float taps 0.80 M instructions and 2,084 B of |
+/// |             | stack; 255 Q15 taps 3.29 M, 3,708 B; 1,023 float taps into a table 12.7 M, 1,076 B |
 /// | Formats     | float, double, q15, q31, Q4.27                                              |
 /// | Rationale   | D24, D29, D36, D37, D47, D54, PLAN.md 3.3                                   |
 ///

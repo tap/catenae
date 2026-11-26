@@ -208,6 +208,14 @@ def parse_callgraphs(paths: list[str]):
                 frames[title] = int(m.group(1))
         for src, dst in re.findall(r'edge: \{ sourcename: "([^"]*)" targetname: "([^"]*)"', text):
             edges.setdefault(src, set()).add(dst)
+    # A function GCC compiled is titled "<file>:<symbol>" in its own graph, and a call from another
+    # file names it by its symbol alone: the symbol stands for the titled node, so a call from the
+    # probe into the compiled core walks the core's own frames.
+    for title in list(frames):
+        symbol = title.rsplit(":", 1)[-1]
+        if symbol != title and symbol not in frames:
+            frames[symbol] = frames[title]
+            edges.setdefault(symbol, set()).update(edges.get(title, ()))
     return frames, externals - set(frames), edges
 
 

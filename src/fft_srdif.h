@@ -498,8 +498,14 @@ namespace catenae {
                     block<Inverse, L>(a, small_tables);
                 }
 
-                /// Split-radix DIF over l values at a, output in bit-reversed order.
-                template <bool Inverse>
+                /// The deepest level of the run-time recursion: a block at level D holds at most
+                /// 32768 / 4^D values, so at level 5 every block is a compile-time one.
+                static constexpr int k_max_depth = 5;
+
+                /// Split-radix DIF over l values at a, output in bit-reversed order. The level is a
+                /// template argument, so each level is a function of its own and the call graph has
+                /// no cycle: the stack bound reads every frame (scripts/ceilings.py).
+                template <bool Inverse, int Depth = 0>
                 static void kernel(const T* tables, std::size_t n, cx* a, std::size_t l) noexcept {
                     const T* const small_tables = tables + n / 2u;
                     switch (l) {
@@ -524,13 +530,15 @@ namespace catenae {
                     default:
                         break;
                     }
-                    if (l >= 128u) {
-                        fused_pass<Inverse>(tables, n, a, l);
-                        kernel<Inverse>(tables, n, a, l / 4u);
-                        kernel<Inverse>(tables, n, a + l / 4u, l / 8u);
-                        kernel<Inverse>(tables, n, a + l / 4u + l / 8u, l / 8u);
-                        kernel<Inverse>(tables, n, a + l / 2u, l / 4u);
-                        kernel<Inverse>(tables, n, a + l / 2u + l / 4u, l / 4u);
+                    if constexpr (Depth < k_max_depth) {
+                        if (l >= 128u) {
+                            fused_pass<Inverse>(tables, n, a, l);
+                            kernel<Inverse, Depth + 1>(tables, n, a, l / 4u);
+                            kernel<Inverse, Depth + 1>(tables, n, a + l / 4u, l / 8u);
+                            kernel<Inverse, Depth + 1>(tables, n, a + l / 4u + l / 8u, l / 8u);
+                            kernel<Inverse, Depth + 1>(tables, n, a + l / 2u, l / 4u);
+                            kernel<Inverse, Depth + 1>(tables, n, a + l / 2u + l / 4u, l / 4u);
+                        }
                     }
                 }
 

@@ -18,3 +18,5 @@ level (PLAN.md section 8). An identifier is never reused.
 | AOU-009 | `check_failed` does not return. | `[[noreturn]]`: the compiler warns at a return |
 | AOU-010 | A setter is called between calls, never during one. | no |
 | AOU-011 | The amalgamation is built with floating-point contraction off. | no |
+| AOU-012 | The amalgamation is built with the compiler's constant-evaluation limit raised for the FFT's tables where its default is short: Clang `-fconstexpr-steps=2000000000`, MSVC `/constexpr:steps2000000000` (GCC's defaults suffice). | the compiler: a table it cannot finish does not compile |
+| AOU-013 | The storage a run-time FFT plan is made into outlives the plan and is not written while the plan is in use. | no |

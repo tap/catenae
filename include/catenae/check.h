@@ -41,6 +41,7 @@ namespace catenae {
             push_too_large         = 4, ///< a push above the junction's largest push
             pull_too_large         = 5, ///< a pull above the junction's target
             request_too_large      = 6, ///< a fed_by request above its MaxRequest
+            fft_frame_size         = 7, ///< an FFT frame that is not N/2 + 1 bins
             // Preconditions of the vocabulary, in every build (PLAN.md section 3.3).
             expected_empty     = 32, ///< value(), operator* or operator-> of an expected with none
             expected_not_error = 33, ///< error() of an expected that holds a value

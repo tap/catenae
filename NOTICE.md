@@ -39,6 +39,10 @@ own records (DspTap's `platform/README.md` and file headers) give that chain.
 | `fit/bridge/bridge.h` (throwaway) | `include/tap/dsp/fir_kernels.h` | The loop shape of `dot_row` and `dot_row_reversed`, accumulating in `float` (D36) where DspTap accumulates in `double` |
 | `fit/rational/design.h` (throwaway) | `include/tap/dsp/nyquist.h` | Table values only: printed from `design_nyquist` with `kaiser_beta(74)` |
 | `tests/test_sample_traits.cpp` | `tests/test_sample_traits.cpp` | The same battery over the renamed constants, at C++17; `FloatMacAccumulatesInFloat` in place of the test of a `double` accumulator (D36); each test cites its requirement |
+| `src/fft_srdif.h` | `include/tap/dsp/fft/srdif.h` (`detail::srdif_rdft`) | A private header of the compiled core, explicitly instantiated for float and double (PLAN.md 7.1); C++17 (index sequences for the template lambdas, `if constexpr`); the buffer is D25's frame of N/2 + 1 `complex<T>` with the Nyquist bin at N/2, and the sign exp(-i), the conjugation folded into the post-pass as exchanged subtractions (bit-equal to DspTap's output conjugated, but for the sign of a zero); the tables are a caller's constant, never allocated; the kernel, permutation and post-pass arithmetic unchanged |
+| `src/fft_trig.h` | `include/tap/dsp/fft/srdif.h` (`detail::srdif_trig`) | constexpr at C++17: a leading-zero count of its own, and an exact power-of-two scaling in place of `std::bit_cast`, so a table is a constant of the compiled core |
+| `tests/test_fft.cpp` (the fingerprints), `tests/support/fft_fingerprints.h` | `tests/test_fft_srdif_fingerprint.cpp`, `tests/support/srdif_fingerprints.h` | The method kept (FNV-1a-64 over a forward then an inverse of a fixed 24-bit input, one row for every leg at contraction off); new pins over D25's frame, since DspTap's are of its exp(+i) packing (PLAN.md section 12) |
+| `bench/icount/fft_main.cpp` | `bench/bench_fft.cpp` (the `rfft_*` scenarios) | The scenario (a forward and an inverse over 2^20 samples at N = 512 and 2048) on catenae's plan and frame, with catenae's markers and checksum |
 
 ## Carried from SampleRateTap at `4496888`
 

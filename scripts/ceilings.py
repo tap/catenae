@@ -61,7 +61,7 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 # The probe sets (bench/CMakeLists.txt, catenae_add_probe) and each one's calls: the stack
 # probe prints CATENAE_STACK <call> <bytes> and roots each call at catenae_probe::probe_<call>.
 PROBES = {"version": ["version"], "strip": ["reset", "process"], "strip_object": ["process"],
-          "c1": ["reset", "process"], "c2": ["reset", "process"]}
+          "c1": ["reset", "process"], "c2": ["reset", "process"], "fft": ["forward", "inverse", "make"]}
 # A call's root, catenae_probe::probe_<call>, as a mangled name or a call graph's title: anchored,
 # so a static constructor whose name embeds the root's (_GLOBAL__sub_I_...) is not taken for it.
 ROOT = r"(?:^|:)_ZN13catenae_probe\d+probe_{call}E"
@@ -70,7 +70,7 @@ ROOT = r"(?:^|:)_ZN13catenae_probe\d+probe_{call}E"
 # probe whose start-up cannot be bounded fails.
 UNBOUNDED_STARTUP = {"strip_object": "operator new calls the new-handler through a pointer"}
 # The probe sets that call the compiled core (the rest are header templates alone).
-CALLS_CORE = {"version", "c2"}
+CALLS_CORE = {"version", "c2", "fft"}
 # The keys, as the ratchet names them, and their QEMU machines (Arm) or none (Hexagon).
 KEYS = {"m4-softfp": "mps2-an386", "m4f": "mps2-an386", "m33": "mps2-an505", "m55": "mps3-an547",
         "hexagon": None}
@@ -208,6 +208,14 @@ def parse_callgraphs(paths: list[str]):
                 frames[title] = int(m.group(1))
         for src, dst in re.findall(r'edge: \{ sourcename: "([^"]*)" targetname: "([^"]*)"', text):
             edges.setdefault(src, set()).add(dst)
+    # A function GCC compiled is titled "<file>:<symbol>" in its own graph, and a call from another
+    # file names it by its symbol alone: the symbol stands for the titled node, so a call from the
+    # probe into the compiled core walks the core's own frames.
+    for title in list(frames):
+        symbol = title.rsplit(":", 1)[-1]
+        if symbol != title and symbol not in frames:
+            frames[symbol] = frames[title]
+            edges.setdefault(symbol, set()).update(edges.get(title, ()))
     return frames, externals - set(frames), edges
 
 
@@ -245,7 +253,8 @@ def runtime_depths(binary: str):
         ins = re.match(r"^\s*[0-9a-f]+:\s+(\S+)\s*(.*)$", line)
         if cur is None or not ins:
             continue
-        mnem, ops = ins.group(1), ins.group(2).split(";")[0].strip()
+        # objdump's comment follows ";" or "@" ("sub sp, #52 @ 0x34"): it is not an operand.
+        mnem, ops = ins.group(1), ins.group(2).split(";")[0].split("@")[0].strip()
         f = funcs[cur]
         regs = re.search(r"\{([^}]*)\}", ops)
         if mnem.startswith(("push", "vpush")) or (mnem.startswith(("stmdb", "vstmdb")) and ops.startswith("sp!")):

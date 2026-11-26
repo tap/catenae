@@ -53,6 +53,7 @@ is rooted at a noinline `catenae_probe::probe_<call>`. The sets:
 | `strip_object` | The same strip as a desktop program writes it, one object with its delay line on the heap: the guide's "Where memory lives" measures it against `strip` | `process` |
 | `c1` | Every C1 stage once, in one float path: the link-stage gate's first probe image | `reset`, `process` |
 | `c2` | Every C2 stage in one path, 24-bit packed stereo in and out with `sanitize`, `mix` and `dither` in float between: the compiled wire loops (`src/wire.cpp`) and the gate's image for the family | `reset`, `process` |
+| `fft` | A float transform of 512 both ways from the constant tables, and a plan of 512 made at run time (`include/catenae/fft.h`): the FFT family's image for the link-stage gate | `forward`, `inverse`, `make` |
 
 `scripts/ceilings.py` reads, per key:
 
@@ -211,6 +212,34 @@ Probe `c2`: each cell is the recorded figure / its ceiling, in bytes (start-up f
 | `stack.reset.static` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
 | `code.process` | 2,202 / 2,304 | 784 / 832 | 780 / 832 | 798 / 832 |  |
 | `code.reset` | 258 / 320 | 258 / 320 | 258 / 320 | 262 / 320 |  |
+
+Probe `fft`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
+
+| figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
+|---|--:|--:|--:|--:|--:|
+| `image.bss` | 5,012 / 5,184 | 5,012 / 5,184 | 5,012 / 5,184 | 5,012 / 5,184 | 4,284 / 4,416 |
+| `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
+| `image.rodata` | 2,148 / 2,240 | 2,148 / 2,240 | 2,148 / 2,240 | 2,148 / 2,240 | 2,144 / 2,240 |
+| `image.text` | 19,480 / 20,096 | 17,496 / 18,048 | 17,400 / 17,984 | 17,344 / 17,920 | 20,260 / 20,928 |
+| `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.rodata` | 2,048 / 2,112 | 2,048 / 2,112 | 2,048 / 2,112 | 2,048 / 2,112 | 2,104 / 2,176 |
+| `core.text` | 10,724 / 11,072 | 9,396 / 9,728 | 9,396 / 9,728 | 9,326 / 9,664 | 12,640 / 13,056 |
+| `unit.bss` | 3,996 / 4,160 | 3,996 / 4,160 | 3,996 / 4,160 | 3,996 / 4,160 | 3,996 / 4,160 |
+| `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.rodata` | 8 / 64 | 8 / 64 | 8 / 64 | 8 / 64 | 0 / 0 |
+| `unit.text` | 184 / 192 | 184 / 192 | 184 / 192 | 196 / 256 | 232 / 256 |
+| `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
+| `stack.forward.measured` | 568 / 592 | 464 / 480 | 464 / 480 | 464 / 480 |  |
+| `stack.forward.static` | 568 / 592 | 480 / 496 | 480 / 496 | 480 / 496 |  |
+| `stack.inverse.measured` | 568 / 592 | 464 / 480 | 464 / 480 | 464 / 480 |  |
+| `stack.inverse.static` | 568 / 592 | 480 / 496 | 480 / 496 | 480 / 496 |  |
+| `stack.make.measured` | 540 / 560 | 540 / 560 | 540 / 560 | 540 / 560 |  |
+| `stack.make.static` | 540 / 560 | 540 / 560 | 540 / 560 | 540 / 560 |  |
+| `code.forward` | 5,634 / 5,824 | 3,874 / 4,032 | 3,874 / 4,032 | 3,898 / 4,032 |  |
+| `code.inverse` | 5,636 / 5,824 | 3,890 / 4,032 | 3,890 / 4,032 | 3,914 / 4,032 |  |
+| `code.make` | 3,374 / 3,520 | 2,388 / 2,496 | 2,388 / 2,496 | 2,274 / 2,368 |  |
 <!-- ceilings:end -->
 
 ## The layout benchmark (informational, never a gate)
@@ -306,6 +335,9 @@ ctest --test-dir build-size -L link_gate
 | `baselines.json`: `edges`, every key; `ceilings.json`: the probe set `c2`, every key but `host` | Bench run [45754937497](https://github.com/tap/catenae/actions/runs/45754937497) at `a1ac08b`, 2026-11-26 (`workflow_dispatch` on the C2 branch `claude/catenae-c2-pack`): its `measured-<key>.json` and `ceilings-measured-<key>.json` artifacts, the counts copied unchanged and the ceilings computed by `scripts/ceilings.py`'s rule. Every other count and figure in that run equal to its record, C++20 and C++23 equal to C++17 on every key, and the link-stage gate's four tests passing on each Arm key, `C2ImageHasNoSoftwareDouble` among them |
 | `baselines.json`: `edges`, every key; `ceilings.json`: the probe set `c2`, every key but `host` | Bench run [45759547555](https://github.com/tap/catenae/actions/runs/45759547555) at `316cbfd`, 2026-11-26 (`workflow_dispatch` on `claude/catenae-c2-edges`): its artifacts, copied and computed as in the row above. Re-recorded because C2's second part puts `sanitize`, `mix` and `dither` in the path where the gain was: `edges` costs 41 % more on the M33 (9,195,445 to 12,963,516) and the checksum is now `e4697eabbeb92f5c`. Every other count and figure in that run equal to its record, C++20 and C++23 equal to C++17 on every key, and the link-stage gate passing on each Arm key |
 
+| `baselines.json`: `fft_f32_512`, `fft_f32_2048`, `fft_f64_512` and `callmax_fft_f32_512`, every key | Bench run [45834933446](https://github.com/tap/catenae/actions/runs/45834933446) at `a23f18f`, 2026-11-26 (`workflow_dispatch` on the C4 FFT branch, the merge of `main` at `10b6fd9`): its `measured-<key>` artifacts, copied unchanged; each FFT workload's checksum the same on all six keys, C++20 and C++23 equal to C++17, and every other count in that run equal to its baseline (C2's `edges` among them). The counts recorded first, from run [45762911188](https://github.com/tap/catenae/actions/runs/45762911188) at `1525e89`, came before the kernel's recursion became a loop (`e7bf0d2`) and before the run-time plans to 2^20 and the static-extent frames (`4989d0e`); this run counted them from 1.33 % below to 2.88 % above those (the M55's `fft_f64_512`), inside the gate, and replaces them |
+| `ceilings.json`: the probe set `fft`, every key but `host` | Bench run [45821938097](https://github.com/tap/catenae/actions/runs/45821938097) at `4989d0e`, 2026-11-26: its `ceilings-measured-<key>.json` artifacts, the ceilings computed by `scripts/ceilings.py`'s rule. Plans made at run time to 2^20 (Q1) widened the kernel's 29 pending entries from 16 to 32 bits, so `forward` and `inverse` reach 56 B more stack on each Arm key (480 B static on the M33, M4F and M55, 568 B on the soft-float M4), and the code figures moved by under 70 B, inside their ceilings, recorded too; every other figure in that run equal to its record (C2's `c2` probe among them), and the link-stage gate's tests passing on each Arm key. The run before, [45771572341](https://github.com/tap/catenae/actions/runs/45771572341) at `e7bf0d2`, recorded the 16-bit list. Run [45834933446](https://github.com/tap/catenae/actions/runs/45834933446) at `a23f18f`, after the merge of `main`, measured every figure of every probe set equal to its record, `c2` among them: the two `scripts/ceilings.py` fixes leave C2's bounds where they were recorded |
+
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
 (Ubuntu's `gcc-arm-none-eabi` 15:13.2.rel1-2) and `qemu-system-arm` 8.2.2 for the Arm keys;
 CodeLinaro clang 19.1.5 and `qemu-hexagon` 8.2.2, built with plugins, for `hexagon`; GCC 13.3.0
@@ -371,3 +403,22 @@ through a crossfeed matrix and dithered at 24 bits; and converted back and packe
 | `m55` | 11,819,295 |
 | `hexagon` | 6,227,294 packets |
 | `host` | 13,072,650 (inside `catenae_host_counted()`) |
+
+### The floating FFT
+
+`fft_f32_512`, `fft_f32_2048` and `fft_f64_512` run a forward and an inverse transform of each
+frame over 2^20 samples (`bench/icount/fft_main.cpp`, DspTap's `rfft_*` scenarios on catenae's
+plan and frame); `callmax_fft_f32_512` is the worst single transform at 512 in float. Each
+prints the same checksum on every key: the engine's bits do not depend on the target.
+
+| Key | `fft_f32_512` | `fft_f32_2048` | `fft_f64_512` | `callmax_fft_f32_512` |
+|---|--:|--:|--:|--:|
+| `m4-softfp` | 1,830,311,721 | 2,261,476,005 | 2,445,329,815 | 432,919 |
+| `m4f` | 79,981,060 | 96,163,204 | 2,436,625,831 | 17,243 |
+| `m33` | 79,768,128 | 95,909,313 | 2,438,010,308 | 17,151 |
+| `m55` | 82,942,533 | 98,849,221 | 89,437,278 | 18,046 |
+| `hexagon` | 26,970,829 packets | 33,241,293 packets | 58,352,117 packets | 6,021 |
+| `host` | 96,305,187 | 115,922,467 | 94,855,204 | (QEMU keys only) |
+
+The double scenario is software double on the M4, M4F and M33, whose FPUs are single
+precision, and an instruction per operation on the M55 and the host.

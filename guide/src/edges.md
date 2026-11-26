@@ -118,3 +118,91 @@ calls two of the twenty.
 The cards are on the pages of [`unpack`](api/unpack_8h.html) and
 [`pack`](api/pack_8h.html), and the formats' requirements on
 [`wire.h`'s](api/wire_8h.html).
+
+## Samples: `sanitize`, `mix` and `dither`
+
+The other edge is a host that hands over `float` samples. Their layout is no trouble. The
+constraints are that this code cannot vouch for what the samples hold, and that the device
+wants fewer channels and fewer bits. The example takes a host's stereo to 16-bit mono.
+
+### What you would naturally write
+
+You would average the two channels, clamp, multiply by 32768 and cast to `int16_t`.
+
+### What it costs on the target
+
+Again no number is claimed. The cost is in what the device plays.
+
+- **A NaN passes a clamp.** Every comparison with it is false, so it reaches the cast,
+  where its conversion is undefined.
+- **A subnormal depends on a setting.** Whether it is flushed to zero is a mode of the
+  host's processor, which this code did not set.
+- **A changed mix clicks.** New coefficients applied at once are a step in the signal.
+- **Plain rounding loses what is below one LSB.** A constant 0.3 LSB rounds to 0, every
+  time. The error follows the signal, so it is distortion and not noise.
+
+### What catenae does instead
+
+Each answer is a stage, and the chain gives their order.
+
+```cpp
+{{#include ../../examples/edges.cpp:host}}
+```
+
+The run feeds (0.5, 0.25) in every frame, with frame 1's left channel a NaN, and adds one
+line to the output above:
+
+```text
+16-bit out, frames 0 to 3: 12288 4096 12288 12288
+```
+
+12288 is 0.375 at 16 bits, the mean of the pair. Frame 1's 4096 is 0.125: the NaN became
+0. The example checks that every frame is within one LSB of its target, the dither's
+reach.
+
+### Content is not a precondition
+
+No stage requires its samples to be finite. A caller who cannot vouch for its input adds
+`sanitize`. NaN, both infinities and every subnormal become +0. Every finite normal value
+and both zeros pass unchanged, bit for bit.
+
+It decides from the sample's exponent bits, not by arithmetic, so the result is the same
+whatever the host's flush-to-zero and denormals-are-zero settings. It takes `float`, and
+`double` as `sanitize_f64`. A fixed-point value is always a valid sample, so `sanitize`
+over one does not compile: `tests/compile_fail/sanitize_fixed_point.cpp` pins that.
+
+### Channels of one port
+
+Two signals meet only as channels of one port, and `mix<In, Out>` is the stage that works
+on them. Its configuration is a matrix. Output `o` is the sum, over the inputs `i` in
+ascending order, of `m[o][i] x[i]`, accumulated in `float`.
+
+A matrix set between calls is reached over the configured number of frames, 64 here,
+each coefficient ramping as `gain`'s level does.
+
+The matrix is held by value while the configuration fits 512 bytes, which an 8 by 8
+matrix in `float` does. A larger one is held by `table_view`. The stage then says that it
+holds a view, and a [mailbox](threads_and_clocks.md) refuses it. In `q31` the coefficients
+are Q1.30, and the ramped arithmetic arrives with a later milestone.
+
+### Noise before the one rounding
+
+`dither<Ch, Bits>` adds noise of one LSB at `Bits` bits, and only adds. The stage after
+it, a `convert` or a `pack`, does the one rounding.
+
+Each sample's noise is the difference of two uniform draws: triangular over (-1, 1) LSB,
+with mean 0 and variance 1/6 LSB^2. This is TPDF dither, from Lipshitz, Wannamaker and
+Vanderkooy's survey (JAES 40(5), 1992).
+
+What it buys is pinned by `AQuantizedMeanFollowsTheInputBelowAnLsb` in
+`tests/test_dither.cpp`. With dither, the constant 0.3 LSB that rounded to 0 comes out at
+0.3 LSB on average. The total error's variance is 1/4 LSB^2 at every input level the test
+tries.
+
+The source is xorshift32 (Marsaglia, 2003), one generator per channel, started from the
+configured seed, `default_seed` unless one is given. The noise repeats after 2^32 - 1
+samples, 24.9 hours at 48 kHz. In `q31`
+and Q4.27 the noise is whole raw units, and the sum saturates.
+
+The cards are on the pages of [`sanitize`](api/sanitize_8h.html),
+[`mix`](api/mix_8h.html) and [`dither`](api/dither_8h.html).

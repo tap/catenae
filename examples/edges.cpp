@@ -1,16 +1,21 @@
 /// @file edges.cpp
-/// @brief Bytes off a codec's wire, through float, and onto another wire (guide: The edges).
+/// @brief Bytes off a codec's wire, through float, and onto another wire; and a host's floats,
+/// made safe, mixed to mono and dithered onto a 16-bit wire (guide: The edges).
 // Copyright 2026 Timothy Place and the catenae contributors
 #include <array>
 #include <cstddef>
 #include <cstdio>
+#include <limits>
 #include <type_traits>
 
 #include "catenae/chain.h"
 #include "catenae/compiler.h"
 #include "catenae/convert.h"
+#include "catenae/dither.h"
 #include "catenae/gain.h"
+#include "catenae/mix.h"
 #include "catenae/pack.h"
+#include "catenae/sanitize.h"
 #include "catenae/unpack.h"
 
 namespace {
@@ -35,6 +40,22 @@ namespace {
         static_cast<void>(path.process(s_path, in, out));
     }
     // ANCHOR_END: path
+
+    // ANCHOR: host
+    // In: a host's float stereo, which this code cannot vouch for. Out: 16-bit mono on the wire.
+    constexpr auto to_sixteen = catenae::chain(catenae::sanitize<2>{})       // NaN, infinity, subnormal -> 0
+                                | catenae::mix<2, 1>{{0.5f, 0.5f}, 64}       // stereo -> mono, ramped if changed
+                                | catenae::dither<1, 16>{}                   // TPDF of one LSB at 16 bits
+                                | catenae::convert<float, catenae::q15, 1>{} // the one rounding, to 16 bits
+                                | catenae::pack<wire::s16le, 1>{};           // q15 -> bytes
+    using to_sixteen_t = std::remove_cv_t<decltype(to_sixteen)>;
+
+    CATENAE_CONSTINIT catenae::memory_of<to_sixteen_t> s_to_sixteen{};
+
+    void host_callback(const std::array<float, 64 * 2>& in, std::array<std::byte, 64 * 2>& out) noexcept {
+        static_cast<void>(to_sixteen.process(s_to_sixteen, in, out));
+    }
+    // ANCHOR_END: host
 
     void print_bytes(const char* label, const std::byte* bytes, std::size_t n) {
         std::printf("%s", label);
@@ -70,6 +91,32 @@ int main() {
         for (std::size_t i = 0; i < owed.size(); ++i) {
             ok = ok && out[frame * 6 + i] == owed[i];
         }
+    }
+
+    // The host's path: every frame (0.5, 0.25), but frame 1's left channel is a NaN.
+    to_sixteen.reset(s_to_sixteen.state);
+    std::array<float, 64 * 2> host{};
+    for (std::size_t frame = 0; frame < 64; ++frame) {
+        host[2 * frame]     = 0.5f;
+        host[2 * frame + 1] = 0.25f;
+    }
+    host[2] = std::numeric_limits<float>::quiet_NaN();
+    std::array<std::byte, 64 * 2> sixteen{};
+    host_callback(host, sixteen);
+    std::printf("16-bit out, frames 0 to 3:");
+    for (std::size_t frame = 0; frame < 4; ++frame) {
+        const auto low  = static_cast<unsigned>(sixteen[2 * frame]);
+        const auto high = static_cast<unsigned>(sixteen[2 * frame + 1]);
+        std::printf(" %u", low | (high << 8));
+    }
+    std::printf("\n");
+    // 0.375 is 12288 at 16 bits, and the NaN frame's 0.125 is 4096: each within one LSB, the
+    // dither's reach.
+    for (std::size_t frame = 0; frame < 64; ++frame) {
+        const auto value  = static_cast<long>(static_cast<unsigned>(sixteen[2 * frame])
+                                              | (static_cast<unsigned>(sixteen[2 * frame + 1]) << 8));
+        const long target = frame == 1 ? 4096 : 12288;
+        ok                = ok && value >= target - 1 && value <= target + 1;
     }
     std::printf("CATENAE_EXAMPLE_DONE ok=%d\n", ok ? 1 : 0);
     return ok ? 0 : 1;

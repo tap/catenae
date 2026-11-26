@@ -45,6 +45,28 @@ endif()
 string(TOUPPER "CATENAE_CHECKS_${CATENAE_CHECKS}" CATENAE_CHECKS_VALUE)
 set(CATENAE_CONFIG_WRITER "CMake")
 
+# The FFT back end of each sample type (D28, PLAN.md section 7.2), each a choice from its own list
+# and `own` by default, written into catenae/config.h and spelled into the inline namespace.
+# `none` leaves that type's FFT out. CMSIS-DSP and vDSP arrive at C6: until then choosing one
+# fails here, since there is no silent fallback.
+foreach(_catenae_fft IN ITEMS "F32;own|cmsis|vdsp|none" "F64;own|vdsp|none" "Q15;own|cmsis|none"
+                              "Q31;own|cmsis|none")
+    list(GET _catenae_fft 0 _catenae_type)
+    list(GET _catenae_fft 1 _catenae_choices)
+    set(CATENAE_FFT_${_catenae_type} own CACHE STRING "catenae's ${_catenae_type} FFT back end: ${_catenae_choices}")
+    string(REPLACE "|" ";" _catenae_list "${_catenae_choices}")
+    set_property(CACHE CATENAE_FFT_${_catenae_type} PROPERTY STRINGS ${_catenae_list})
+    if(NOT CATENAE_FFT_${_catenae_type} IN_LIST _catenae_list)
+        message(FATAL_ERROR "CATENAE_FFT_${_catenae_type} is one of ${_catenae_choices} "
+                            "(got '${CATENAE_FFT_${_catenae_type}}')")
+    endif()
+    if(CATENAE_FFT_${_catenae_type} MATCHES "^(cmsis|vdsp)$")
+        message(FATAL_ERROR "CATENAE_FFT_${_catenae_type}=${CATENAE_FFT_${_catenae_type}}: that back end "
+                            "arrives at C6 (PLAN.md section 10); choose own or none")
+    endif()
+    string(TOUPPER "CATENAE_FFT_${CATENAE_FFT_${_catenae_type}}" CATENAE_FFT_${_catenae_type}_VALUE)
+endforeach()
+
 if(CATENAE_COVERAGE)
     if(NOT CMAKE_CXX_COMPILER_ID MATCHES "Clang")
         message(FATAL_ERROR "CATENAE_COVERAGE needs Clang (source-based coverage)")
@@ -60,7 +82,8 @@ if(CATENAE_AMALGAMATION)
     set(_catenae_amalgamation "${PROJECT_BINARY_DIR}/amalgamation")
     execute_process(
         COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/amalgamate.py" --out "${_catenae_amalgamation}"
-                --checks "${CATENAE_CHECKS}"
+                --checks "${CATENAE_CHECKS}" --fft-f32 "${CATENAE_FFT_F32}" --fft-f64 "${CATENAE_FFT_F64}"
+                --fft-q15 "${CATENAE_FFT_Q15}" --fft-q31 "${CATENAE_FFT_Q31}"
         COMMAND_ERROR_IS_FATAL ANY)
     set(_catenae_sources "${_catenae_amalgamation}/catenae.cpp")
     set(_catenae_include "${_catenae_amalgamation}/include")

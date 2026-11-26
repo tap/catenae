@@ -26,6 +26,11 @@ APPNAME = "catenae"
 # to include/catenae/version.h by the battery (CAT-VERSION-001).
 VERSION = "0.0.0"
 
+# Each sample type's FFT back ends (PLAN.md section 7.2), as CMakeLists.txt lists them. CMSIS-DSP
+# and vDSP arrive at C6: until then configure refuses them, since there is no silent fallback.
+FFT_CHOICES = {"f32": ["own", "cmsis", "vdsp", "none"], "f64": ["own", "vdsp", "none"],
+               "q15": ["own", "cmsis", "none"], "q31": ["own", "cmsis", "none"]}
+
 top = "."
 out = "build-waf"
 
@@ -37,6 +42,10 @@ def options(opt):
                      help="C++ standard: 17, 20 or 23 (D2: the same files at each) [default: 17]")
     group.add_option("--checks", action="store", default="boundary", choices=["boundary", "audit"],
                      help="the check level written into catenae/config.h (D27) [default: boundary]")
+    for name, choices in FFT_CHOICES.items():
+        group.add_option("--fft-" + name, action="store", default="own", choices=choices,
+                         help="the %s FFT back end, one of %s (PLAN.md section 7.2) [default: own]"
+                         % (name, ", ".join(choices)))
     group.add_option("--no-werror", action="store_true", default=False,
                      help="do not treat warnings as errors")
     group.add_option("--gtest", action="store", default="",
@@ -60,6 +69,11 @@ def configure(conf):
     env = conf.env
     env.CATENAE_STD = std
     env.CATENAE_CHECKS = conf.options.checks
+    for name in FFT_CHOICES:
+        choice = getattr(conf.options, "fft_" + name)
+        if choice in ("cmsis", "vdsp"):
+            conf.fatal("--fft-%s=%s: that back end arrives at C6 (PLAN.md section 10)" % (name, choice))
+        env["CATENAE_FFT_" + name.upper()] = choice
     if name == "msvc":
         env.CATENAE_WARNINGS = read_flags(conf, "msvc.txt")
         env.CATENAE_WERROR = ["/WX"]
@@ -101,6 +115,7 @@ def configure(conf):
         env.CATENAE_GTEST = root.abspath()
     conf.msg("catenae C++ standard", "C++" + std)
     conf.msg("catenae check level", env.CATENAE_CHECKS)
+    conf.msg("catenae FFT back ends", ", ".join("%s %s" % (n, env["CATENAE_FFT_" + n.upper()]) for n in FFT_CHOICES))
     conf.msg("catenae battery", env.CATENAE_GTEST or "not built (no --gtest)")
 
 
@@ -115,6 +130,9 @@ def write_config(bld):
     text = bld.path.find_node("tools/config/config.h.in").read()
     text = text.replace("@CATENAE_CHECKS_VALUE@", "CATENAE_CHECKS_" + bld.env.CATENAE_CHECKS.upper())
     text = text.replace("@CATENAE_CONFIG_WRITER@", "waf")
+    for name in FFT_CHOICES:
+        key = "CATENAE_FFT_" + name.upper()
+        text = text.replace("@%s_VALUE@" % key, "CATENAE_FFT_" + bld.env[key].upper())
     node = bld.path.find_or_declare("generated/include/catenae/config.h")
     node.parent.mkdir()
     if not os.path.exists(node.abspath()) or node.read() != text:

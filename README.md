@@ -14,7 +14,8 @@ and pinned by a test.
 **Status: the chain, its first stages, the first junction and the mailbox.** The builds, CI
 on every target, the measurement harness and the contracts are in place, and a chain of
 stages written as a type runs on every target: `map`, a `gain` that ramps, a fixed `delay`,
-the layout converters and `convert` among `float`, `q15`, `q31` and Q4.27. `steady` makes a
+the layout converters and `convert` among `float`, `q15`, `q31` and Q4.27; at its edges,
+`unpack` and `pack` move samples between ten wire formats and those. `steady` makes a
 stage that works in blocks frame-synchronous, and `parallel` runs two chains on two groups of
 a port's channels. `handoff` joins two threads of one clock with a fill policy stated as
 numbers, `feeding` and `fed_by` run a chain on either side of it, and a `mailbox` carries a

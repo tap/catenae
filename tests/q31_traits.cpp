@@ -17,9 +17,11 @@
 #include "catenae/interleave.h"
 #include "catenae/junction_traits.h"
 #include "catenae/map.h"
+#include "catenae/pack.h"
 #include "catenae/parallel.h"
 #include "catenae/stage_traits.h"
 #include "catenae/steady.h"
+#include "catenae/unpack.h"
 
 namespace {
 
@@ -47,6 +49,11 @@ namespace {
     static_assert(contract<catenae::parallel<catenae::deinterleave_q31<2>, catenae::deinterleave_q31<1>,
                                              catenae::align::by_caller>>(),
                   "parallel in q31, planar out, aligned by the caller");
+    static_assert(contract<catenae::unpack<catenae::wire::s24le_packed, 2>>(), "unpack to q31");
+    static_assert(contract<catenae::pack<catenae::wire::s32be, 2>>(), "pack from q31");
+    static_assert(contract<catenae::chain<catenae::unpack<catenae::wire::s24le_in32_msb, 2>, catenae::gain_q31<2>,
+                                          catenae::pack<catenae::wire::s24be_packed, 2>>>(),
+                  "wire to wire through q31");
     static_assert(catenae::junction_traits<catenae::handoff<catenae::q31, 2, 256, 64, 64>>::opted_in,
                   "a handoff of q31 frames: the junction's contract");
 

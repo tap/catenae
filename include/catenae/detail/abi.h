@@ -30,8 +30,10 @@
 #endif
 
 #if CATENAE_CHECKS == CATENAE_CHECKS_BOUNDARY
+/// The check level as a word of the namespace: `boundary` or `audit`.
 #define CATENAE_DETAIL_ABI_LEVEL boundary
 #elif CATENAE_CHECKS == CATENAE_CHECKS_AUDIT
+/// The check level as a word of the namespace: `boundary` or `audit`.
 #define CATENAE_DETAIL_ABI_LEVEL audit
 #else
 #error "catenae: CATENAE_CHECKS is CATENAE_CHECKS_BOUNDARY or CATENAE_CHECKS_AUDIT"
@@ -39,48 +41,63 @@
 
 // Each type's back end as a word of the namespace.
 #if CATENAE_FFT_F32 == CATENAE_FFT_OWN
+/// The FFT back end of `float` as a word of the namespace: `own`, `cmsis`, `vdsp` or `none`.
 #define CATENAE_DETAIL_ABI_F32 own
 #elif CATENAE_FFT_F32 == CATENAE_FFT_CMSIS
+/// The FFT back end of `float` as a word of the namespace: `own`, `cmsis`, `vdsp` or `none`.
 #define CATENAE_DETAIL_ABI_F32 cmsis
 #elif CATENAE_FFT_F32 == CATENAE_FFT_VDSP
+/// The FFT back end of `float` as a word of the namespace: `own`, `cmsis`, `vdsp` or `none`.
 #define CATENAE_DETAIL_ABI_F32 vdsp
 #elif CATENAE_FFT_F32 == CATENAE_FFT_NONE
+/// The FFT back end of `float` as a word of the namespace: `own`, `cmsis`, `vdsp` or `none`.
 #define CATENAE_DETAIL_ABI_F32 none
 #else
 #error "catenae: CATENAE_FFT_F32 is own, cmsis, vdsp or none"
 #endif
 
 #if CATENAE_FFT_F64 == CATENAE_FFT_OWN
+/// The FFT back end of `double` as a word of the namespace: `own`, `vdsp` or `none`.
 #define CATENAE_DETAIL_ABI_F64 own
 #elif CATENAE_FFT_F64 == CATENAE_FFT_VDSP
+/// The FFT back end of `double` as a word of the namespace: `own`, `vdsp` or `none`.
 #define CATENAE_DETAIL_ABI_F64 vdsp
 #elif CATENAE_FFT_F64 == CATENAE_FFT_NONE
+/// The FFT back end of `double` as a word of the namespace: `own`, `vdsp` or `none`.
 #define CATENAE_DETAIL_ABI_F64 none
 #else
 #error "catenae: CATENAE_FFT_F64 is own, vdsp or none"
 #endif
 
 #if CATENAE_FFT_Q15 == CATENAE_FFT_OWN
+/// The FFT back end of q15 as a word of the namespace: `own`, `cmsis` or `none`.
 #define CATENAE_DETAIL_ABI_Q15 own
 #elif CATENAE_FFT_Q15 == CATENAE_FFT_CMSIS
+/// The FFT back end of q15 as a word of the namespace: `own`, `cmsis` or `none`.
 #define CATENAE_DETAIL_ABI_Q15 cmsis
 #elif CATENAE_FFT_Q15 == CATENAE_FFT_NONE
+/// The FFT back end of q15 as a word of the namespace: `own`, `cmsis` or `none`.
 #define CATENAE_DETAIL_ABI_Q15 none
 #else
 #error "catenae: CATENAE_FFT_Q15 is own, cmsis or none"
 #endif
 
 #if CATENAE_FFT_Q31 == CATENAE_FFT_OWN
+/// The FFT back end of q31 as a word of the namespace: `own`, `cmsis` or `none`.
 #define CATENAE_DETAIL_ABI_Q31 own
 #elif CATENAE_FFT_Q31 == CATENAE_FFT_CMSIS
+/// The FFT back end of q31 as a word of the namespace: `own`, `cmsis` or `none`.
 #define CATENAE_DETAIL_ABI_Q31 cmsis
 #elif CATENAE_FFT_Q31 == CATENAE_FFT_NONE
+/// The FFT back end of q31 as a word of the namespace: `own`, `cmsis` or `none`.
 #define CATENAE_DETAIL_ABI_Q31 none
 #else
 #error "catenae: CATENAE_FFT_Q31 is own, cmsis or none"
 #endif
 
+/// Pastes the level and the four back ends with underscores between: `l_a_b_c_d`.
 #define CATENAE_DETAIL_ABI_JOIN2(l, a, b, c, d) l##_##a##_##b##_##c##_##d
+/// Expands its arguments, then pastes them with CATENAE_DETAIL_ABI_JOIN2.
 #define CATENAE_DETAIL_ABI_JOIN(l, a, b, c, d) CATENAE_DETAIL_ABI_JOIN2(l, a, b, c, d)
 
 /// The inline namespace of this build: its check level and its four FFT back ends.

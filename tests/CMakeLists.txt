@@ -106,6 +106,7 @@ catenae_add_gtest_executable(catenae_tests
         test_delay.cpp
         test_expected.cpp
         test_feeding.cpp
+        test_fft.cpp
         test_fwd.cpp
         test_fwd_alone.cpp
         test_gain.cpp
@@ -129,6 +130,11 @@ catenae_add_gtest_executable(catenae_tests
 # On a bare-metal leg a timer interrupt is one side of a mailbox and a junction (PLAN.md 7.3).
 if(CATENAE_BARE_METAL)
     target_sources(catenae_tests PRIVATE bare_metal/interrupt.cpp)
+endif()
+# The FFT battery sweeps to 65536 hosted; a bare-metal leg's RAM holds no 65536-point double
+# frame, so it stops at 4096.
+if(CATENAE_BARE_METAL)
+    target_compile_definitions(catenae_tests PRIVATE CATENAE_TEST_MAX_FFT_N=4096)
 endif()
 # The battery's support (its check_failed, the generic harness) and the fixture stages.
 target_include_directories(catenae_tests PRIVATE support fixtures ../examples)

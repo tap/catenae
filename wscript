@@ -69,11 +69,11 @@ def configure(conf):
     env = conf.env
     env.CATENAE_STD = std
     env.CATENAE_CHECKS = conf.options.checks
-    for name in FFT_CHOICES:
-        choice = getattr(conf.options, "fft_" + name)
+    for fft in FFT_CHOICES:
+        choice = getattr(conf.options, "fft_" + fft)
         if choice in ("cmsis", "vdsp"):
-            conf.fatal("--fft-%s=%s: that back end arrives at C6 (PLAN.md section 10)" % (name, choice))
-        env["CATENAE_FFT_" + name.upper()] = choice
+            conf.fatal("--fft-%s=%s: that back end arrives at C6 (PLAN.md section 10)" % (fft, choice))
+        env["CATENAE_FFT_" + fft.upper()] = choice
     if name == "msvc":
         env.CATENAE_WARNINGS = read_flags(conf, "msvc.txt")
         env.CATENAE_WERROR = ["/WX"]
@@ -83,6 +83,7 @@ def configure(conf):
                                       "/EHs-c-", "/GR-", "/nologo", "/O2", "/MD", "/Zc:__cplusplus"])
         env.append_value("DEFINES", ["_HAS_EXCEPTIONS=0"])
         env.CATENAE_CONTRACTION = ["/fp:precise"]
+        env.CATENAE_CONSTEXPR = ["/constexpr:steps2000000000"]
         env.CATENAE_SECTIONS = []
         env.CATENAE_SYSTEM_INCLUDE = ["/external:W0", "/external:I"]
     elif name in ("gcc", "clang"):
@@ -97,6 +98,9 @@ def configure(conf):
         env.CATENAE_WERROR = ["-Werror"]
         env.append_value("CXXFLAGS", ["-std=c++" + std, "-O2", "-fno-exceptions", "-fno-rtti"])
         env.CATENAE_CONTRACTION = ["-ffp-contract=off"]
+        # The core's constant-evaluation limits, raised for the FFT's tables (cmake/catenae_flags.cmake).
+        env.CATENAE_CONSTEXPR = (["-fconstexpr-ops-limit=4294967295", "-fconstexpr-loop-limit=1000000"]
+                                 if name == "gcc" else ["-fconstexpr-steps=2000000000"])
         env.CATENAE_SECTIONS = ["-ffunction-sections", "-fdata-sections"]
         env.CATENAE_SYSTEM_INCLUDE = ["-isystem"]
         if Utils.unversioned_sys_platform() not in ("darwin", "win32"):
@@ -151,7 +155,8 @@ def build(bld):
         source=bld.path.ant_glob("src/*.cpp"),
         includes=includes,
         export_includes=includes,
-        cxxflags=warnings(env, "library") + list(env.CATENAE_CONTRACTION) + list(env.CATENAE_SECTIONS),
+        cxxflags=warnings(env, "library") + list(env.CATENAE_CONTRACTION) + list(env.CATENAE_SECTIONS)
+        + list(env.CATENAE_CONSTEXPR),
     )
     # The default check_failed, which traps (PLAN.md section 3.4): an object, so that an image
     # that defines its own handler never sees this one.

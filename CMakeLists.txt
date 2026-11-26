@@ -101,7 +101,8 @@ add_library(catenae::catenae ALIAS catenae)
 # view (PLAN.md section 7.3).
 target_include_directories(catenae PUBLIC "$<BUILD_INTERFACE:${_catenae_include}>")
 target_compile_features(catenae PUBLIC cxx_std_17)
-target_link_libraries(catenae PRIVATE catenae_library_warnings catenae_no_exceptions catenae_contraction)
+target_link_libraries(catenae PRIVATE catenae_library_warnings catenae_no_exceptions catenae_contraction
+                                      catenae_constexpr)
 # One copy of the compiled code, dropped when unused (PLAN.md section 7.1).
 if(NOT MSVC)
     target_compile_options(catenae PRIVATE -ffunction-sections -fdata-sections)

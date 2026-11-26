@@ -56,6 +56,7 @@
 #define CATENAE_SRC_FFT_SRDIF_H
 
 #include <cstddef>
+#include <cstdint>
 #include <type_traits>
 #include <utility>
 
@@ -75,7 +76,9 @@
 
 // Under GCC each compile-time block the kernel's switch reaches is a function of its own. Inlined
 // into the switch, GCC gives the blocks' locals separate stack slots, so the kernel's frame is
-// their sum: 944 bytes on the Cortex-M33 at -O3, beyond the library's 512 (tools/warnings).
+// their sum: 944 bytes on the Cortex-M33 at -O3, beyond the library's 512 (tools/warnings). The
+// kernel is a function of its own for the same reason: inlined into a transform, its list of
+// pending blocks and the fused pass made a 520-byte frame on the soft-float Cortex-M4.
 #if defined(__GNUC__) && !defined(__clang__)
 #define CATENAE_SRDIF_BLOCK __attribute__((noinline))
 #else
@@ -498,46 +501,67 @@ namespace catenae {
                     block<Inverse, L>(a, small_tables);
                 }
 
-                /// The deepest level of the run-time recursion: a block at level D holds at most
-                /// 32768 / 4^D values, so at level 5 every block is a compile-time one.
-                static constexpr int k_max_depth = 5;
+                /// The most blocks the kernel holds pending: a block of l >= 128 is replaced by its
+                /// five, l/4 to l/8, and l <= 32768 halves at least twice per level, so at most five
+                /// levels fuse and the list grows by four at each.
+                static constexpr std::size_t k_pending = 1u + 4u * 5u;
 
-                /// Split-radix DIF over l values at a, output in bit-reversed order. The level is a
-                /// template argument, so each level is a function of its own and the call graph has
-                /// no cycle: the stack bound reads every frame (scripts/ceilings.py).
-                template <bool Inverse, int Depth = 0>
-                static void kernel(const T* tables, std::size_t n, cx* a, std::size_t l) noexcept {
+                /// Split-radix DIF over l values at a, output in bit-reversed order. The recursion
+                /// on the five blocks a fused pass leaves is a loop over a list of the blocks still
+                /// to do, taken depth first in the recursion's order (the blocks are disjoint, so the
+                /// order moves no bit): no function calls itself, so the stack bound reads every frame
+                /// (scripts/ceilings.py), and the fused pass has one call site, so GCC keeps it inline.
+                template <bool Inverse>
+                CATENAE_SRDIF_BLOCK static void kernel(const T* tables, std::size_t n, cx* a, std::size_t l) noexcept {
+                    // A pending block in one word: its offset is a multiple of its length (a power of
+                    // two from 2 to 32768), so offset + length / 2 keeps both, the lowest set bit
+                    // being half the length.
+                    const auto entry = [](std::size_t at, std::size_t len) noexcept {
+                        return static_cast<std::uint16_t>(at + len / 2u);
+                    };
                     const T* const small_tables = tables + n / 2u;
-                    switch (l) {
-                    case 64u:
-                        root_block<Inverse, 64u>(a, small_tables);
-                        return;
-                    case 32u:
-                        root_block<Inverse, 32u>(a, small_tables);
-                        return;
-                    case 16u:
-                        root_block<Inverse, 16u>(a, small_tables);
-                        return;
-                    case 8u:
-                        root_block<Inverse, 8u>(a, small_tables);
-                        return;
-                    case 4u:
-                        root_block<Inverse, 4u>(a, small_tables);
-                        return;
-                    case 2u:
-                        root_block<Inverse, 2u>(a, small_tables);
-                        return;
-                    default:
-                        break;
-                    }
-                    if constexpr (Depth < k_max_depth) {
-                        if (l >= 128u) {
-                            fused_pass<Inverse>(tables, n, a, l);
-                            kernel<Inverse, Depth + 1>(tables, n, a, l / 4u);
-                            kernel<Inverse, Depth + 1>(tables, n, a + l / 4u, l / 8u);
-                            kernel<Inverse, Depth + 1>(tables, n, a + l / 4u + l / 8u, l / 8u);
-                            kernel<Inverse, Depth + 1>(tables, n, a + l / 2u, l / 4u);
-                            kernel<Inverse, Depth + 1>(tables, n, a + l / 2u + l / 4u, l / 4u);
+                    std::uint16_t  pending[k_pending];
+                    std::size_t    count = 1u;
+                    pending[0]           = entry(0u, l);
+                    while (count > 0u) {
+                        --count;
+                        const std::size_t code = pending[count];
+                        const std::size_t half = code & (~code + 1u);
+                        const std::size_t len  = 2u * half;
+                        const std::size_t at   = code - half;
+                        cx* const         p    = a + at;
+                        switch (len) {
+                        case 64u:
+                            root_block<Inverse, 64u>(p, small_tables);
+                            continue;
+                        case 32u:
+                            root_block<Inverse, 32u>(p, small_tables);
+                            continue;
+                        case 16u:
+                            root_block<Inverse, 16u>(p, small_tables);
+                            continue;
+                        case 8u:
+                            root_block<Inverse, 8u>(p, small_tables);
+                            continue;
+                        case 4u:
+                            root_block<Inverse, 4u>(p, small_tables);
+                            continue;
+                        case 2u:
+                            root_block<Inverse, 2u>(p, small_tables);
+                            continue;
+                        default:
+                            break;
+                        }
+                        if (len >= 128u) {
+                            const std::size_t m = len;
+                            fused_pass<Inverse>(tables, n, p, m);
+                            // Pushed last first, so the first is taken next, as the recursion did.
+                            pending[count]      = entry(at + m / 2u + m / 4u, m / 4u);
+                            pending[count + 1u] = entry(at + m / 2u, m / 4u);
+                            pending[count + 2u] = entry(at + m / 4u + m / 8u, m / 8u);
+                            pending[count + 3u] = entry(at + m / 4u, m / 8u);
+                            pending[count + 4u] = entry(at, m / 4u);
+                            count += 5u;
                         }
                     }
                 }

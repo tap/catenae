@@ -114,10 +114,14 @@ namespace {
         return result;
     }
 
-    double db(double x) { return 20.0 * std::log10(x); }
+    double db(double x) {
+        return 20.0 * std::log10(x);
+    }
 
     /// Whether two floats are one value, without ==.
-    constexpr bool same(float a, float b) { return !(a < b) && !(a > b); }
+    constexpr bool same(float a, float b) {
+        return !(a < b) && !(a > b);
+    }
 
     // Verifies CAT-FIR-DESIGN-001.
     TEST(fir_design, ALowpassIsUnityAtDcAndHalfAtItsCutoff) {
@@ -251,7 +255,7 @@ namespace {
 
     template <typename S, std::size_t Taps, typename Spec>
     void quantized_as_the_card_says(const Spec& spec) {
-        using traits = catenae::sample_traits<catenae::storage_t<S>>;
+        using traits     = catenae::sample_traits<catenae::storage_t<S>>;
         const auto exact = *design<double, Taps>(spec);
         const auto fixed = *design<S, Taps>(spec);
         // The pairs: the row-sum-preserving quantization of the first half.
@@ -261,7 +265,7 @@ namespace {
             half[k] = exact.table()[k];
             whole += half[k] * traits::coeff_scale;
         }
-        const auto  pairs     = row_preserving<catenae::storage_t<S>>(half);
+        const auto   pairs    = row_preserving<catenae::storage_t<S>>(half);
         std::int64_t pair_sum = 0;
         for (std::size_t k = 0; k < Taps / 2; ++k) {
             ASSERT_EQ(fixed.table()[k], pairs[k]) << Taps << " taps, tap " << k;
@@ -277,9 +281,9 @@ namespace {
             EXPECT_EQ(sum, std::llround(whole)) << Taps << " taps: the centre takes the residual";
             EXPECT_EQ(fixed.table()[Taps / 2], std::llround(whole) - 2 * pair_sum);
             // and it stays within an LSB and a half of its own value
-            EXPECT_LE(std::fabs(static_cast<double>(fixed.table()[Taps / 2])
-                                - exact.table()[Taps / 2] * traits::coeff_scale),
-                      1.5);
+            EXPECT_LE(
+                std::fabs(static_cast<double>(fixed.table()[Taps / 2]) - exact.table()[Taps / 2] * traits::coeff_scale),
+                1.5);
         }
         else {
             EXPECT_LE(std::fabs(static_cast<double>(sum) - whole), 1.0) << Taps << " taps";
@@ -406,7 +410,7 @@ namespace {
 
     // Verifies CAT-FIR-DESIGN-004.
     TEST(fir_design, FromTableRefusesTheRestAtRunTime) {
-        using d3 = catenae::fir_design<float, 3>;
+        using d3               = catenae::fir_design<float, 3>;
         std::array<float, 3> t = {0.25f, 0.5f, 0.26f};
         CATENAE_EXPECT_CHECK(catenae::check::table_rejected, static_cast<void>(d3::from_table(t)));
         t = {0.25f, std::numeric_limits<float>::quiet_NaN(), 0.25f};
@@ -424,10 +428,12 @@ namespace {
         std::array<float, 3> free = {0.5f, 0.375f, 0.125f};
         CATENAE_EXPECT_NO_CHECK(static_cast<void>(any3::from_table(free, {0.75f, 0.0f})));
         CATENAE_EXPECT_CHECK(catenae::check::table_rejected, static_cast<void>(any3::from_table(free, {-0.5f, 0.0f})));
-        CATENAE_EXPECT_CHECK(catenae::check::table_rejected,
-                             static_cast<void>(any3::from_table(free, {0.75f, std::numeric_limits<float>::infinity()})));
-        CATENAE_EXPECT_CHECK(catenae::check::table_rejected,
-                             static_cast<void>(any3::from_table(free, {std::numeric_limits<float>::quiet_NaN(), 0.0f})));
+        CATENAE_EXPECT_CHECK(
+            catenae::check::table_rejected,
+            static_cast<void>(any3::from_table(free, {0.75f, std::numeric_limits<float>::infinity()})));
+        CATENAE_EXPECT_CHECK(
+            catenae::check::table_rejected,
+            static_cast<void>(any3::from_table(free, {std::numeric_limits<float>::quiet_NaN(), 0.0f})));
         free[2] = std::numeric_limits<float>::quiet_NaN();
         CATENAE_EXPECT_CHECK(catenae::check::table_rejected, static_cast<void>(any3::from_table(free, {0.75f, 0.0f})));
     }

@@ -142,37 +142,37 @@ namespace catenae {
             /// What make() takes: the four specs, and whether each needs an odd count.
             template <typename Spec>
             struct fir_spec {
-                static constexpr bool k_is_spec  = false;
+                static constexpr bool k_is_spec   = false;
                 static constexpr bool k_needs_odd = false;
             };
             template <>
             struct fir_spec<fir_lowpass> {
-                static constexpr bool k_is_spec   = true;
-                static constexpr bool k_needs_odd = false;
+                static constexpr bool        k_is_spec   = true;
+                static constexpr bool        k_needs_odd = false;
                 static constexpr fir_request request(const fir_lowpass& s) noexcept {
                     return {fir_response::lowpass, s.cutoff, s.cutoff, s.attenuation_db};
                 }
             };
             template <>
             struct fir_spec<fir_highpass> {
-                static constexpr bool k_is_spec   = true;
-                static constexpr bool k_needs_odd = true;
+                static constexpr bool        k_is_spec   = true;
+                static constexpr bool        k_needs_odd = true;
                 static constexpr fir_request request(const fir_highpass& s) noexcept {
                     return {fir_response::highpass, s.cutoff, s.cutoff, s.attenuation_db};
                 }
             };
             template <>
             struct fir_spec<fir_bandpass> {
-                static constexpr bool k_is_spec   = true;
-                static constexpr bool k_needs_odd = false;
+                static constexpr bool        k_is_spec   = true;
+                static constexpr bool        k_needs_odd = false;
                 static constexpr fir_request request(const fir_bandpass& s) noexcept {
                     return {fir_response::bandpass, s.low, s.high, s.attenuation_db};
                 }
             };
             template <>
             struct fir_spec<fir_bandstop> {
-                static constexpr bool k_is_spec   = true;
-                static constexpr bool k_needs_odd = true;
+                static constexpr bool        k_is_spec   = true;
+                static constexpr bool        k_needs_odd = true;
                 static constexpr fir_request request(const fir_bandstop& s) noexcept {
                     return {fir_response::bandstop, s.low, s.high, s.attenuation_db};
                 }
@@ -327,17 +327,16 @@ namespace catenae {
         template <typename S, std::size_t Taps, fir_phase Phase = fir_phase::linear>
         class fir_design : private detail::fir_stored_latency<Phase> {
             static_assert(Taps >= 1 && Taps <= max_fir_taps, "catenae: a direct-form FIR has 1 to 65,536 taps");
-            static_assert(std::is_same<S, float>::value || std::is_same<S, double>::value
-                              || std::is_same<S, q15>::value || std::is_same<S, q31>::value
-                              || std::is_same<S, q4_27>::value,
+            static_assert(std::is_same<S, float>::value || std::is_same<S, double>::value || std::is_same<S, q15>::value
+                              || std::is_same<S, q31>::value || std::is_same<S, q4_27>::value,
                           "catenae: an FIR design is float, double, q15, q31 or q4_27");
             using stored_latency = detail::fir_stored_latency<Phase>;
 
           public:
-            using coefficient_type                 = detail::fir_coefficient_t<S>;      ///< one tap
+            using coefficient_type                 = detail::fir_coefficient_t<S>;       ///< one tap
             using table_type                       = std::array<coefficient_type, Taps>; ///< h[0] to h[Taps - 1]
-            static constexpr std::size_t tap_count = Taps;                              ///< how many
-            static constexpr fir_phase   phase     = Phase;                             ///< linear or any
+            static constexpr std::size_t tap_count = Taps;                               ///< how many
+            static constexpr fir_phase   phase     = Phase;                              ///< linear or any
             /// True when the taps are held by value, false when viewed (CAT-FIR-DESIGN-003).
             static constexpr bool holds_by_value = detail::fir_by_value<S, Taps, Phase>::k_value;
             /// What the design holds: the taps, or a view of the caller's.

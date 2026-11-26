@@ -7,10 +7,10 @@
 # catenae_layout_ --report-only, which prints each count and each planar / interleaved ratio
 # and fails only when a binary yields no count.
 #
-# Scenarios: <kind>_f32_ch<C>_<i|p>, kind in {gain, delay, map, strip, biquad}, C in {1, 2, 6, 12}; at
+# Scenarios: <kind>_f32_ch<C>_<i|p>, kind in {gain, delay, map, strip, biquad, fir}, C in {1, 2, 6, 12}; at
 # one channel the two layouts are the same buffer, so only _i is built. Entries are name:id
 # (layout_main.cpp's CATENAE_LAYOUT_KIND).
-set(_catenae_layout_kinds gain:0 delay:1 map:2 strip:3 biquad:4)
+set(_catenae_layout_kinds gain:0 delay:1 map:2 strip:3 biquad:4 fir:5)
 set(_catenae_layout_channels 1 2 6 12)
 
 foreach(_kind IN LISTS _catenae_layout_kinds)

@@ -57,8 +57,8 @@ namespace {
 
     template <typename S, std::size_t Taps>
     void dot_is_the_cards_sum() {
-        const auto     h = taps<S, Taps>(3u + Taps);
-        std::vector<S> window(Taps);
+        const auto           h = taps<S, Taps>(3u + Taps);
+        std::vector<S>       window(Taps);
         catenae_test::signal noise(17u + Taps);
         for (std::uint32_t trial = 0; trial < 20; ++trial) {
             for (S& x : window) {
@@ -91,8 +91,8 @@ namespace {
         h.fill(1.0f);
         std::array<float, 9> x{};
         x.fill(0x1p-24f);
-        x[8]          = 1.0f; // the newest, met by h[0], in s0
-        const float y = catenae::detail::fir_dot<float, 9>(h.data(), x.data());
+        x[8]                = 1.0f; // the newest, met by h[0], in s0
+        const float y       = catenae::detail::fir_dot<float, 9>(h.data(), x.data());
         float       one_sum = 0.0f;
         for (std::size_t k = 0; k < 9; ++k) {
             one_sum += h[k] * x[8 - k];

@@ -62,8 +62,9 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 # probe prints CATENAE_STACK <call> <bytes> and roots each call at catenae_probe::probe_<call>.
 PROBES = {"version": ["version"], "strip": ["reset", "process"], "strip_object": ["process"],
           "c1": ["reset", "process"], "c2": ["reset", "process"], "fft": ["forward", "inverse", "make"],
-          "recursive": ["reset", "process"],
-          "designers": ["cookbook", "butterworth_2", "butterworth_4", "butterworth_8", "butterworth_16"]}
+          "recursive": ["reset", "process"], "fir": ["reset", "process"],
+          "designers": ["cookbook", "butterworth_2", "butterworth_4", "butterworth_8", "butterworth_16", "fir_63",
+                        "fir_q15_255", "fir_1023"]}
 # A call's root, catenae_probe::probe_<call>, as a mangled name or a call graph's title: anchored,
 # so a static constructor whose name embeds the root's (_GLOBAL__sub_I_...) is not taken for it.
 ROOT = r"(?:^|:)_ZN13catenae_probe\d+probe_{call}E"

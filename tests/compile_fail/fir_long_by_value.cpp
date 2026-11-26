@@ -10,5 +10,7 @@ namespace cf {
 #else
     using design = catenae::fir_design<float, 129>;
 #endif
-    inline bool designs() noexcept { return design::make(catenae::fir_lowpass{0.1, 60.0}).has_value(); }
+    inline bool designs() noexcept {
+        return design::make(catenae::fir_lowpass{0.1, 60.0}).has_value();
+    }
 } // namespace cf

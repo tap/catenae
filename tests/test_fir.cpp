@@ -20,6 +20,7 @@
 #include "catenae/gain.h"
 #include "catenae/parallel.h"
 #include "catenae_test/harness.h"
+#include "fir_tables.h"
 
 namespace {
 
@@ -75,8 +76,8 @@ namespace {
 
     template <typename S, std::size_t Taps, std::size_t Ch>
     void each_channel_by_the_kernel(const catenae::fir_design<S, Taps>& d) {
-        using v                  = catenae::storage_t<S>;
-        constexpr std::size_t frames = 400;
+        using v                                      = catenae::storage_t<S>;
+        constexpr std::size_t                 frames = 400;
         const catenae::basic_fir<S, Ch, Taps> stage(d);
         const std::vector<v>                  in  = noise<S>(frames * Ch, 5u + Taps);
         const std::vector<v>                  out = run_all(stage, in);
@@ -92,7 +93,7 @@ namespace {
         }
         // In place, the same bits.
         static typename catenae::basic_fir<S, Ch, Taps>::state again;
-        again                 = {};
+        again = {};
         catenae::no_workspace ws{};
         std::vector<v>        buffer = in;
         static_cast<void>(stage.run(again, ws, catenae::span<const v>(buffer), catenae::span<v>(buffer)));
@@ -116,7 +117,31 @@ namespace {
     }
 
     /// Whether two floats are one value, without ==.
-    constexpr bool same(float a, float b) { return !(a < b) && !(a > b); }
+    constexpr bool same(float a, float b) {
+        return !(a < b) && !(a > b);
+    }
+
+    // Verifies CAT-FIR-001.
+    TEST(fir, ATableDesignIsWhatMakeGives) {
+        // examples/fir_tables.h, constants: from make() on the hosted Linux leg, bit for bit; within
+        // a float ulp, and a Q15 LSB, of make() wherever another libm rounds the double design
+        // otherwise.
+        const auto made     = design<float, 63>(fir_lowpass{0.1, 60.0});
+        const auto made_q15 = design<catenae::q15, 63>(fir_lowpass{0.1, 60.0});
+        for (std::size_t k = 0; k < 63; ++k) {
+            const float t  = example::fir_lowpass.table()[k];
+            const float m  = made.table()[k];
+            const float up = std::nextafter(m, 1.0f);
+            const float dn = std::nextafter(m, -1.0f);
+            EXPECT_TRUE(t >= dn && t <= up) << "tap " << k;
+            EXPECT_LE(std::abs(example::fir_lowpass_q15.table()[k] - made_q15.table()[k]), 1) << "tap " << k;
+        }
+        std::int64_t sum = 0;
+        for (const std::int16_t c : example::fir_lowpass_q15_taps) {
+            sum += c;
+        }
+        EXPECT_EQ(sum, 16384);
+    }
 
     // Verifies CAT-FIR-002.
     TYPED_TEST(fir_formats, ItsLatencyIsExactAndOfItsType) {
@@ -136,7 +161,7 @@ namespace {
         // A low-pass's impulse response peaks at its latency.
         using v = catenae::storage_t<TypeParam>;
         std::vector<v> impulse(100, v{0});
-        impulse[0] = std::is_floating_point<v>::value ? v(1) : v(16384);
+        impulse[0]             = std::is_floating_point<v>::value ? v(1) : v(16384);
         const std::vector<v> h = run_all(stage, impulse);
         EXPECT_EQ(std::max_element(h.begin(), h.end()) - h.begin(), 31);
     }
@@ -147,10 +172,10 @@ namespace {
         using arms = catenae::parallel<catenae::fir<1, 63>, catenae::gain<1>, catenae::align::by_type>;
         static_assert(catenae::stage_traits<arms>::opted_in, "aligned by type");
         static_assert(catenae::stage_traits<arms>::exact_latency.up == 31, "the larger");
-        const arms        both(catenae::fir<1, 63>(design<float, 63>(fir_lowpass{0.1, 60.0})), catenae::gain<1>{1.0f, 0});
+        const arms both(catenae::fir<1, 63>(design<float, 63>(fir_lowpass{0.1, 60.0})), catenae::gain<1>{1.0f, 0});
         std::vector<float> in(160, 0.0f); // the FIR's channel, then the dry arm's
-        in[0]                       = 1.0f;
-        in[1]                       = 1.0f;
+        in[0]                        = 1.0f;
+        in[1]                        = 1.0f;
         const std::vector<float> in2 = in;
         static arms::state       st;
         st = arms::state{};
@@ -160,8 +185,8 @@ namespace {
         ASSERT_EQ(both.run(st, ws, catenae::span<const float>(in2), catenae::span<float>(out)), 80u);
         // The dry arm, channel 1, delivers its impulse at frame 31, where the FIR's peaks.
         EXPECT_EQ(out[31 * 2 + 1], 1.0f);
-        float peak = 0.0f;
-        std::size_t at = 0;
+        float       peak = 0.0f;
+        std::size_t at   = 0;
         for (std::size_t f = 0; f < 80; ++f) {
             if (out[f * 2] > peak) {
                 peak = out[f * 2];
@@ -170,15 +195,15 @@ namespace {
         }
         EXPECT_EQ(at, 31u);
         // A chain sums it: a delay of 4 after the FIR is 35 frames.
-        const auto strip = catenae::chain(catenae::fir<1, 63>(design<float, 63>(fir_lowpass{0.1, 60.0})))
-                           | catenae::delay<1, 4>{};
+        const auto strip =
+            catenae::chain(catenae::fir<1, 63>(design<float, 63>(fir_lowpass{0.1, 60.0}))) | catenae::delay<1, 4>{};
         using strip_type = std::remove_const_t<decltype(strip)>;
         static_assert(strip_type::exact_latency.up == 35 && strip_type::exact_latency.down == 1, "31 + 4");
     }
 
     template <typename S, std::size_t Taps>
     void silence_after_the_tail(const catenae::fir_design<S, Taps>& d) {
-        using v                                = catenae::storage_t<S>;
+        using v = catenae::storage_t<S>;
         const catenae::basic_fir<S, 2, Taps> stage(d);
         ASSERT_EQ(stage.tail_frames(), Taps - 1);
         ASSERT_EQ(stage.practical_tail_frames(), Taps - 1);
@@ -189,8 +214,8 @@ namespace {
         // The last tail frame can still carry the last input; every frame after is zero.
         bool any_in_tail = false;
         for (std::size_t f = 50; f < 50 + Taps - 1; ++f) {
-            any_in_tail = any_in_tail || out[2 * f] < v{0} || out[2 * f] > v{0} || out[2 * f + 1] < v{0}
-                          || out[2 * f + 1] > v{0};
+            any_in_tail =
+                any_in_tail || out[2 * f] < v{0} || out[2 * f] > v{0} || out[2 * f + 1] < v{0} || out[2 * f + 1] > v{0};
         }
         EXPECT_TRUE(any_in_tail || Taps == 1);
         for (std::size_t f = 50 + Taps - 1; f < 50 + Taps + 20; ++f) {
@@ -209,11 +234,11 @@ namespace {
 
     // Verifies CAT-FIR-004.
     TYPED_TEST(fir_formats, ANewDesignAppliesToTheHistoryAsItStands) {
-        using v                           = catenae::storage_t<TypeParam>;
-        constexpr std::size_t frames      = 200;
-        const auto            first       = design<TypeParam, 31>(fir_lowpass{0.05, 60.0});
-        const auto            second      = design<TypeParam, 31>(fir_highpass{0.3, 60.0});
-        catenae::basic_fir<TypeParam, 2, 31> stage(first);
+        using v                                                     = catenae::storage_t<TypeParam>;
+        constexpr std::size_t                                frames = 200;
+        const auto                                           first  = design<TypeParam, 31>(fir_lowpass{0.05, 60.0});
+        const auto                                           second = design<TypeParam, 31>(fir_highpass{0.3, 60.0});
+        catenae::basic_fir<TypeParam, 2, 31>                 stage(first);
         typename catenae::basic_fir<TypeParam, 2, 31>::state st{};
         catenae::no_workspace                                ws{};
         const std::vector<v>                                 in = noise<TypeParam>(frames * 2, 9);
@@ -243,9 +268,9 @@ namespace {
             v = static_cast<float>(level * static_cast<double>(s.next<float>()));
         }
         const std::vector<double> xd(x.begin(), x.end());
-        const auto y  = run_all(catenae::basic_fir<float, 1, Taps>(design<float, Taps>(spec)), x);
-        const auto yd = run_all(catenae::basic_fir<double, 1, Taps>(design<double, Taps>(spec)), xd);
-        double     worst = 0.0;
+        const auto                y     = run_all(catenae::basic_fir<float, 1, Taps>(design<float, Taps>(spec)), x);
+        const auto                yd    = run_all(catenae::basic_fir<double, 1, Taps>(design<double, Taps>(spec)), xd);
+        double                    worst = 0.0;
         for (std::size_t i = 0; i < frames; ++i) {
             worst = std::max(worst, std::fabs(static_cast<double>(y[i]) - yd[i]));
         }
@@ -271,8 +296,8 @@ namespace {
 
     template <typename S, std::size_t Taps, typename Spec>
     fixed_floor fixed_floor_of(const Spec& spec) {
-        using v                     = catenae::storage_t<S>;
-        using traits                = catenae::sample_traits<v>;
+        using v                      = catenae::storage_t<S>;
+        using traits                 = catenae::sample_traits<v>;
         constexpr std::size_t frames = 3000;
         constexpr double      lsb    = std::is_same<v, std::int16_t>::value ? 32768.0 : 2147483648.0;
         catenae_test::signal  s(99);
@@ -280,10 +305,10 @@ namespace {
         for (v& q : x) {
             q = static_cast<v>(std::lround(0.5 * static_cast<double>(s.next<float>()) * lsb));
         }
-        const auto d  = design<S, Taps>(spec);
-        const auto y  = run_all(catenae::basic_fir<S, 1, Taps>(d), x);
-        const auto dd = design<double, Taps>(spec);
-        fixed_floor   f{0.0, 0.0};
+        const auto  d  = design<S, Taps>(spec);
+        const auto  y  = run_all(catenae::basic_fir<S, 1, Taps>(d), x);
+        const auto  dd = design<double, Taps>(spec);
+        fixed_floor f{0.0, 0.0};
         for (std::size_t i = Taps; i < frames; ++i) {
             // The exact sum of the stage's own taps: Q29 in Q15; in Q31, Q61 split at the
             // pre-shift into what the kernel keeps and what it drops.
@@ -293,8 +318,9 @@ namespace {
             for (std::size_t k = 0; k < Taps; ++k) {
                 const std::int64_t p = static_cast<std::int64_t>(x[i - k]) * d.table()[k];
                 kept += catenae::detail::shift_right(p, traits::accum_pre_shift);
-                dropped += p - catenae::detail::shift_left(catenae::detail::shift_right(p, traits::accum_pre_shift),
-                                                           traits::accum_pre_shift);
+                dropped += p
+                           - catenae::detail::shift_left(catenae::detail::shift_right(p, traits::accum_pre_shift),
+                                                         traits::accum_pre_shift);
                 ideal += dd.table()[k] * (static_cast<double>(x[i - k]) / lsb);
             }
             const double exact =
@@ -329,11 +355,11 @@ namespace {
     // Verifies CAT-FIR-005.
     TEST(fir, Q4_27IsQ31sArithmetic) {
         // The kernel does not know the binary point: the same raw words through the same taps.
-        const auto        d31 = design<catenae::q31, 63>(fir_lowpass{0.1, 60.0});
-        const auto        d27 = design<catenae::q4_27, 63>(fir_lowpass{0.1, 60.0});
-        const std::vector<std::int32_t> in = noise<catenae::q31>(2 * 500, 4);
-        const auto y31 = run_all(catenae::fir_q31<2, 63>(d31), in);
-        const auto y27 = run_all(catenae::fir_q4_27<2, 63>(d27), in);
+        const auto                      d31 = design<catenae::q31, 63>(fir_lowpass{0.1, 60.0});
+        const auto                      d27 = design<catenae::q4_27, 63>(fir_lowpass{0.1, 60.0});
+        const std::vector<std::int32_t> in  = noise<catenae::q31>(2 * 500, 4);
+        const auto                      y31 = run_all(catenae::fir_q31<2, 63>(d31), in);
+        const auto                      y27 = run_all(catenae::fir_q4_27<2, 63>(d27), in);
         EXPECT_EQ(std::memcmp(d31.data(), d27.data(), 63 * sizeof(std::int32_t)), 0);
         EXPECT_EQ(y31, y27);
     }

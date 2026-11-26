@@ -69,8 +69,8 @@ namespace catenae {
             static_assert(Ch >= 1, "catenae: an FIR has at least one channel");
 
           public:
-            using input_port  = port<S, Ch>;                 ///< what it reads
-            using output_port = port<S, Ch>;                 ///< what it writes
+            using input_port  = port<S, Ch>;                ///< what it reads
+            using output_port = port<S, Ch>;                ///< what it writes
             using design_type = fir_design<S, Taps, Phase>; ///< what it runs
 
           private:

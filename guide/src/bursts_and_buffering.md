@@ -162,23 +162,24 @@ compiles.
 
 ### The exact pull
 
-A callback meets a block stage in one other place: the far side of a junction, the ring
-that carries frames between two threads. There it asks for n frames, and the region writes
-128 at a time. `fed_by`, the pull side, fills the request exactly.
+A callback also meets a block stage across a junction, the ring between two threads. It
+asks for n frames, and the region writes 128 at a time. `fed_by`, the pull side, fills the
+request exactly.
 
 ```cpp
 {{#include ../../examples/bursts_and_buffering.cpp:pull}}
 ```
 
-The trace's `pull,` lines are four requests of 64 frames, each with the frames it pulled
-from the junction: 128, 0, 128, 0. A request makes at most one pull, sized to what the
-region needs, and none when the holdover covers it: the region's second 64 frames wait
-there for the next request. A junction may clock a servo or a fill policy from its pulls,
-so whoever pulls for a request makes one pull, never several.
+The trace's `pull,` lines are four 64-frame requests, each with the frames it pulled:
+128, 0, 128, 0. A request makes at most one pull, sized to what the region needs, and none
+when the holdover covers it: the region's second 64 frames wait there for the next
+request. A junction may clock a servo or a fill policy from its pulls, so a request never
+makes several.
 
-The largest pull is a constant of the workspace's type: 191 frames, the 64 asked for and
-the 127 the region can trail by. The producer pushes 64 at a time, so the junction's
-target must be at least 191 + 64 - 1. Both are asserted above.
+The largest pull is a constant of the workspace's type: 128 frames, a hop. The bound from
+any state is 191, 64 plus the 127 the region can trail by, but each pull takes whole hops,
+so `fed_by` never finds frames the region holds unwritten. The producer pushes 64 at a
+time, so the junction's target is at least 128 + 64 - 1 = 191. Both are asserted.
 
 ### Numbers that do not follow from the largest block
 

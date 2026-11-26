@@ -48,7 +48,7 @@ build="${TIDY_BUILD:-build-tidy}"
 # missing or a reconfigure is forced. This does not touch your ./build dir.
 if [ "${TIDY_RECONFIGURE:-0}" = "1" ] || [ ! -f "$build/compile_commands.json" ]; then
     echo "== configuring compile database in $build/ (one-time; reuses cached deps) =="
-    CXX="${CXX:-clang++-18}" cmake -B "$build" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCATENAE_BUILD_BENCH=ON >/dev/null
+    CXX="${CXX:-clang++-18}" cmake -B "$build" -DCMAKE_EXPORT_COMPILE_COMMANDS=ON -DCATENAE_BUILD_BENCH=ON -DCATENAE_BUILD_FIT=ON >/dev/null
 fi
 
 # File list: the given TUs, or — matching CI — every project TU in the

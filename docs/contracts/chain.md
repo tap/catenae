@@ -13,6 +13,7 @@ of each.
 |---|---|
 | `a \| b` | Always flattens, whichever side a chain is on: `(a \| b) \| (c \| d)` is `chain<A, B, C, D>`. A stage of another namespace joins through `chain(a) \| b`, or with `using catenae::operator\|`. |
 | `chain(s)`, `with_block<N>(c)` | A chain of one; a chain in blocks of N frames (64 by default). A `blocked_chain` is one stage to `\|`, never flattened, and keeps its block. |
+| `C{}` | When every stage has a default configuration, the chain of them, `constexpr` when theirs are; otherwise a chain has no default. |
 | `process(state, workspace, in, out)` | The caller's entry: the input is whole frames and the output holds `outputs_for(n)` (boundary checks, every build), then the work a block at a time. Fixed blocks (`std::array`, a built-in array, a span of static extent) are checked by the compiler instead: whole frames, whole input groups, room for `max_outputs_for`. |
 | `run(state, workspace, in, out)` | The same work with no check: what an enclosing chain calls. |
 | `reset(state)` | Each stage resets its own part and the state is ready (audit: `check::state_not_reset`). |
@@ -76,3 +77,6 @@ writing on a group's first frame and on its last, interpolators, L/M stages, blo
 the composed `max_shortfall` and `max_lead` are never below the worst trail and lead counted
 frame by frame, `input_group` is a group by its definition, and the two block-stage pairs are
 exact.
+
+@req{CAT-CHAIN-014} A chain whose every stage has a default configuration has one, the chain
+of those, and it is `constexpr` when theirs are; a chain with a stage that has none has none.

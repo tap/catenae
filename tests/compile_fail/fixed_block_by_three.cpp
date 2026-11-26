@@ -13,6 +13,7 @@ namespace cf {
         static constexpr std::size_t    input_group = 3;
         static constexpr catenae::ratio max_lead{2, 3};
         static constexpr std::size_t    max_outputs_for(std::size_t n) noexcept { return (n + 2) / 3; }
+        static constexpr std::size_t    outputs_from_rest(std::size_t n) noexcept { return (n + 2) / 3; }
     };
 } // namespace cf
 namespace catenae {

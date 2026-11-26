@@ -10,7 +10,8 @@
 //   reset_ignores_storage    storage filled with garbage then reset, and zeroed then reset,
 //                            give bit-equal output (D49)
 //   counts_are_exact         outputs_for is what run writes, frames_needed is the smallest n
-//                            that writes k, max_outputs_for is never exceeded (PLAN.md 3.2)
+//                            that writes k, max_outputs_for is never exceeded (PLAN.md 3.2),
+//                            and what n frames write from reset is outputs_from_rest(n)
 //   arrival_numbers_hold     input_group, max_shortfall, max_lead and output_quantum by
 //                            counting, and the law of section 3.2 for every divisor of the group
 //   chunking_is_bit_exact    any chunking of one input gives bit-identical output
@@ -161,13 +162,15 @@ namespace catenae_test {
         return ::testing::AssertionSuccess();
     }
 
-    /// outputs_for is exact, frames_needed is smallest, max_outputs_for is never exceeded.
+    /// outputs_for is exact, frames_needed is smallest, max_outputs_for is never exceeded, and
+    /// outputs_from_rest is what the frames so far wrote from reset.
     template <typename Stage>
     ::testing::AssertionResult counts_are_exact(const Stage& configuration, std::size_t frames = 2000) {
         const auto                                     in = input_for<Stage>(frames, 3);
         std::vector<typename driver<Stage>::out_value> out;
         driver<Stage>                                  d(configuration, 0);
-        std::size_t                                    at = 0;
+        std::size_t                                    at    = 0;
+        std::size_t                                    total = 0;
         for (const std::size_t n : chunks(frames, 150, 4)) {
             for (std::size_t k = 0; k <= 40; ++k) {
                 const std::size_t need = configuration.frames_needed(d.current(), k);
@@ -187,6 +190,12 @@ namespace catenae_test {
             if (written > Stage::max_outputs_for(n)) {
                 return ::testing::AssertionFailure() << "run wrote " << written << " frames for " << n
                                                      << ", above max_outputs_for " << Stage::max_outputs_for(n);
+            }
+            total += written;
+            if (total != catenae::stage_traits<Stage>::outputs_from_rest(at)) {
+                return ::testing::AssertionFailure()
+                       << at << " frames from reset wrote " << total << ", outputs_from_rest says "
+                       << catenae::stage_traits<Stage>::outputs_from_rest(at);
             }
         }
         return ::testing::AssertionSuccess();

@@ -7,7 +7,7 @@ side ever waits (D44). It is how a setting reaches a chain from a thread that do
 it. Where a junction carries a stream of frames, a mailbox carries a state: a value never
 taken is replaced by the next post, not queued behind it. `catenae::mailbox<T>`
 (`catenae/mailbox.h`) is the one mailbox; its card and its requirements, CAT-MAILBOX-001 to
-003, are on [its header's page](mailbox_8h.html). Its members are documented here, once.
+004, are on [its header's page](mailbox_8h.html). Its members are documented here, once.
 
 | Member | Meaning |
 |---|---|
@@ -15,7 +15,7 @@ taken is replaced by the next post, not queued behind it. `catenae::mailbox<T>`
 | `post(value) noexcept` | Exactly one thread, the poster. Never waits. Begins the value's lifetime in the poster's slot with placement new, then makes that slot the middle one. A value no take has seen is replaced. |
 | `take(apply) noexcept` | Exactly one other thread, the taker. If a value has arrived since the last take, makes the middle slot its own, calls `apply(value)` once and returns true; otherwise returns false and calls nothing. Never waits. |
 | `reset() noexcept` | Empty again. Only while neither side runs. |
-| `T` | Trivially copyable and trivially destructible, asserted: a design, a level, a reading. It owns everything it refers to: no pointer, span or view inside it. |
+| `T` | Trivially copyable and trivially destructible, asserted: a design, a level, a reading. It owns everything it refers to: no pointer, span or view inside it. A `T` that says it holds a view, `holds_view<T>` (a `table_view`, a table design, a chain with a stage that holds one), does not compile (CAT-MAILBOX-004). |
 
 ## How it works
 
@@ -38,7 +38,10 @@ state, and its constant constructor is what puts a static one in `.bss` at every
   main loop on the bare-metal Cortex-M legs (`tests/test_mailbox.cpp`,
   `tests/bare_metal/interrupt.cpp`).
 - **A value owns what it refers to** (AOU-004). A pointer inside a posted value hands the
-  race back to its two threads.
+  race back to its two threads. A type that holds a view says so, by specialising
+  `holds_view` (`catenae/table_view.h`), as a table design does; a chain, `steady<>` and
+  `parallel<>` hold one when a stage does, and the mailbox refuses them. A raw pointer says
+  nothing, so it stays the integrator's to keep out.
 - **The value's lifetime.** A post constructs with placement new and a take reads through
   `std::launder` (DEV-013). No sanitizer sees a mistake here and no constant expression can
   test it, so `scripts/check_slots.py` refuses an assignment into a slot (CAT-MAILBOX-003).

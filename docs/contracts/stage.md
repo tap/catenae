@@ -25,6 +25,7 @@ documented here, once, and nowhere else (PLAN.md section 11.2, rule 2). The word
 | `outputs_for(const state&, n)` | Exactly what the next call of n frames writes. |
 | `frames_needed(const state&, k)` | The smallest n with `outputs_for(n) >= k`. |
 | `max_outputs_for(n)` | `static constexpr`: a bound on any call of n frames from any state, non-decreasing in n. |
+| `outputs_from_rest(n)` | `static constexpr`: exactly what the first n frames after reset write, O(n). Declared by a stage whose `input_group` is above 1, where `max_shortfall` and `max_lead` only bound the count; `stage_traits` derives n L/M for any other. `fed_by` sizes its one pull from it (CAT-FED-BY-003). |
 | `latency()` | `stage_latency{nominal, deviation}` in output frames. |
 | `tail_frames()`, `practical_tail_frames()`, `flush_residue()` | Zero input frames after which the output is silence within the residue, and the frames to -120 dB re full scale. |
 
@@ -66,7 +67,8 @@ specialises it; `stage_traits<T>::opted_in` reads it.
 
 @req{CAT-STAGE-009} The counts are true of `run`: from every state a call reaches,
 `outputs_for(n)` is what a call of n frames writes, `frames_needed(k)` is the smallest such n,
-and no call writes more than `max_outputs_for(n)`.
+and no call writes more than `max_outputs_for(n)`; and the frames written since reset, after
+n frames in, are `outputs_from_rest(n)`.
 
 @req{CAT-STAGE-010} The arrival numbers are true of `run`: counting from reset, the smallest
 n that keeps pace is `input_group`, the output never trails or leads by more than
@@ -78,6 +80,11 @@ give bit-identical output (D49).
 
 @req{CAT-STAGE-012} Any division of one input into calls, sizes 0 included, gives
 bit-identical output.
+
+@req{CAT-STAGE-013} A stage whose `input_group` is above 1 declares
+`static constexpr std::size_t outputs_from_rest(std::size_t)`, and one that does not fails
+with that message. `stage_traits<T>::outputs_from_rest(n)` is the stage's own, or n L/M for a
+stage whose `input_group` is 1; a chain's is its stages' composed, exactly.
 
 The battery checks CAT-STAGE-009 to 012 with its generic tests
 (`tests/support/catenae_test/harness.h`), which every stage and chain runs. Each test proves

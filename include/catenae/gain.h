@@ -14,6 +14,12 @@
 /// | Formats    | float, double; q15, q31 and Q4.27 declare the contract, their arithmetic  |
 /// |            | is new design and arrives at C6 (D47)                                     |
 /// | Limits     | a non-finite level poisons the output until a finite one is set and ramped to |
+/// |            | a steady level runs in runs of 16 that the compiler may vectorise: where its  |
+/// |            | vector unit flushes subnormals and its scalar unit does not (the M55 under    |
+/// |            | QEMU at -O3), subnormal samples and NaN payloads can differ between builds    |
+/// |            | of one source, as they could before; the build's setting is AOU-008's         |
+/// | Buffers    | `in` and `out` are one buffer or do not overlap (AOU-007), which its loops    |
+/// |            | tell the compiler through `CATENAE_RESTRICT` (DEV-003); checked at audit      |
 /// | Method     | a linear ramp, each frame's level computed from the goal, not accumulated |
 /// | Contraction| pinned at contraction off; a header template, it compiles under the caller's |
 /// |            | flags, and a fused multiply-add there can move a ramp's levels by an ULP     |
@@ -26,6 +32,9 @@
 /// the R-th applies the goal exactly and the levels move monotonically; R = 0 jumps.
 /// @req{CAT-GAIN-003} A gain's output is the same for any chunking of its input, a ramp that
 /// spans calls included.
+/// @req{CAT-GAIN-004} At the audit level, `run` checks that `out` holds as many values as `in`
+/// (`check::index_out_of_range`) and that the two are one buffer or do not overlap
+/// (`check::buffers_overlap`), which its loops assume (AOU-007, DEV-003).
 // Copyright 2026 Timothy Place and the catenae contributors
 #ifndef CATENAE_GAIN_H
 #define CATENAE_GAIN_H
@@ -122,12 +131,16 @@ namespace catenae {
                     }
                 }
                 // A store through `out` may be a store to the state for all the compiler knows, so
-                // the level is read into a local before each loop and never from the state inside
-                // one. Only a ramp's frames take the frame-by-frame path.
+                // each frame's level is a local: a ramp's frames take the frame-by-frame path, which
+                // reads its counters from the state, and the steady rest reads the state once.
                 const std::size_t       frames = in.size() / Ch;
                 const value_type* const from   = in.data();
                 value_type* const       to     = out.data();
-                std::size_t             frame  = 0;
+                // The loops index raw pointers, which span's audit check no longer sees, and tell
+                // the compiler the two buffers are one or apart: both are checked here at audit.
+                detail::check_audit(out.size() >= in.size(), check::index_out_of_range);
+                detail::check_audit(one_or_apart(from, to, in.size()), check::buffers_overlap);
+                std::size_t frame = 0;
                 for (; frame < frames && st.remaining > 0; ++frame) {
                     --st.remaining;
                     st.current             = st.goal - st.step * static_cast<level_type>(st.remaining);
@@ -165,6 +178,15 @@ namespace catenae {
             float flush_residue() const noexcept { return 0.0f; }
 
           private:
+            /// Whether `count` samples at `a` and at `b` are one buffer or do not overlap, by
+            /// address (relational operators on unrelated pointers are unspecified).
+            static bool one_or_apart(const value_type* a, const value_type* b, std::size_t count) noexcept {
+                const auto x     = reinterpret_cast<std::uintptr_t>(a);
+                const auto y     = reinterpret_cast<std::uintptr_t>(b);
+                const auto bytes = count * sizeof(value_type);
+                return x == y || x + bytes <= y || y + bytes <= x;
+            }
+
             /// Samples a steady level is applied to at a time: a fixed count the compiler
             /// unrolls, a whole number of every vector width in use.
             static constexpr std::size_t k_run = 16;

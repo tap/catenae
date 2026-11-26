@@ -8,7 +8,8 @@
 /// | Rest      | `reset(state&) const noexcept` or `rests_at_zero = true`, exactly one (D49)         |
 /// | Plain     | state and workspace: plain aggregates, no constructor, no default member initialiser |
 /// | Size      | a configuration is trivially copyable, and at most 512 bytes unless it is a chain (D54) |
-/// | Derived   | `is_frame_synchronous`, which a stage never declares (D35)                           |
+/// | Derived   | `is_frame_synchronous`, which a stage never declares (D35); `outputs_from_rest(n)`,  |
+/// |           | n L/M for a stage whose input_group is 1, declared by any other                     |
 /// | Opt-in    | `is_stage<T>`, specialised by the stage's author; the traits do not require it (D47) |
 /// | Rationale | D10, D34, D35, D39, D49, D50, D54                                                    |
 ///
@@ -18,11 +19,13 @@
 #define CATENAE_STAGE_TRAITS_H
 
 #include <cstddef>
+#include <cstdint>
 #include <cstring>
 #include <type_traits>
 #include <utility>
 
 #include "catenae/detail/abi.h"
+#include "catenae/detail/convert.h"
 #include "catenae/detail/detect.h"
 #include "catenae/fwd.h"
 #include "catenae/port.h"
@@ -100,6 +103,9 @@ namespace catenae {
             template <typename T>
             using max_outputs_for_op =
                 decltype(std::integral_constant<std::size_t, T::max_outputs_for(std::size_t{1})>{});
+            template <typename T>
+            using outputs_from_rest_op =
+                decltype(std::integral_constant<std::size_t, T::outputs_from_rest(std::size_t{1})>{});
             template <typename T>
             using latency_op = decltype(std::declval<const T&>().latency());
             template <typename T>
@@ -278,6 +284,10 @@ namespace catenae {
                           "catenae: a stage declares std::size_t frames_needed(const state&, std::size_t)");
             static_assert(detail::k_is_detected<detail::max_outputs_for_op, T>,
                           "catenae: a stage declares static constexpr std::size_t max_outputs_for(std::size_t)");
+            static_assert(detail::input_group_of<T>::value == 1
+                              || detail::k_is_detected<detail::outputs_from_rest_op, T>,
+                          "catenae: a stage whose input_group is above 1 declares static constexpr std::size_t "
+                          "outputs_from_rest(std::size_t)");
             static_assert(detail::k_is_detected_exact<stage_latency, detail::latency_op, T>,
                           "catenae: a stage declares stage_latency latency() const");
             static_assert(detail::k_is_detected_exact<std::size_t, detail::tail_frames_op, T>,
@@ -305,6 +315,18 @@ namespace catenae {
             static constexpr bool is_frame_synchronous = input_group == 1;
             /// Whether the stage's author opted it in (D10); a format its battery does not pin is not.
             static constexpr bool opted_in = is_stage<T>::value;
+
+            /// The frames the first n input frames write from rest, exactly: the stage's own when
+            /// it declares one (it must when its input_group is above 1, where D35's numbers only
+            /// bound the count), n L/M otherwise.
+            static constexpr std::size_t outputs_from_rest(std::size_t n) noexcept {
+                if constexpr (detail::k_is_detected<detail::outputs_from_rest_op, T>) {
+                    return T::outputs_from_rest(n);
+                }
+                else {
+                    return detail::narrow<std::size_t>(std::uint64_t{n} * rate_ratio.up / rate_ratio.down);
+                }
+            }
 
             /// Brings a state to rest in place (D49): the stage's reset, or zero when it rests at zero.
             static void reset(const T& configuration, state& st) noexcept {

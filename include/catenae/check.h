@@ -44,6 +44,7 @@ namespace catenae {
             // Preconditions of the vocabulary, in every build (PLAN.md section 3.3).
             expected_empty     = 32, ///< value(), operator* or operator-> of an expected with none
             expected_not_error = 33, ///< error() of an expected that holds a value
+            table_rejected     = 34, ///< a table met at run time that its design's check refuses
             // Audit: the library's own promises, and the host's (D27).
             index_out_of_range = 64, ///< an index or a subrange outside its span
             invariant          = 65, ///< an invariant of the library's own state
@@ -53,6 +54,7 @@ namespace catenae {
             fifo_over          = 69, ///< steady<>'s FIFO ran over
             pull_above_staging = 70, ///< a pull larger than fed_by's staging
             flush_to_zero      = 71, ///< the host's flush-to-zero setting (the check arrives at C3)
+            buffers_overlap    = 72, ///< a stage's in and out that overlap without being one buffer
         };
 
         /// Where every failed check goes. Defined by the integrator: it is where their system

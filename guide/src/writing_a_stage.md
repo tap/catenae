@@ -47,13 +47,16 @@ whose rest depends on its configuration writes a `reset` member instead. `worksp
 what one call needs and nothing keeps. This stage needs none and says so with
 `no_workspace`.
 
-**The work and the counts.** `run` does the arithmetic. It is trusted: it consumes all of
+**The work and the counts.** `run` does the arithmetic. It is trusted: it consumes all
 its input, returns the frames it wrote, checks nothing, and cannot fail. A caller's
-buffers are checked once, where they enter the chain. The three count functions are how the chain knows what `run` will do before it calls it.
+buffers are checked once, where they enter the chain. Three count functions tell the chain
+what `run` will do before calling it.
 `outputs_for` is exactly what the next call of n frames writes. `frames_needed` is the
 smallest input that writes k frames. `max_outputs_for` is a bound from any state. For a
 stage that keeps pace all three are the identity. For a decimator or a block stage the
-first two depend on the state, which is why they take it.
+first two depend on the state, so they take it. A stage whose input group is above 1 also
+declares `static constexpr std::size_t outputs_from_rest(std::size_t n)`, exactly what its
+first n frames write after reset. Here `stage_traits` derives it: n frames write n.
 
 **The tails.** When the input ends, a stage with memory still has output to give.
 `tail_frames()` is the number of zero input frames after which the output is silence
@@ -139,26 +142,27 @@ true. That is what the battery is for.
 ```
 
 The first test runs the four generic tests. Each takes the stage's configuration, drives
-it through its own `run` with a deterministic pseudo-random signal, and returns a result
-that names what broke.
+its `run` with a deterministic pseudo-random signal, and returns a result that names what
+broke.
 
 - **`reset_ignores_storage`** fills the state with garbage, resets it, and compares the
   output bit for bit with a state reset over zero. It uses three garbage patterns, because
-  one pattern can hide a forgotten member. It catches a `reset` that misses a field.
+  one can hide a forgotten member. It catches a `reset` that misses a field.
 - **`counts_are_exact`** checks, before each call, that `outputs_for` is what `run` then
   writes, that `frames_needed` is the smallest input that writes k frames, and that no
-  call exceeds `max_outputs_for`. It catches a count function that has drifted from the
-  work.
+  call exceeds `max_outputs_for`. After each call, the frames written since reset must be
+  `outputs_from_rest` of the frames given. It catches a count function that has drifted
+  from the work.
 - **`arrival_numbers_hold`** finds the arrival numbers by counting. It feeds the stage
-  from reset, counts what comes out, and compares the result with `input_group`,
+  from reset, counts what comes out, and compares it with `input_group`,
   `max_shortfall`, `max_lead` and `output_quantum`. With its second argument true, as
-  here, the published numbers must be the tightest true values, not only bounds that hold.
-- **`chunking_is_bit_exact`** feeds one input in a single call and again in several random
+  here, the published numbers must be the tightest true values, not only bounds.
+- **`chunking_is_bit_exact`** feeds one input in one call and again in several random
   divisions, calls of zero frames included, and requires bit-identical output. It catches
-  a stage whose result depends on how its caller's blocks happen to fall.
+  a stage whose result depends on how its caller's blocks fall.
 
-These are the tests every stage and chain in the library runs. A stage of your own calls
-the same functions, and so is held to the same contract.
+Every stage and chain in the library runs these tests. Yours calls the same functions,
+and so is held to the same contract.
 
 The generic tests know nothing about what a stage computes. A stage that wrote silence
 could pass all four. So the battery ends with the stage's arithmetic and its two limits,

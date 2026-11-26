@@ -1,12 +1,13 @@
 /// @file c2_probe.cpp
-/// @brief The link-stage gate's probe image for C2's family (D36, PLAN.md section 7.3): the
-/// edges in one audio path, bytes in and bytes out, float between.
+/// @brief The link-stage gate's probe image for C2's family (D36, PLAN.md section 7.3): every
+/// C2 stage once in one audio path, bytes in and bytes out, float between.
 // Copyright 2026 Timothy Place and the catenae contributors
 //
 // The gate (scripts/link_gate.py) refuses an image of the float profile that links a
 // software-double or double-libm routine. C2's family is the edges, so this path is 24-bit
-// packed stereo off the wire, unpacked to q31, converted to float for a gain, and back to q31
-// and the wire: the compiled loops of src/wire.cpp with the header stages around them. The
+// packed stereo off the wire, unpacked to q31 and converted to float; sanitized, mixed through
+// a crossfeed matrix and dithered at 24 bits; and back to q31 and the wire: the compiled loops
+// of src/wire.cpp with every C2 header stage between them. The
 // image is measured as every probe set is (scripts/ceilings.py), and on the Arm keys the gate
 // runs on its size image (link_gate.C2ImageHasNoSoftwareDouble).
 #include <array>
@@ -17,8 +18,10 @@
 #include "catenae/chain.h"
 #include "catenae/compiler.h"
 #include "catenae/convert.h"
-#include "catenae/gain.h"
+#include "catenae/dither.h"
+#include "catenae/mix.h"
 #include "catenae/pack.h"
+#include "catenae/sanitize.h"
 #include "catenae/unpack.h"
 
 #if CATENAE_PROBE_STACK
@@ -31,9 +34,10 @@ namespace catenae_probe {
 
     namespace wire = catenae::wire;
 
-    // The path: 24-bit packed little-endian stereo in and out, the gain in float.
+    // The path: 24-bit packed little-endian stereo in and out, every C2 stage in float between.
     constexpr auto c2_path = catenae::chain(catenae::unpack<wire::s24le_packed, 2>{})
-                             | catenae::convert<catenae::q31, float, 2>{} | catenae::gain<2>{0.5f, 32}
+                             | catenae::convert<catenae::q31, float, 2>{} | catenae::sanitize<2>{}
+                             | catenae::mix<2, 2>{{0.75f, 0.25f, 0.25f, 0.75f}, 32} | catenae::dither<2, 24>{}
                              | catenae::convert<float, catenae::q31, 2>{} | catenae::pack<wire::s24le_packed, 2>{};
     using c2_path_t = std::remove_cv_t<decltype(c2_path)>;
 

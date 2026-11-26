@@ -23,7 +23,7 @@ too: throwaway skeletons of SampleRateTap's three engines and the first C ABI ma
 changes they led to (`ratio_t`, `table_view` and `holds_view`, `outputs_from_rest` and the
 exact largest pull, `fed_by`'s flush). **C2** is under way, in two pull requests: `unpack`
 and `pack` over the ten wire formats of `catenae/wire.h`, their loops the first compiled code
-past the handler (`src/wire.cpp`); then dither, the mix matrix and `sanitize`.
+past the handler (`src/wire.cpp`); then `dither` (TPDF), the `mix` matrix and `sanitize`.
 
 ## How to work here
 

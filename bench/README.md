@@ -52,6 +52,7 @@ is rooted at a noinline `catenae_probe::probe_<call>`. The sets:
 | `strip` | The example chain, `examples/strip.h`: its memory, start-up and stack are C1's pinned numbers | `reset`, `process` |
 | `strip_object` | The same strip as a desktop program writes it, one object with its delay line on the heap: the guide's "Where memory lives" measures it against `strip` | `process` |
 | `c1` | Every C1 stage once, in one float path: the link-stage gate's first probe image | `reset`, `process` |
+| `c2` | C2's edges in one path, 24-bit packed stereo in and out with a gain in float between: the compiled wire loops (`src/wire.cpp`) and the gate's image for the family | `reset`, `process` |
 
 `scripts/ceilings.py` reads, per key:
 

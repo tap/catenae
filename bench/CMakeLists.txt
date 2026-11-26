@@ -70,6 +70,9 @@ if(NOT _catenae_bare_metal)
     set_tests_properties(bench.strip_chain_and_graph_agree PROPERTIES LABELS bench)
 endif()
 
+# C2's edges: 24-bit packed stereo off the wire and back, the c2 probe's path.
+catenae_add_icount(edges icount/edges_main.cpp)
+
 # --- The layout benchmark: interleaved against planar, informational (bench/layout/) --------
 add_subdirectory(layout)
 
@@ -96,13 +99,15 @@ catenae_add_probe(version probe/version_probe.cpp)
 catenae_add_probe(strip probe/strip_probe.cpp)
 catenae_add_probe(strip_object probe/strip_object_probe.cpp)
 catenae_add_probe(c1 probe/c1_probe.cpp)
+# C2's: the edges in one path, bytes in and out (the link-stage gate's image for the family).
+catenae_add_probe(c2 probe/c2_probe.cpp)
 foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip)
     target_include_directories(${_probe} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 
 # --- The link-stage gate (D36) -----------------------------------------------------------
-# The gate is scripts/link_gate.py over a named probe image, one per float stage family; the
-# first is C1's, catenae_probe_c1, and it must pass on every Arm leg. The gate also proves
+# The gate is scripts/link_gate.py over a named probe image, one per float stage family: C1's,
+# catenae_probe_c1, and C2's, catenae_probe_c2, each of which must pass on every Arm leg. The gate also proves
 # itself on two fixtures on every Arm leg: an image of float arithmetic passes,
 # and one with a single product in double is refused where double is software (the M4, the
 # M4F, the M33). Where the FPU has double precision (GCC's default for -mcpu=cortex-m55) a
@@ -125,6 +130,9 @@ int main() { return 0; }" CATENAE_HARDWARE_DOUBLE)
     add_test(NAME link_gate.C1ImageHasNoSoftwareDouble
              COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
                      $<TARGET_FILE:catenae_probe_c1>)
+    add_test(NAME link_gate.C2ImageHasNoSoftwareDouble
+             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
+                     $<TARGET_FILE:catenae_probe_c2>)
     if(CATENAE_HARDWARE_DOUBLE)
         add_test(NAME link_gate.HardwareDoubleIsInvisible
                  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py

@@ -30,26 +30,27 @@ answer is not the target's. Three of catenae's own measurements show it.
 
 **The ranking of two designs.** [Stages and chains](stages_and_chains.md) counted its
 strip twice, as a chain and as a graph of virtual nodes joined at run time. On the x86-64
-host the chain is 13.3 % cheaper. On the Cortex-M33 the two are within 0.5 %. On the
-Cortex-M4 without a floating-point unit the chain is 2.5 % dearer. A team that timed the
-two on a desktop would have a clear winner, and on the M4 it would be the wrong one. The
-table is in that chapter, from
-[bench run 45653902512](https://github.com/tap/catenae/actions/runs/45653902512).
+host the chain is 11.1 % cheaper. On the Cortex-M33 it is 5.9 % dearer, on the Cortex-M4F
+4.0 %, and on the Cortex-M4 without a floating-point unit 1.9 %. On the Cortex-M55 it is
+4.1 % cheaper. A team that timed the two on a desktop would pick the chain. On three of
+the four Cortex-M cores that is the dearer one, by 2 to 6 %. The table is in that chapter,
+from [bench run 45706225434](https://github.com/tap/catenae/actions/runs/45706225434).
 
 **The layout of the channels.** A stage of several channels can run once over interleaved
 frames, or once per channel over mono buffers. The layout benchmark counts both and
 divides the mono count by the interleaved one, so a figure above 1 favours interleaved.
 
-| Target | 12-channel delay | stereo gain |
+| Target | 12-channel delay | stereo strip |
 |---|--:|--:|
-| host (x86-64) | 5.792 | 1.156 |
-| `m33` | 1.653 | 0.947 |
+| host (x86-64) | 5.792 | 1.614 |
+| `m33` | 1.653 | 0.997 |
 
 For the 12-channel delay the host and the M33 agree on the direction and disagree on the
-size: 5.8 times on one, 1.65 on the other. For the stereo gain they disagree on the
-direction. The mono form is dearer on the host and cheaper on the M33. These are from
-[bench run 45704804502](https://github.com/tap/catenae/actions/runs/45704804502), at
-commit `fed09b6`. The commands that reproduce all three findings are at the end of the
+size: 5.8 times on one, 1.65 on the other. The second column is the strip's three stages
+as one stereo chain. There they disagree on whether there is a difference at all. The mono
+form costs 1.6 times as much on the host, and on the M33 the two are within 0.3 %. These
+are from [bench run 45715344934](https://github.com/tap/catenae/actions/runs/45715344934),
+at commit `0de8a2b`. The commands that reproduce all three findings are at the end of the
 chapter.
 
 **A cost with no desktop form at all.** `convert` rounds a scaled `float` to an integer.
@@ -135,7 +136,7 @@ every core. Both layouts of a pair print one checksum when their outputs are
 bit-identical, and in the run above every pair was.
 
 It showed that from 6 channels up, interleaved is the cheaper layout for every stage with
-state, on every target, by 1.06 to 5.8 times. Stereo is where it is close.
+state, on every target, by 1.04 to 5.8 times. Stereo is where it is close.
 
 ### The rule under all four
 

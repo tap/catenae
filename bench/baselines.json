@@ -1,37 +1,37 @@
 {
   "hexagon": {
     "callmax_version": 5,
-    "strip_chain": 1172150,
-    "strip_graph": 1299888,
+    "strip_chain": 1030150,
+    "strip_graph": 1135888,
     "version": 20886
   },
   "host": {
-    "strip_chain": 2777174,
-    "strip_graph": 3203166,
+    "strip_chain": 2711175,
+    "strip_graph": 3051166,
     "version": 21013
   },
   "m33": {
     "callmax_version": 9,
-    "strip_chain": 3860694,
-    "strip_graph": 3841430,
+    "strip_chain": 3656695,
+    "strip_graph": 3453430,
     "version": 31916
   },
   "m4-softfp": {
     "callmax_version": 9,
-    "strip_chain": 24160128,
-    "strip_graph": 23574864,
+    "strip_chain": 23888126,
+    "strip_graph": 23446864,
     "version": 31871
   },
   "m4f": {
     "callmax_version": 9,
-    "strip_chain": 3796665,
-    "strip_graph": 3840400,
+    "strip_chain": 3592666,
+    "strip_graph": 3453400,
     "version": 31887
   },
   "m55": {
     "callmax_version": 9,
-    "strip_chain": 2375698,
-    "strip_graph": 2472434,
+    "strip_chain": 2339702,
+    "strip_graph": 2440434,
     "version": 31921
   }
 }

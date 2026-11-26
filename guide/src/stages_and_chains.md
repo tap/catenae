@@ -49,16 +49,16 @@ packets on Hexagon.
 
 | Target | `strip_chain` | `strip_graph` | chain less graph |
 |---|--:|--:|--:|
-| `m4-softfp` | 24,160,128 | 23,574,864 | +585,264 (+2.5 %) |
-| `m4f` | 3,796,665 | 3,840,400 | -43,735 (-1.1 %) |
-| `m33` | 3,860,694 | 3,841,430 | +19,264 (+0.5 %) |
-| `m55` | 2,375,698 | 2,472,434 | -96,736 (-3.9 %) |
-| `hexagon` | 1,172,150 packets | 1,299,888 packets | -127,738 (-9.8 %) |
-| `host` | 2,777,174 | 3,203,166 | -425,992 (-13.3 %) |
+| `m4-softfp` | 23,888,126 | 23,446,864 | +441,262 (+1.9 %) |
+| `m4f` | 3,592,666 | 3,453,400 | +139,266 (+4.0 %) |
+| `m33` | 3,656,695 | 3,453,430 | +203,265 (+5.9 %) |
+| `m55` | 2,339,702 | 2,440,434 | -100,732 (-4.1 %) |
+| `hexagon` | 1,030,150 packets | 1,135,888 packets | -105,738 (-9.3 %) |
+| `host` | 2,711,175 | 3,051,166 | -339,991 (-11.1 %) |
 
 The numbers are from
-[bench run 45653902512](https://github.com/tap/catenae/actions/runs/45653902512), at commit
-`66debaa`. The first five targets run under QEMU, and this reproduces one of them:
+[bench run 45706225434](https://github.com/tap/catenae/actions/runs/45706225434), at commit
+`f344455`. The first five targets run under QEMU, and this reproduces one of them:
 
 ```sh
 cmake -S . -B build-17 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m33-mps2.cmake \
@@ -72,7 +72,7 @@ The `host` count is the loop alone. Those other parts are the same in both binar
 the difference between the two columns is the strip's.
 
 Read the last column honestly. On the four Cortex-M cores the two cost about the same,
-within 4 % either way. On two of them the chain counts slightly more, and on two slightly
+within 6 % either way. On three of them the chain counts slightly more, and on one slightly
 fewer. On Hexagon and on the x86-64 host the chain is cheaper. If you came to this chapter
 expecting virtual calls to be ruinous on a small processor, these numbers do not say so,
 and this guide will not say so either.

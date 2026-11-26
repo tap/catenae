@@ -35,6 +35,7 @@
 #include <type_traits>
 
 #include "catenae/chain.h" // so that a | b composes what this header declares
+#include "catenae/compiler.h"
 #include "catenae/detail/abi.h"
 #include "catenae/detail/bits.h"
 #include "catenae/detail/convert.h"
@@ -120,15 +121,30 @@ namespace catenae {
                         st.remaining = m_ramp_frames;
                     }
                 }
-                const std::size_t frames = in.size() / Ch;
-                for (std::size_t frame = 0; frame < frames; ++frame) {
-                    if (st.remaining > 0) {
-                        --st.remaining;
-                        st.current = st.goal - st.step * static_cast<level_type>(st.remaining);
-                    }
+                // A store through `out` may be a store to the state for all the compiler knows, so
+                // the level is read into a local before each loop and never from the state inside
+                // one. Only a ramp's frames take the frame-by-frame path.
+                const std::size_t       frames = in.size() / Ch;
+                const value_type* const from   = in.data();
+                value_type* const       to     = out.data();
+                std::size_t             frame  = 0;
+                for (; frame < frames && st.remaining > 0; ++frame) {
+                    --st.remaining;
+                    st.current             = st.goal - st.step * static_cast<level_type>(st.remaining);
+                    const level_type level = st.current;
                     for (std::size_t c = 0; c < Ch; ++c) {
-                        out[frame * Ch + c] = in[frame * Ch + c] * st.current;
+                        to[frame * Ch + c] = from[frame * Ch + c] * level;
                     }
+                }
+                // The rest is at one level. `in` and `out` are one buffer or do not overlap
+                // (AOU-007, `is_in_place`), and each case has a loop that says so.
+                const std::size_t done = frame * Ch;
+                const std::size_t left = (frames - frame) * Ch;
+                if (from == to) {
+                    scale_in_place(to + done, left, st.current);
+                }
+                else {
+                    scale(from + done, to + done, left, st.current);
                 }
                 return frames;
             }
@@ -149,6 +165,38 @@ namespace catenae {
             float flush_residue() const noexcept { return 0.0f; }
 
           private:
+            /// Samples a steady level is applied to at a time: a fixed count the compiler
+            /// unrolls, a whole number of every vector width in use.
+            static constexpr std::size_t k_run = 16;
+
+            /// `count` samples times `level`, from one buffer to another that it does not overlap.
+            static void scale(const value_type* CATENAE_RESTRICT from, value_type* CATENAE_RESTRICT to,
+                              std::size_t count, level_type level) noexcept {
+                std::size_t i = 0;
+                for (; i + k_run <= count; i += k_run) {
+                    for (std::size_t j = 0; j < k_run; ++j) {
+                        to[i + j] = from[i + j] * level;
+                    }
+                }
+                for (; i < count; ++i) {
+                    to[i] = from[i] * level;
+                }
+            }
+
+            /// `count` samples times `level`, where they stand.
+            static void scale_in_place(value_type* CATENAE_RESTRICT samples, std::size_t count,
+                                       level_type level) noexcept {
+                std::size_t i = 0;
+                for (; i + k_run <= count; i += k_run) {
+                    for (std::size_t j = 0; j < k_run; ++j) {
+                        samples[i + j] = samples[i + j] * level;
+                    }
+                }
+                for (; i < count; ++i) {
+                    samples[i] = samples[i] * level;
+                }
+            }
+
             level_type    m_level;
             std::uint32_t m_ramp_frames;
         };

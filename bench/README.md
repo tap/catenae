@@ -115,7 +115,7 @@ Probe `strip`: each cell is the recorded figure / its ceiling, in bytes (start-u
 | `image.bss` | 1,820 / 1,920 | 1,820 / 1,920 | 1,820 / 1,920 | 1,820 / 1,920 | 1,092 / 1,152 |
 | `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
 | `image.rodata` | 100 / 128 | 100 / 128 | 100 / 128 | 100 / 128 | 48 / 64 |
-| `image.text` | 9,048 / 9,344 | 7,832 / 8,128 | 7,712 / 8,000 | 7,740 / 8,000 | 8,020 / 8,320 |
+| `image.text` | 9,240 / 9,536 | 8,024 / 8,320 | 7,880 / 8,128 | 7,948 / 8,192 | 8,244 / 8,512 |
 | `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
@@ -123,16 +123,16 @@ Probe `strip`: each cell is the recorded figure / its ceiling, in bytes (start-u
 | `unit.bss` | 804 / 832 | 804 / 832 | 804 / 832 | 804 / 832 | 804 / 832 |
 | `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `unit.rodata` | 12 / 64 | 12 / 64 | 12 / 64 | 12 / 64 | 12 / 64 |
-| `unit.text` | 342 / 384 | 354 / 384 | 354 / 384 | 380 / 448 | 884 / 960 |
+| `unit.text` | 538 / 576 | 522 / 576 | 522 / 576 | 588 / 640 | 1,108 / 1,152 |
 | `sizeof.state` | 288 / 320 | 288 / 320 | 288 / 320 | 288 / 320 |  |
 | `sizeof.workspace` | 516 / 576 | 516 / 576 | 516 / 576 | 516 / 576 |  |
 | `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
-| `stack.process.measured` | 40 / 48 | 32 / 40 | 32 / 40 | 32 / 40 |  |
-| `stack.process.static` | 40 / 48 | 32 / 40 | 32 / 40 | 32 / 40 |  |
+| `stack.process.measured` | 64 / 72 | 40 / 48 | 40 / 48 | 40 / 48 |  |
+| `stack.process.static` | 64 / 72 | 40 / 48 | 40 / 48 | 40 / 48 |  |
 | `stack.reset.measured` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
 | `stack.reset.static` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
-| `code.process` | 1,370 / 1,472 | 320 / 384 | 320 / 384 | 344 / 384 |  |
+| `code.process` | 1,566 / 1,664 | 488 / 512 | 488 / 512 | 552 / 576 |  |
 | `code.reset` | 218 / 256 | 218 / 256 | 218 / 256 | 218 / 256 |  |
 
 Probe `strip_object`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
@@ -164,7 +164,7 @@ Probe `c1`: each cell is the recorded figure / its ceiling, in bytes (start-up f
 | `image.bss` | 5,576 / 5,760 | 5,576 / 5,760 | 5,576 / 5,760 | 5,576 / 5,760 | 4,844 / 4,992 |
 | `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
 | `image.rodata` | 124 / 128 | 124 / 128 | 124 / 128 | 124 / 128 | 72 / 128 |
-| `image.text` | 10,200 / 10,560 | 8,728 / 9,024 | 8,588 / 8,896 | 8,664 / 8,960 | 10,036 / 10,368 |
+| `image.text` | 10,584 / 10,944 | 8,984 / 9,280 | 8,884 / 9,152 | 9,044 / 9,344 | 10,484 / 10,816 |
 | `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
@@ -172,17 +172,17 @@ Probe `c1`: each cell is the recorded figure / its ceiling, in bytes (start-up f
 | `unit.bss` | 4,560 / 4,736 | 4,560 / 4,736 | 4,560 / 4,736 | 4,560 / 4,736 | 4,560 / 4,736 |
 | `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `unit.rodata` | 36 / 64 | 36 / 64 | 36 / 64 | 36 / 64 | 36 / 64 |
-| `unit.text` | 1,236 / 1,280 | 1,232 / 1,280 | 1,232 / 1,280 | 1,302 / 1,344 | 2,828 / 2,944 |
+| `unit.text` | 1,570 / 1,664 | 1,526 / 1,600 | 1,526 / 1,600 | 1,680 / 1,792 | 3,284 / 3,392 |
 | `sizeof.state` | 696 / 768 | 696 / 768 | 696 / 768 | 696 / 768 |  |
 | `sizeof.workspace` | 3,864 / 4,032 | 3,864 / 4,032 | 3,864 / 4,032 | 3,864 / 4,032 |  |
 | `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
-| `stack.process.measured` | 72 / 80 | 40 / 48 | 40 / 48 | 40 / 48 |  |
-| `stack.process.static` | 72 / 80 | 40 / 48 | 40 / 48 | 40 / 48 |  |
-| `stack.reset.measured` | 44 / 48 | 44 / 48 | 48 / 56 | 48 / 56 |  |
-| `stack.reset.static` | 44 / 48 | 44 / 48 | 48 / 56 | 48 / 56 |  |
-| `code.process` | 2,856 / 2,944 | 1,128 / 1,216 | 1,128 / 1,216 | 1,196 / 1,280 |  |
-| `code.reset` | 324 / 384 | 324 / 384 | 324 / 384 | 324 / 384 |  |
+| `stack.process.measured` | 96 / 104 | 40 / 48 | 40 / 48 | 40 / 48 |  |
+| `stack.process.static` | 96 / 104 | 40 / 48 | 40 / 48 | 40 / 48 |  |
+| `stack.reset.measured` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
+| `stack.reset.static` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
+| `code.process` | 3,168 / 3,264 | 1,400 / 1,472 | 1,400 / 1,472 | 1,552 / 1,600 |  |
+| `code.reset` | 302 / 320 | 302 / 320 | 302 / 320 | 302 / 320 |  |
 <!-- ceilings:end -->
 
 ## The layout benchmark (informational, never a gate)
@@ -210,25 +210,33 @@ baselines, no tolerance, no failure.
   prints every count and the table and uploads `layout-<key>.json` in `measured-<key>`.
 
 Planar over interleaved (below 1, the mono configurations are cheaper), from Bench run
-[45704804502](https://github.com/tap/catenae/actions/runs/45704804502) at `fed09b6`,
-2026-11-25, its "Layout counts" steps; every pair bit-identical on every key; `hexagon` counts
-packets:
+[45715344934](https://github.com/tap/catenae/actions/runs/45715344934) at `0de8a2b`,
+2026-11-25, its `layout-<key>.json` artifacts; every pair bit-identical on every key; `hexagon`
+counts packets:
 
 | key | `gain` 2 | `gain` 6 | `gain` 12 | `delay` 2 | `delay` 6 | `delay` 12 | `map` 2 | `map` 6 | `map` 12 | `strip` 2 | `strip` 6 | `strip` 12 |
 |---|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|---:|
-| `m4-softfp` | 1.027 | 1.062 | 1.075 | 1.187 | 1.559 | 1.766 | 1.004 | 1.006 | 1.006 | 1.015 | 1.083 | 1.100 |
-| `m4f` | 0.948 | 1.439 | 1.602 | 1.306 | 1.486 | 1.653 | 1.018 | 1.026 | 1.028 | 0.990 | 1.337 | 1.431 |
-| `m33` | 0.947 | 1.438 | 1.600 | 1.233 | 1.486 | 1.653 | 1.018 | 1.026 | 1.028 | 0.968 | 1.337 | 1.431 |
-| `m55` | 1.475 | 1.498 | 1.741 | 1.145 | 2.204 | 4.988 | 1.085 | 1.132 | 1.144 | 1.236 | 1.883 | 2.890 |
-| `hexagon` | 1.256 | 1.470 | 1.544 | 1.534 | 1.494 | 1.506 | 0.981 | 0.915 | 0.980 | 1.516 | 1.451 | 1.470 |
-| host (x86-64) | 1.156 | 1.762 | 1.951 | 1.827 | 3.490 | 5.792 | 1.076 | 1.110 | 1.121 | 1.554 | 2.558 | 3.251 |
+| `m4-softfp` | 1.020 | 1.036 | 1.040 | 1.187 | 1.559 | 1.766 | 1.004 | 1.006 | 1.006 | 1.004 | 1.070 | 1.082 |
+| `m4f` | 1.103 | 1.189 | 1.212 | 1.306 | 1.486 | 1.653 | 1.018 | 1.026 | 1.028 | 1.023 | 1.282 | 1.344 |
+| `m33` | 1.100 | 1.185 | 1.208 | 1.233 | 1.486 | 1.653 | 1.018 | 1.026 | 1.028 | 0.997 | 1.281 | 1.344 |
+| `m55` | 1.129 | 1.400 | 1.520 | 1.145 | 2.204 | 4.988 | 1.085 | 1.132 | 1.144 | 1.182 | 1.909 | 2.971 |
+| `hexagon` | 1.093 | 1.185 | 1.219 | 1.534 | 1.494 | 1.506 | 0.981 | 0.915 | 0.980 | 1.331 | 1.428 | 1.425 |
+| host (x86-64) | 1.316 | 1.626 | 1.749 | 1.827 | 3.490 | 5.792 | 1.076 | 1.110 | 1.121 | 1.614 | 2.553 | 3.215 |
 
 From 6 channels up, interleaved is the cheaper layout for every stage with state (the gain,
-the delay and the strip) on every key, by 1.06 to 5.8 times. Stereo is where it is close: on
-the M4F and M33 the mono gain and the mono strip are 1 to 5 % cheaper. The stateless map is
-within 3 % on the M4, M4F and M33, up to 14 % in interleaved's favour on the M55 and 12 % on
-the host, and 2 to 9 % in the mono maps' favour on Hexagon. The host's ranking is not a
-Cortex-M's: it puts the 12-channel delay's mono form at 5.8 times, the M33 at 1.65.
+the delay and the strip) on every key, by 1.04 to 5.8 times. Stereo is where it is close: the
+gain is 2 to 32 % cheaper interleaved on every key, and the mono strip is within 3 % of the
+interleaved one on the M4, M4F and M33. The stateless map is within 3 % on the M4, M4F and
+M33, up to 14 % in interleaved's favour on the M55 and 12 % on the host, and 2 to 9 % in the
+mono maps' favour on Hexagon. The host's ranking is not a Cortex-M's: it puts the 12-channel
+delay's mono form at 5.8 times, the M33 at 1.65.
+
+The gain and the strip columns were measured again when `gain`'s steady level moved into a
+local and its loop into runs of 16 samples. Before that, in run
+[45704804502](https://github.com/tap/catenae/actions/runs/45704804502), the mono gain was 5 %
+the cheaper for stereo on the M4F and M33 (0.948, 0.947) and from 1.44 to 1.95 times the
+dearer at 6 and 12 channels on every key but the soft-float M4. The delay and the map columns
+did not move.
 
 ```sh
 cmake -S . -B build-17 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m33-mps2.cmake \
@@ -264,8 +272,9 @@ ctest --test-dir build-size -L link_gate
 | What | From |
 |---|---|
 | `baselines.json`, every key; `ceilings.json`, every key but `host` | Bench run [45614209215](https://github.com/tap/catenae/actions/runs/45614209215) at `1cd47fa` (the run names `c4d0c87`, the same tree before the C0a pull request was rebased onto `main`), 2026-11-25: its `measured-<key>` artifacts, copied unchanged, the ceilings computed by `scripts/ceilings.py`'s rule |
-| `baselines.json`: `strip_chain` and `strip_graph`, every key | Bench run [45653902512](https://github.com/tap/catenae/actions/runs/45653902512) at `66debaa`, 2026-11-25: its `measured-<key>` artifacts, copied unchanged; every other count in that run equal to its baseline |
+| `baselines.json`: `strip_chain` and `strip_graph`, every key | Bench run [45706225434](https://github.com/tap/catenae/actions/runs/45706225434) at `f344455`, 2026-11-25: the counts its six jobs printed, copied unchanged; every other count in that run equal to its baseline. Re-recorded because `gain` now applies its steady level from a local in runs of 16 samples, and the graph's gain node was given the same loops: both strips moved on every key, beyond tolerance on four (`m33`, `m4f`, `hexagon`, and `strip_graph` on `host`). They were first recorded from run [45653902512](https://github.com/tap/catenae/actions/runs/45653902512) at `66debaa` |
 | `ceilings.json`: the probe sets `strip`, `strip_object` and `c1`, and `code.version`, every key but `host`; the layout table above | Bench run [45704804502](https://github.com/tap/catenae/actions/runs/45704804502) at `fed09b6`, 2026-11-25 (`workflow_dispatch` on the C1 branch): each figure as its "Sizes, start-up and stack" step printed it, the ceilings computed by `scripts/ceilings.py`'s rule; every figure recorded before it measured equal, every ratchet count equal to its baseline, the link-stage gate's three tests passing on each Arm key; the same toolchain packages as the first run |
+| `ceilings.json`: 50 figures of the probe sets `strip` and `c1`, every key but `host`; the layout table above | Bench run [45715344934](https://github.com/tap/catenae/actions/runs/45715344934) at `0de8a2b`, 2026-11-25: its `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, each figure that differed from its record copied and its ceiling computed by `scripts/ceilings.py`'s rule. Re-recorded because `gain`'s new loops cost code: the strip's `process` reaches 168 more bytes on the M4F and M33 (320 to 488), 208 on the M55 and 196 on the soft-float M4, and its stack is 8 bytes deeper (24 on the soft-float M4), for the counts in the row above. `c1`'s `reset` figures fell in the same run and are recorded as measured. Every ratchet count in that run equal to its baseline |
 
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
 (Ubuntu's `gcc-arm-none-eabi` 15:13.2.rel1-2) and `qemu-system-arm` 8.2.2 for the Arm keys;
@@ -301,17 +310,17 @@ steps print them; CodeLinaro clang 19.1.5, pinned by its SHA256, for `hexagon`).
 
 | Key | `strip_chain` | `strip_graph` | chain less graph |
 |---|--:|--:|--:|
-| `m4-softfp` | 24,160,128 | 23,574,864 | +585,264 (+2.5 %) |
-| `m4f` | 3,796,665 | 3,840,400 | -43,735 (-1.1 %) |
-| `m33` | 3,860,694 | 3,841,430 | +19,264 (+0.5 %) |
-| `m55` | 2,375,698 | 2,472,434 | -96,736 (-3.9 %) |
-| `hexagon` | 1,172,150 packets | 1,299,888 packets | -127,738 (-9.8 %) |
-| `host` | 2,777,174 | 3,203,166 | -425,992 (-13.3 %) |
+| `m4-softfp` | 23,888,126 | 23,446,864 | +441,262 (+1.9 %) |
+| `m4f` | 3,592,666 | 3,453,400 | +139,266 (+4.0 %) |
+| `m33` | 3,656,695 | 3,453,430 | +203,265 (+5.9 %) |
+| `m55` | 2,339,702 | 2,440,434 | -100,732 (-4.1 %) |
+| `hexagon` | 1,030,150 packets | 1,135,888 packets | -105,738 (-9.3 %) |
+| `host` | 2,711,175 | 3,051,166 | -339,991 (-11.1 %) |
 
 A QEMU key's count is the whole run, start-up, input, checksum and `printf` included; the
 `host` count is the loop alone (`catenae_host_counted()`). Those parts are the same in both
 binaries, so the difference is the strip's alone. On the Cortex-M cores the two cost about
-the same, within 4 % either way; on Hexagon and the host the chain is the cheaper. What the
+the same, within 6 % either way; on Hexagon and the host the chain is the cheaper. What the
 graph gives up is not speed: a node whose channel count differs from the one before it is
 found when it is connected, as the program runs (`graph::connect` returns false), where the
 chain refuses it when its type is formed, before the program exists.

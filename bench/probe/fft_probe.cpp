@@ -40,11 +40,11 @@ namespace catenae_probe {
     } // namespace
 
     CATENAE_PROBE_NOINLINE void probe_forward() noexcept {
-        catenae::fft_plan<float>::of<fft_n>().forward(catenae::span<catenae::complex<float>>(s_frame));
+        catenae::fft_plan<float>::of<fft_n>().forward(s_frame);
     }
 
     CATENAE_PROBE_NOINLINE void probe_inverse() noexcept {
-        g_sink = catenae::fft_plan<float>::of<fft_n>().inverse(catenae::span<catenae::complex<float>>(s_frame));
+        g_sink = catenae::fft_plan<float>::of<fft_n>().inverse(s_frame);
     }
 
     CATENAE_PROBE_NOINLINE void probe_make() noexcept {

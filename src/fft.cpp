@@ -45,13 +45,13 @@ namespace catenae {
         }
 
         template <typename S>
-        void fft_plan<S>::forward(span<complex_type> frame) const noexcept {
-            detail::srdif<value_type>::forward(m_tables, m_size, frame.data());
+        void fft_plan<S>::run_forward(complex_type* frame) const noexcept {
+            detail::srdif<value_type>::forward(m_tables, m_size, frame);
         }
 
         template <typename S>
-        int fft_plan<S>::inverse(span<complex_type> frame) const noexcept {
-            detail::srdif<value_type>::inverse(m_tables, m_size, frame.data());
+        int fft_plan<S>::run_inverse(complex_type* frame) const noexcept {
+            detail::srdif<value_type>::inverse(m_tables, m_size, frame);
             return 1;
         }
 
@@ -59,13 +59,17 @@ namespace catenae {
 #define CATENAE_FFT_DEFINE_F32(n) template struct fft_tables<float, n>;
         CATENAE_FFT_LENGTHS(CATENAE_FFT_DEFINE_F32)
 #undef CATENAE_FFT_DEFINE_F32
-        template class fft_plan<float>;
+        template expected<fft_plan<float>, status> fft_plan<float>::make(std::size_t, span<float>) noexcept;
+        template void                              fft_plan<float>::run_forward(complex<float>*) const noexcept;
+        template int                               fft_plan<float>::run_inverse(complex<float>*) const noexcept;
 #endif
 #if CATENAE_FFT_F64 != CATENAE_FFT_NONE
 #define CATENAE_FFT_DEFINE_F64(n) template struct fft_tables<double, n>;
         CATENAE_FFT_LENGTHS(CATENAE_FFT_DEFINE_F64)
 #undef CATENAE_FFT_DEFINE_F64
-        template class fft_plan<double>;
+        template expected<fft_plan<double>, status> fft_plan<double>::make(std::size_t, span<double>) noexcept;
+        template void                               fft_plan<double>::run_forward(complex<double>*) const noexcept;
+        template int                                fft_plan<double>::run_inverse(complex<double>*) const noexcept;
 #endif
 
     } // namespace CATENAE_ABI

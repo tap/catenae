@@ -1,7 +1,7 @@
 // Copyright 2026 Timothy Place and the catenae contributors
 // The constant tables of a length that is not a power of two (12), against those of 16.
 // Verifies CAT-FFT-004.
-// Expect: catenae: an FFT length is a power of two from 4 to 65536
+// Expect: catenae: an FFT's constant tables are a power of two from 4 to 65536
 #include <cstddef>
 
 #include "catenae/fft.h"

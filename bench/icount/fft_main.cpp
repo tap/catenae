@@ -24,7 +24,6 @@
 #include "call_marker.h"
 #include "catenae/compiler.h"
 #include "catenae/fft.h"
-#include "catenae/span.h"
 
 #ifndef CATENAE_ICOUNT_BRACKET
 #define CATENAE_ICOUNT_BRACKET 0
@@ -63,10 +62,9 @@ namespace {
 
 // The counted region: callgrind's --toggle-collect names it on the host.
 extern "C" CATENAE_PROBE_NOINLINE std::uint64_t catenae_host_counted() noexcept {
-    constexpr auto                                plan = catenae::fft_plan<sample>::of<k_n>();
-    const catenae::span<catenae::complex<sample>> frame(s_frame, k_n / 2u + 1u);
-    std::uint64_t                                 hash = k_fnv_basis;
-    std::uint32_t                                 seed = 0x2545f491u;
+    constexpr auto plan = catenae::fft_plan<sample>::of<k_n>(); // N in its type: a static frame
+    std::uint64_t  hash = k_fnv_basis;
+    std::uint32_t  seed = 0x2545f491u;
     for (std::size_t f = 0; f < k_frames; ++f) {
         for (std::size_t i = 0; i < k_n / 2u; ++i) {
             seed ^= seed << 13u;
@@ -79,7 +77,7 @@ extern "C" CATENAE_PROBE_NOINLINE std::uint64_t catenae_host_counted() noexcept 
 #if CATENAE_ICOUNT_BRACKET
         catenae_call_begin();
 #endif
-        plan.forward(frame);
+        plan.forward(s_frame);
 #if CATENAE_ICOUNT_BRACKET
         catenae_call_end();
 #endif
@@ -87,7 +85,7 @@ extern "C" CATENAE_PROBE_NOINLINE std::uint64_t catenae_host_counted() noexcept 
 #if CATENAE_ICOUNT_BRACKET
         catenae_call_begin();
 #endif
-        const int e = plan.inverse(frame);
+        const int e = plan.inverse(s_frame);
 #if CATENAE_ICOUNT_BRACKET
         catenae_call_end();
 #endif

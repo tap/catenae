@@ -505,9 +505,9 @@ namespace catenae {
                 }
 
                 /// The most blocks the kernel holds pending: a block of l >= 128 is replaced by its
-                /// five, l/4 to l/8, and l <= 32768 halves at least twice per level, so at most five
-                /// levels fuse and the list grows by four at each.
-                static constexpr std::size_t k_pending = 1u + 4u * 5u;
+                /// five, l/4 to l/8, and l <= 2^19 (N <= 2^20) shrinks at least fourfold per level,
+                /// so at most seven levels fuse and the list grows by four at each.
+                static constexpr std::size_t k_pending = 1u + 4u * 7u;
 
                 /// Split-radix DIF over l values at a, output in bit-reversed order. The recursion
                 /// on the five blocks a fused pass leaves is a loop over a list of the blocks still
@@ -517,13 +517,13 @@ namespace catenae {
                 template <bool Inverse>
                 CATENAE_SRDIF_BLOCK static void kernel(const T* tables, std::size_t n, cx* a, std::size_t l) noexcept {
                     // A pending block in one word: its offset is a multiple of its length (a power of
-                    // two from 2 to 32768), so offset + length / 2 keeps both, the lowest set bit
-                    // being half the length.
+                    // two from 2 to 2^19), so offset + length / 2 keeps both, the lowest set bit
+                    // being half the length, below 2^20.
                     const auto entry = [](std::size_t at, std::size_t len) noexcept {
-                        return static_cast<std::uint16_t>(at + len / 2u);
+                        return static_cast<std::uint32_t>(at + len / 2u);
                     };
                     const T* const small_tables = tables + n / 2u;
-                    std::uint16_t  pending[k_pending];
+                    std::uint32_t  pending[k_pending];
                     std::size_t    count = 1u;
                     pending[0]           = entry(0u, l);
                     while (count > 0u) {

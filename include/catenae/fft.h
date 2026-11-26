@@ -1,5 +1,5 @@
 /// @file fft.h
-/// @brief The real FFT: `fft_plan<S>` over the constant `fft_tables<S, N>`, D25's frame in place.
+/// @brief The real FFT: plans over the constant `fft_tables<S, N>` or a caller's storage, in place.
 ///
 /// | Contract  |                                                                                  |
 /// |-----------|----------------------------------------------------------------------------------|
@@ -7,9 +7,11 @@
 /// | Forward   | X[k] = sum x[n] exp(-i 2 pi k n / N), unscaled in float and double               |
 /// | Input     | the N real samples as N/2 complex values: entry n holds {x[2n], x[2n + 1]}       |
 /// | Inverse   | in place; returns e: the frame x 2^e is sum X[k] exp(+i 2 pi k n / N), = N x     |
-/// | Lengths   | a power of two from `fft_min_size` (4) to `fft_max_size` (65536)                 |
-/// | Tables    | `fft_tables<S, N>`: constant, in ROM, one per length and type, from the core     |
+/// | Lengths   | a power of two from 4 (`fft_min_size`) to 2^20 (`fft_max_size`)                  |
+/// | Tables    | `fft_tables<S, N>`: constant, in ROM, to 65536 (`fft_max_table_size`), from the core |
+/// | Fixed     | `fft_plan<S>::of<N>()`: an `fft_fixed_plan<S, N>`, whose frames have static extent |
 /// | Run time  | `fft_plan<S>::make(n, workspace)`: the same tables built into a caller's storage |
+/// | Checked   | a frame of dynamic extent at every transform, in every build (`fft_frame_size`)  |
 /// | Back end  | `CATENAE_FFT_F32`, `_F64`, `_Q15`, `_Q31`; own by default; `none` leaves it out  |
 /// | Formats   | float and double (the own engine); q15 and q31 declared, the engine at C6       |
 /// | Limits    | no heap, no exceptions; a transform is noexcept, allocation-free, re-entrant     |
@@ -23,11 +25,11 @@
 /// sum X[k] exp(+i 2 pi k n / N) over the full spectrum: a forward then an inverse gives
 /// N x 2^-e = (N/2) x in float and double, where e is 1 at every length.
 /// @req{CAT-FFT-003} The output bits of a forward and an inverse are a function of the input
-/// and the length alone, pinned per length from 4 to 65536 in float and double.
-/// @req{CAT-FFT-004} A length is accepted exactly when it is a power of two from 4 to 65536:
-/// `fft_tables<S, N>` for any other N does not compile, and `make()` returns
-/// `status::out_of_range`, and `status::size_mismatch` for a workspace below
-/// `fft_workspace_size<S>(n)`.
+/// and the length alone, pinned per length from 4 to 2^20 in float and double.
+/// @req{CAT-FFT-004} `make()` accepts a length exactly when it is a power of two from 4 to 2^20,
+/// and returns `status::out_of_range` otherwise and `status::size_mismatch` for a workspace below
+/// `fft_workspace_size<S>(n)`; `fft_tables<S, N>` and `of<N>()` compile exactly for a power of
+/// two from 4 to 65536.
 /// @req{CAT-FFT-005} A plan made at run time holds the same tables, bit for bit, as
 /// `fft_tables<S, N>`, and transforms to the same bits.
 /// @req{CAT-FFT-006} A plan is a trivially copyable constant: a view of its tables and its
@@ -36,6 +38,11 @@
 /// @req{CAT-FFT-007} The fixed-point formats' forward grows the output by a constant of the
 /// length: `fft_forward_exponent<q15>(n)` is log2 n, `<q31>` log2 n + 1, and 0 for float and
 /// double. Their engine arrives at C6; until then a q15 or q31 plan does not compile.
+/// @req{CAT-FFT-008} A plan from `of<N>()` has N in its type: a frame of static extent other
+/// than N/2 + 1, as a span, a `std::array` or an array, does not compile, and it converts
+/// explicitly to the `fft_plan<S>` of the same length and tables.
+/// @req{CAT-FFT-009} A transform given a frame of dynamic extent other than N/2 + 1 fails the
+/// boundary check `check::fft_frame_size`, in every build, before it writes anything.
 // Copyright 2026 Timothy Place and the catenae contributors
 #ifndef CATENAE_FFT_H
 #define CATENAE_FFT_H
@@ -45,6 +52,7 @@
 #include <cstdint>
 #include <type_traits>
 
+#include "catenae/check.h"
 #include "catenae/detail/abi.h"
 #include "catenae/expected.h"
 #include "catenae/sample_format.h"
@@ -55,12 +63,20 @@ namespace catenae {
 
         /// The shortest length the own engines transform.
         inline constexpr std::size_t fft_min_size = 4;
-        /// The longest length the own engines transform.
-        inline constexpr std::size_t fft_max_size = 65536;
+        /// The longest length a plan made at run time transforms: 2^20.
+        inline constexpr std::size_t fft_max_size = 1048576;
+        /// The longest length with constant tables in the compiled core.
+        inline constexpr std::size_t fft_max_table_size = 65536;
 
-        /// Whether n is a length the own engines transform: a power of two from 4 to 65536.
+        /// Whether `make()` accepts n: a power of two from 4 to 2^20.
         constexpr bool fft_supports(std::size_t n) noexcept {
             return n >= fft_min_size && n <= fft_max_size && (n & (n - 1u)) == 0u;
+        }
+
+        /// Whether the compiled core holds constant tables of length n: a power of two from 4 to
+        /// 65536.
+        constexpr bool fft_has_tables(std::size_t n) noexcept {
+            return fft_supports(n) && n <= fft_max_table_size;
         }
 
         /// The bins of a length-n frame: n/2 + 1, DC to Nyquist (D25).
@@ -165,12 +181,15 @@ namespace catenae {
         template <typename S, std::size_t N>
         struct fft_tables {
             static_assert(detail::fft_checked<S>::k_ok, "");
-            static_assert(fft_supports(N), "catenae: an FFT length is a power of two from 4 to 65536");
+            static_assert(fft_has_tables(N), "catenae: an FFT's constant tables are a power of two from 4 to 65536");
             /// The tables (src/fft_srdif.h says what is where).
             static const std::array<storage_t<S>, fft_table_size<S>(N)> values;
         };
 
-        /// @brief A real FFT of one length: a view of its constant tables and the length.
+        template <typename S, std::size_t N>
+        class fft_fixed_plan;
+
+        /// @brief A real FFT of one length: a view of its tables and the length.
         template <typename S>
         class fft_plan {
             static_assert(detail::fft_checked<S>::k_ok, "");
@@ -179,10 +198,10 @@ namespace catenae {
             using value_type   = storage_t<S>;        ///< a sample
             using complex_type = complex<value_type>; ///< a bin
 
-            /// The plan over `fft_tables<S, N>`, a constant.
+            /// The plan over `fft_tables<S, N>`, a constant with N in its type.
             template <std::size_t N>
-            static constexpr fft_plan of() noexcept {
-                return fft_plan(fft_tables<S, N>::values.data(), N);
+            static constexpr fft_fixed_plan<S, N> of() noexcept {
+                return fft_fixed_plan<S, N>{};
             }
 
             /// A plan of length n whose tables are built into `workspace`, which must hold
@@ -194,21 +213,102 @@ namespace catenae {
             constexpr std::size_t size() const noexcept { return m_size; }
 
             /// The forward transform in place over `frame`, N/2 + 1 values: the samples in, as
-            /// {x[2n], x[2n + 1]} in entries 0 to N/2 - 1, and the bins out.
-            void forward(span<complex_type> frame) const noexcept;
+            /// {x[2n], x[2n + 1]} in entries 0 to N/2 - 1, and the bins out. A frame of any
+            /// other size fails `check::fft_frame_size`.
+            void forward(span<complex_type> frame) const noexcept {
+                detail::check_always(frame.size() == fft_bins(m_size), check::fft_frame_size);
+                run_forward(frame.data());
+            }
 
             /// The inverse transform in place over `frame`: the bins in, and the samples out
             /// as the forward reads them, scaled so that the frame x 2^e is the unnormalized
-            /// inverse. @return e.
-            [[nodiscard]] int inverse(span<complex_type> frame) const noexcept;
+            /// inverse. A frame of any other size fails `check::fft_frame_size`. @return e.
+            [[nodiscard]] int inverse(span<complex_type> frame) const noexcept {
+                detail::check_always(frame.size() == fft_bins(m_size), check::fft_frame_size);
+                return run_inverse(frame.data());
+            }
 
           private:
+            template <typename, std::size_t>
+            friend class fft_fixed_plan;
+
             constexpr fft_plan(const value_type* tables, std::size_t n) noexcept
                 : m_tables(tables)
                 , m_size(n) {}
 
+            /// The transforms over a frame of fft_bins(m_size) values, in the compiled core.
+            void run_forward(complex_type* frame) const noexcept;
+            int  run_inverse(complex_type* frame) const noexcept;
+
             const value_type* m_tables; ///< fft_table_size<S>(m_size) values
             std::size_t       m_size;   ///< N
+        };
+
+        /// @brief A real FFT whose length N is in its type, over `fft_tables<S, N>`: a frame of
+        /// static extent is checked when it compiles, one of dynamic extent when it runs.
+        template <typename S, std::size_t N>
+        class fft_fixed_plan {
+            static_assert(detail::fft_checked<S>::k_ok, "");
+            static_assert(fft_has_tables(N), "catenae: an FFT's constant tables are a power of two from 4 to 65536");
+
+          public:
+            using value_type   = storage_t<S>;        ///< a sample
+            using complex_type = complex<value_type>; ///< a bin
+            /// The bins of a frame: N/2 + 1.
+            static constexpr std::size_t bins = fft_bins(N);
+
+            /// The length N.
+            static constexpr std::size_t size() noexcept { return N; }
+
+            /// The same plan, for code that takes any length: `fft_plan<S>(fixed)`.
+            constexpr explicit operator fft_plan<S>() const noexcept { return plan(); }
+
+            /// The forward transform in place over `frame` (see fft_plan<S>::forward).
+            template <std::size_t E>
+            void forward(span<complex_type, E> frame) const noexcept {
+                if constexpr (E == dynamic_extent) {
+                    plan().forward(frame);
+                }
+                else {
+                    static_assert(E == bins, "catenae: an FFT frame of length N holds N/2 + 1 bins");
+                    plan().run_forward(frame.data());
+                }
+            }
+            /// The same over a `std::array`.
+            template <std::size_t E>
+            void forward(std::array<complex_type, E>& frame) const noexcept {
+                forward(span<complex_type, E>(frame));
+            }
+            /// The same over an array.
+            template <std::size_t E>
+            void forward(complex_type (&frame)[E]) const noexcept {
+                forward(span<complex_type, E>(frame));
+            }
+
+            /// The inverse transform in place over `frame` (see fft_plan<S>::inverse). @return e.
+            template <std::size_t E>
+            [[nodiscard]] int inverse(span<complex_type, E> frame) const noexcept {
+                if constexpr (E == dynamic_extent) {
+                    return plan().inverse(frame);
+                }
+                else {
+                    static_assert(E == bins, "catenae: an FFT frame of length N holds N/2 + 1 bins");
+                    return plan().run_inverse(frame.data());
+                }
+            }
+            /// The same over a `std::array`. @return e.
+            template <std::size_t E>
+            [[nodiscard]] int inverse(std::array<complex_type, E>& frame) const noexcept {
+                return inverse(span<complex_type, E>(frame));
+            }
+            /// The same over an array. @return e.
+            template <std::size_t E>
+            [[nodiscard]] int inverse(complex_type (&frame)[E]) const noexcept {
+                return inverse(span<complex_type, E>(frame));
+            }
+
+          private:
+            static constexpr fft_plan<S> plan() noexcept { return fft_plan<S>(fft_tables<S, N>::values.data(), N); }
         };
 
         /// The lengths the compiled core holds tables for, one explicit instantiation each.
@@ -219,13 +319,19 @@ namespace catenae {
 #define CATENAE_FFT_DECLARE_F32(n) extern template struct fft_tables<float, n>;
         CATENAE_FFT_LENGTHS(CATENAE_FFT_DECLARE_F32)
 #undef CATENAE_FFT_DECLARE_F32
-        extern template class fft_plan<float>;
+        // The compiled members alone: the checked transforms stay inline in the caller's file.
+        extern template expected<fft_plan<float>, status> fft_plan<float>::make(std::size_t, span<float>) noexcept;
+        extern template void                              fft_plan<float>::run_forward(complex<float>*) const noexcept;
+        extern template int                               fft_plan<float>::run_inverse(complex<float>*) const noexcept;
 #endif
 #if CATENAE_FFT_F64 != CATENAE_FFT_NONE
 #define CATENAE_FFT_DECLARE_F64(n) extern template struct fft_tables<double, n>;
         CATENAE_FFT_LENGTHS(CATENAE_FFT_DECLARE_F64)
 #undef CATENAE_FFT_DECLARE_F64
-        extern template class fft_plan<double>;
+        // The compiled members alone: the checked transforms stay inline in the caller's file.
+        extern template expected<fft_plan<double>, status> fft_plan<double>::make(std::size_t, span<double>) noexcept;
+        extern template void fft_plan<double>::run_forward(complex<double>*) const noexcept;
+        extern template int  fft_plan<double>::run_inverse(complex<double>*) const noexcept;
 #endif
 
     } // namespace CATENAE_ABI

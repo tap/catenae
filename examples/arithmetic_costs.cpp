@@ -18,7 +18,7 @@
 namespace {
 
     constexpr std::size_t k_frames = 512;
-    using signal                   = std::array<float, k_frames>;
+    using samples                  = std::array<float, k_frames>;
 
     // ANCHOR: golden
     // The golden model: the design and every product and sum in double. The battery holds each
@@ -53,19 +53,19 @@ namespace {
     }
     // ANCHOR_END: headroom
 
-    /// A path from reset over the whole signal.
+    /// A path from reset over the whole input.
     template <typename Path>
-    signal run(const Path& path, const signal& in) noexcept {
+    samples run(const Path& path, const samples& in) noexcept {
         static catenae::memory_of<Path> memory{};
         path.reset(memory.state);
-        signal out{};
+        samples out{};
         static_cast<void>(path.process(memory, in, out));
         return out;
     }
 
     /// Pseudo-random samples at `level` of full scale.
-    signal noise(float level) noexcept {
-        signal        s{};
+    samples noise(float level) noexcept {
+        samples       s{};
         std::uint32_t seed = 1;
         for (float& v : s) {
             seed = seed * 1664525u + 1013904223u;
@@ -75,7 +75,7 @@ namespace {
     }
 
     /// The golden model's output for `in`, in double.
-    std::array<double, k_frames> golden(const catenae::fir_design<double, 63>& design, const signal& in) noexcept {
+    std::array<double, k_frames> golden(const catenae::fir_design<double, 63>& design, const samples& in) noexcept {
         static catenae::fir_f64<1, 63>::state st{};
         st = {};
         catenae::no_workspace        ws{};
@@ -90,7 +90,7 @@ namespace {
     }
 
     /// The largest distance of `out` from the golden model.
-    double distance(const signal& out, const std::array<double, k_frames>& want) noexcept {
+    double distance(const samples& out, const std::array<double, k_frames>& want) noexcept {
         double worst = 0.0;
         for (std::size_t i = 0; i < k_frames; ++i) {
             worst = std::fmax(worst, std::fabs(static_cast<double>(out[i]) - want[i]));
@@ -108,17 +108,17 @@ int main() {
         return 1;
     }
     // At -6 dBFS: the float profile and Q15 against the golden model.
-    const signal quiet       = noise(0.5f);
-    const auto   want        = golden(*design, quiet);
-    const double float_error = distance(run(k_lowpass, quiet), want);
-    const double q15_error   = distance(run(k_lowpass_q15, quiet), want) * 32768.0;
+    const samples quiet       = noise(0.5f);
+    const auto    want        = golden(*design, quiet);
+    const double  float_error = distance(run(k_lowpass, quiet), want);
+    const double  q15_error   = distance(run(k_lowpass_q15, quiet), want) * 32768.0;
     std::printf("float profile: %.2g from the golden model (%.1f dBFS)\n", float_error, 20.0 * std::log10(float_error));
     std::printf("q15: %.1f LSB from the golden model\n", q15_error);
     // At +6 dBFS, above Q31's full scale: Q31 clips the input, Q4.27 carries it.
-    const signal loud        = noise(2.0f);
-    const auto   want_loud   = golden(*design, loud);
-    const double q31_error   = distance(run(through(*q31), loud), want_loud);
-    const double q4_27_error = distance(run(through(*q4_27), loud), want_loud);
+    const samples loud        = noise(2.0f);
+    const auto    want_loud   = golden(*design, loud);
+    const double  q31_error   = distance(run(through(*q31), loud), want_loud);
+    const double  q4_27_error = distance(run(through(*q4_27), loud), want_loud);
     std::printf("q31 at +6 dBFS: %.2g from the golden model\n", q31_error);
     std::printf("q4.27 at +6 dBFS: %.2g from the golden model\n", q4_27_error);
     const bool ok = float_error < 1.4e-7 && q15_error < 6.0 && q31_error > 0.1 && q4_27_error < 1e-6;

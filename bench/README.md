@@ -189,28 +189,28 @@ Probe `c2`: each cell is the recorded figure / its ceiling, in bytes (start-up f
 
 | figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
 |---|--:|--:|--:|--:|--:|
-| `image.bss` | 2,980 / 3,072 | 2,980 / 3,072 | 2,980 / 3,072 | 2,980 / 3,072 | 2,252 / 2,368 |
+| `image.bss` | 3,540 / 3,648 | 3,540 / 3,648 | 3,540 / 3,648 | 3,540 / 3,648 | 2,812 / 2,944 |
 | `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
-| `image.rodata` | 108 / 128 | 108 / 128 | 108 / 128 | 108 / 128 | 56 / 64 |
-| `image.text` | 9,304 / 9,600 | 8,088 / 8,384 | 7,976 / 8,256 | 8,020 / 8,320 | 8,628 / 8,896 |
+| `image.rodata` | 128 / 192 | 128 / 192 | 128 / 192 | 128 / 192 | 80 / 128 |
+| `image.text` | 9,560 / 9,856 | 8,344 / 8,640 | 8,196 / 8,448 | 8,224 / 8,512 | 9,348 / 9,664 |
 | `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.text` | 112 / 128 | 112 / 128 | 112 / 128 | 118 / 128 | 136 / 192 |
-| `unit.bss` | 1,964 / 2,048 | 1,964 / 2,048 | 1,964 / 2,048 | 1,964 / 2,048 | 1,964 / 2,048 |
+| `unit.bss` | 2,524 / 2,624 | 2,524 / 2,624 | 2,524 / 2,624 | 2,524 / 2,624 | 2,524 / 2,624 |
 | `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
-| `unit.rodata` | 20 / 64 | 20 / 64 | 20 / 64 | 20 / 64 | 20 / 64 |
-| `unit.text` | 518 / 576 | 506 / 576 | 506 / 576 | 538 / 576 | 1,336 / 1,408 |
-| `sizeof.state` | 36 / 64 | 36 / 64 | 36 / 64 | 36 / 64 |  |
-| `sizeof.workspace` | 1,928 / 2,048 | 1,928 / 2,048 | 1,928 / 2,048 | 1,928 / 2,048 |  |
+| `unit.rodata` | 40 / 64 | 40 / 64 | 40 / 64 | 40 / 64 | 40 / 64 |
+| `unit.text` | 734 / 768 | 730 / 768 | 726 / 768 | 742 / 768 | 1,744 / 1,856 |
+| `sizeof.state` | 84 / 128 | 84 / 128 | 84 / 128 | 84 / 128 |  |
+| `sizeof.workspace` | 2,440 / 2,560 | 2,440 / 2,560 | 2,440 / 2,560 | 2,440 / 2,560 |  |
 | `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
-| `stack.process.measured` | 80 / 88 | 24 / 32 | 24 / 32 | 24 / 32 |  |
-| `stack.process.static` | 80 / 88 | 24 / 32 | 24 / 32 | 32 / 40 |  |
-| `stack.reset.measured` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |  |
-| `stack.reset.static` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |  |
-| `code.process` | 1,686 / 1,792 | 612 / 640 | 612 / 640 | 650 / 704 |  |
-| `code.reset` | 44 / 64 | 44 / 64 | 44 / 64 | 44 / 64 |  |
+| `stack.process.measured` | 80 / 88 | 32 / 40 | 32 / 40 | 32 / 40 |  |
+| `stack.process.static` | 80 / 88 | 32 / 40 | 32 / 40 | 40 / 48 |  |
+| `stack.reset.measured` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
+| `stack.reset.static` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
+| `code.process` | 2,202 / 2,304 | 784 / 832 | 780 / 832 | 798 / 832 |  |
+| `code.reset` | 258 / 320 | 258 / 320 | 258 / 320 | 262 / 320 |  |
 <!-- ceilings:end -->
 
 ## The layout benchmark (informational, never a gate)
@@ -304,6 +304,7 @@ ctest --test-dir build-size -L link_gate
 | `ceilings.json`: the probe sets `strip`, `strip_object` and `c1`, and `code.version`, every key but `host`; the layout table above | Bench run [45704804502](https://github.com/tap/catenae/actions/runs/45704804502) at `fed09b6`, 2026-11-25 (`workflow_dispatch` on the C1 branch): each figure as its "Sizes, start-up and stack" step printed it, the ceilings computed by `scripts/ceilings.py`'s rule; every figure recorded before it measured equal, every ratchet count equal to its baseline, the link-stage gate's three tests passing on each Arm key; the same toolchain packages as the first run |
 | `ceilings.json`: 50 figures of the probe sets `strip` and `c1`, every key but `host`; the layout table above | Bench run [45715344934](https://github.com/tap/catenae/actions/runs/45715344934) at `0de8a2b`, 2026-11-25: its `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, each figure that differed from its record copied and its ceiling computed by `scripts/ceilings.py`'s rule. Re-recorded because `gain`'s new loops cost code: the strip's `process` reaches 168 more bytes on the M4F and M33 (320 to 488), 208 on the M55 and 196 on the soft-float M4, and its stack is 8 bytes deeper (24 on the soft-float M4), for the counts in the row above. `c1`'s `reset` figures fell in the same run and are recorded as measured. Every ratchet count in that run equal to its baseline |
 | `baselines.json`: `edges`, every key; `ceilings.json`: the probe set `c2`, every key but `host` | Bench run [45754937497](https://github.com/tap/catenae/actions/runs/45754937497) at `a1ac08b`, 2026-11-26 (`workflow_dispatch` on the C2 branch `claude/catenae-c2-pack`): its `measured-<key>.json` and `ceilings-measured-<key>.json` artifacts, the counts copied unchanged and the ceilings computed by `scripts/ceilings.py`'s rule. Every other count and figure in that run equal to its record, C++20 and C++23 equal to C++17 on every key, and the link-stage gate's four tests passing on each Arm key, `C2ImageHasNoSoftwareDouble` among them |
+| `baselines.json`: `edges`, every key; `ceilings.json`: the probe set `c2`, every key but `host` | Bench run [45759547555](https://github.com/tap/catenae/actions/runs/45759547555) at `316cbfd`, 2026-11-26 (`workflow_dispatch` on `claude/catenae-c2-edges`): its artifacts, copied and computed as in the row above. Re-recorded because C2's second part puts `sanitize`, `mix` and `dither` in the path where the gain was: `edges` costs 41 % more on the M33 (9,195,445 to 12,963,516) and the checksum is now `e4697eabbeb92f5c`. Every other count and figure in that run equal to its record, C++20 and C++23 equal to C++17 on every key, and the link-stage gate passing on each Arm key |
 
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
 (Ubuntu's `gcc-arm-none-eabi` 15:13.2.rel1-2) and `qemu-system-arm` 8.2.2 for the Arm keys;
@@ -359,14 +360,14 @@ chain refuses it when its type is formed, before the program exists.
 `edges` runs C2's path, the `c2` probe's (`bench/probe/c2_probe.cpp`), over 1000 blocks of 64
 frames: 24-bit packed stereo unpacked to `q31` and converted to `float`; sanitized, mixed
 through a crossfeed matrix and dithered at 24 bits; and converted back and packed. It folds the first and last bytes of each block into a checksum,
-`176dacc26ecec638` on every key. The compiled loops it calls are two of `src/wire.cpp`'s twenty
+`e4697eabbeb92f5c` on every key. The compiled loops it calls are two of `src/wire.cpp`'s twenty
 (`core.text` in the `c2` table above). Every key counted C++20 and C++23 equal to C++17.
 
 | Key | `edges` |
 |---|--:|
-| `m4-softfp` | 53,625,379 |
-| `m4f` | 9,195,439 |
-| `m33` | 9,195,445 |
-| `m55` | 8,527,444 |
-| `hexagon` | 3,968,705 packets |
-| `host` | 10,309,138 (inside `catenae_host_counted()`) |
+| `m4-softfp` | 83,590,529 |
+| `m4f` | 13,090,510 |
+| `m33` | 12,963,516 |
+| `m55` | 11,819,295 |
+| `hexagon` | 6,227,294 packets |
+| `host` | 13,072,650 (inside `catenae_host_counted()`) |

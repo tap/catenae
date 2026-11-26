@@ -6,6 +6,7 @@
 /// | Interface | `std::expected`'s: `has_value()`, `operator bool`, `operator*`, `operator->`,     |
 /// |           | `value()`, `error()`, `value_or()`, and `unexpected<E>`                           |
 /// | Differs   | an empty access is a check in every build, never a throw (D21) or undefined       |
+/// |           | an expected about to end gives a copy, not `T&&`, so nothing refers into it       |
 /// | Types     | `T` and `E` trivially destructible (a design, a status), so it is `constexpr`     |
 /// | Discard   | `expected` and `status` are `[[nodiscard]]`                                       |
 /// | Rationale | D21, D37                                                                           |
@@ -21,6 +22,9 @@
 /// expected or a status that a call returns is a warning, so an error under catenae's sets.
 /// @req{CAT-EXPECTED-005} A status is one byte, its codes the numbers listed here from 1: a
 /// code is added with a new number, never by renumbering one.
+/// @req{CAT-EXPECTED-006} `value()`, `operator*` and `error()` of an expected about to end (an
+/// rvalue) return a copy, so `const auto& d = *make(...)` outlives the expected it came from;
+/// of one that lives on (an lvalue), a reference.
 // Copyright 2026 Timothy Place and the catenae contributors
 #ifndef CATENAE_EXPECTED_H
 #define CATENAE_EXPECTED_H
@@ -92,26 +96,41 @@ namespace catenae {
             constexpr explicit operator bool() const noexcept { return m_has_value; }
 
             /// The value; a check in every build when there is none.
-            constexpr const T& value() const noexcept {
+            constexpr const T& value() const& noexcept {
                 detail::check_always(m_has_value, check::expected_empty);
                 return m_value;
             }
             /// The value; a check in every build when there is none.
-            constexpr T& value() noexcept {
+            constexpr T& value() & noexcept {
+                detail::check_always(m_has_value, check::expected_empty);
+                return m_value;
+            }
+            /// A copy of the value, from an expected about to end, so nothing refers into it.
+            constexpr T value() && noexcept {
                 detail::check_always(m_has_value, check::expected_empty);
                 return m_value;
             }
             /// The value, as value().
-            constexpr const T& operator*() const noexcept { return value(); }
+            constexpr const T& operator*() const& noexcept { return value(); }
             /// The value, as value().
-            constexpr T& operator*() noexcept { return value(); }
+            constexpr T& operator*() & noexcept { return value(); }
+            /// A copy of the value, as value() of an expected about to end.
+            constexpr T operator*() && noexcept {
+                detail::check_always(m_has_value, check::expected_empty);
+                return m_value;
+            }
             /// The value's members, as value().
             constexpr const T* operator->() const noexcept { return std::addressof(value()); }
             /// The value's members, as value().
             constexpr T* operator->() noexcept { return std::addressof(value()); }
 
             /// Why there is no value; a check in every build when there is one.
-            constexpr const E& error() const noexcept {
+            constexpr const E& error() const& noexcept {
+                detail::check_always(!m_has_value, check::expected_not_error);
+                return m_error;
+            }
+            /// A copy of why there is no value, from an expected about to end.
+            constexpr E error() && noexcept {
                 detail::check_always(!m_has_value, check::expected_not_error);
                 return m_error;
             }

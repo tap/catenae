@@ -331,19 +331,21 @@ namespace {
         }
     }
 
-    // The setpoint configured from fed_by's largest pull instead of raised at run time: 286 for a
-    // 128-frame block at 64-frame requests (largest pull 191), 94 frames above the raise to 192.
+    // The setpoint configured from fed_by's largest pull instead of raised at run time: 192 for a
+    // 128-frame block at 64-frame requests (largest pull 128: the pulls are 128 and nothing), the
+    // raise itself. CF finding F10, made: the bound from any state was 191, whose setpoint, 286,
+    // cost 94 frames over the raise.
     TEST(async_junction, ATargetConfiguredFromTheLargestPullIsNeverRaised) {
         constexpr std::size_t largest = catenae::fed_by_workspace<decltype(block_128), 64>::largest_pull;
-        static_assert(largest == 191 && asrc_1k::target_for(largest) == 286, "64 + 127, then 191 + 95");
+        static_assert(largest == 128 && asrc_1k::target_for(largest) == 192, "a block, then 128 + 64");
         asrc_1k::config cfg{};
         cfg.target_latency_frames = static_cast<std::uint32_t>(asrc_1k::target_for(largest));
         const auto made           = asrc_1k::make(cfg);
         ASSERT_TRUE(made.has_value());
         const outcome o = two_clocks<64>(*made, block_128, 64, 32, 200.0);
         EXPECT_TRUE(locks(o, 200.0, 3.0, 1.0));
-        EXPECT_EQ(o.end.target_frames, 286u);
-        EXPECT_FLOAT_EQ(o.latency.nominal, 286.0f + 511.0f / 64.0f);
+        EXPECT_EQ(o.end.target_frames, 192u);
+        EXPECT_FLOAT_EQ(o.latency.nominal, 192.0f + 511.0f / 64.0f);
 
         // make() refuses what the type does not already fix.
         cfg.target_latency_frames = 342;

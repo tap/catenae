@@ -1,17 +1,20 @@
 /// @file ratio.h
-/// @brief `ratio<L, M>`: the rational engine's compile-time ratio, a type (CF skeleton).
+/// @brief The rational engine's charter over `catenae::ratio_t<L, M>` (CF skeleton).
 // Copyright 2026 Timothy Place and the catenae contributors
 //
 // Ported from SampleRateTap's rational/include/tap/sr/rational/ratio.h at 4496888: the
 // charter's three static_asserts (L and M of the form 2^a 3^b, in lowest terms, not 1), the
-// derived numbers of ratio_traits (band, direction) and the named single-stage ratios. The
-// C++20 concept became a trait; the k_ prefixes became the public names D30 asks for.
+// derived numbers of ratio_traits (band, direction). The C++20 concept became a trait; the
+// k_ prefixes became the public names D30 asks for.
 //
-// CF finding 1: catenae's ratio vocabulary is a value, `catenae::ratio{up, down}`
-// (include/catenae/ratio.h), and a class type cannot be a template argument at C++17 (D2), so
-// `stage<S, Ch, Ratio, Design>` (PLAN.md 3.3) has no catenae type to name its Ratio with. This
-// type carries the value as `ratio<L, M>::value`, which is what the stage publishes as its
-// `rate_ratio`.
+// CF finding F3, made: catenae's ratio is a value, `catenae::ratio{up, down}`, and a class
+// type cannot be a template argument at C++17 (D2), so the skeleton first carried its own
+// ratio type. It now names its Ratio with `catenae::ratio_t<L, M>` (include/catenae/ratio.h),
+// whose `value` is what the stage publishes as its `rate_ratio`; the charter is checked here.
+//
+// CF finding F17, made: SampleRateTap's `up2` is a ratio, and PLAN.md 9.4 and C3 spell
+// `up2<Ch>` as a stage. The skeleton names no ratio `up2`: it writes `catenae::ratio_t<2, 1>`,
+// and the stage keeps the name for C3.
 #ifndef CATENAE_FIT_RATIONAL_RATIO_H
 #define CATENAE_FIT_RATIONAL_RATIO_H
 
@@ -40,30 +43,22 @@ namespace catenae_fit::rational {
 
     } // namespace detail
 
-    /// The ratio L/M of one stage or chain, as a type: L output frames per M input frames. The
-    /// charter is the whole definition.
-    template <std::uint32_t L, std::uint32_t M>
-    struct ratio {
-        static_assert(detail::is_two_three_smooth(L) && detail::is_two_three_smooth(M),
-                      "catenae_fit::rational: L and M are of the form 2^a 3^b (SampleRateTap's charter, R1)");
-        static_assert(catenae::detail::gcd(L, M) == 1, "catenae_fit::rational: L/M is in lowest terms");
-        static_assert(L != M, "catenae_fit::rational: L/M == 1 is no conversion");
-
-        static constexpr std::uint32_t  up   = L;    ///< output frames per superblock
-        static constexpr std::uint32_t  down = M;    ///< input frames per superblock
-        static constexpr catenae::ratio value{L, M}; ///< the same, as catenae's value
-    };
-
-    /// Whether a type is a ratio<L, M>.
+    /// Whether a type is a catenae::ratio_t<L, M>.
     template <typename T>
     struct is_ratio : std::false_type {};
     template <std::uint32_t L, std::uint32_t M>
-    struct is_ratio<ratio<L, M>> : std::true_type {};
+    struct is_ratio<catenae::ratio_t<L, M>> : std::true_type {};
 
     /// What a stage reads from its ratio: the band of its one Nyquist filter and its direction.
+    /// The charter is checked here: L output frames per M input frames.
     template <typename R>
     struct ratio_traits {
-        static_assert(is_ratio<R>::value, "catenae_fit::rational: a ratio is a ratio<L, M>");
+        static_assert(is_ratio<R>::value, "catenae_fit::rational: a ratio is a catenae::ratio_t<L, M>");
+        static_assert(std::is_same<R, typename R::type>::value,
+                      "catenae_fit::rational: L/M is written in lowest terms");
+        static_assert(detail::is_two_three_smooth(R::up) && detail::is_two_three_smooth(R::down),
+                      "catenae_fit::rational: L and M are of the form 2^a 3^b (SampleRateTap's charter, R1)");
+        static_assert(R::up != R::down, "catenae_fit::rational: L/M == 1 is no conversion");
         static constexpr std::uint32_t up              = R::up;
         static constexpr std::uint32_t down            = R::down;
         static constexpr bool          is_up           = up > down;         ///< L > M
@@ -71,17 +66,6 @@ namespace catenae_fit::rational {
         static constexpr bool          is_interpolator = down == 1;         ///< L/1
         static constexpr std::uint32_t band            = is_up ? up : down; ///< max(L, M), the filter's band
     };
-
-    /// The single-stage vocabulary this skeleton instantiates, named as SampleRateTap names it.
-    ///
-    /// CF finding 8: SampleRateTap's `up2` is a ratio; PLAN.md 9.4 and C3 spell `up2<Ch>` as a
-    /// stage. catenae needs one meaning before C3 names its stages.
-    using up2         = ratio<2, 1>;
-    using down2       = ratio<1, 2>;
-    using up3         = ratio<3, 1>;
-    using down3       = ratio<1, 3>;
-    using ratio3over2 = ratio<3, 2>;
-    using ratio2over3 = ratio<2, 3>;
 
 } // namespace catenae_fit::rational
 

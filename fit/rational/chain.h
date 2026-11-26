@@ -34,15 +34,6 @@ namespace catenae_fit::rational {
                  stage<S, Ch, Rs, design_at<Profile, Rs, rates::divisor(I).up, rates::divisor(I).down>>...>;
         };
 
-        template <typename Chain>
-        struct defaults;
-        template <typename... Stages>
-        struct defaults<catenae::chain<Stages...>> {
-            static constexpr catenae::chain<Stages...> make() noexcept {
-                return catenae::chain<Stages...>(Stages{}...);
-            }
-        };
-
     } // namespace detail
 
     /// The chain of the ratios Rs, in order, each stage at the design its profile pins at its
@@ -50,14 +41,9 @@ namespace catenae_fit::rational {
     template <typename S, std::size_t Ch, typename Profile, typename... Rs>
     using chain_of = typename detail::chain_of<S, Ch, Profile, std::index_sequence_for<Rs...>, Rs...>::type;
 
-    /// CF finding 2: a chain type named by an alias cannot be default-constructed even when each
-    /// of its stages is an empty configuration (catenae::chain_body has only the constructor from
-    /// its stages, include/catenae/chain.h), so `up2_ratio3over2<float, 2>{}` does not compile.
-    /// This builds one from its stages' default configurations.
-    template <typename Chain>
-    constexpr Chain make() noexcept {
-        return detail::defaults<Chain>::make();
-    }
+    // CF finding F4, made: a named chain is default-constructed from its stages' defaults
+    // (catenae::chain_body's constexpr default constructor, CAT-CHAIN-014), so
+    // `constexpr up2_ratio3over2<float, 2> c{};` is the chain; the skeleton's make<Chain>() is gone.
 
     /// One stage at ratio R, as a chain: SampleRateTap's converter.
     template <typename S, std::size_t Ch, typename R, typename Profile = fit_profile>
@@ -66,12 +52,12 @@ namespace catenae_fit::rational {
     /// 3/1: up by 2, then 3/2 (SampleRateTap's up2_ratio3over2). The second stage's lower rate is
     /// twice the chain's lowest, so it runs the design relaxed by 2.
     template <typename S, std::size_t Ch, typename Profile = fit_profile>
-    using up2_ratio3over2 = chain_of<S, Ch, Profile, up2, ratio3over2>;
+    using up2_ratio3over2 = chain_of<S, Ch, Profile, catenae::ratio_t<2, 1>, catenae::ratio_t<3, 2>>;
 
     /// 1/6: down by 3, then by 2 (SampleRateTap's down3_down2). The first stage's lower rate is
     /// twice the chain's lowest, so it runs the design relaxed by 2.
     template <typename S, std::size_t Ch, typename Profile = fit_profile>
-    using down3_down2 = chain_of<S, Ch, Profile, down3, down2>;
+    using down3_down2 = chain_of<S, Ch, Profile, catenae::ratio_t<1, 3>, catenae::ratio_t<1, 2>>;
 
 } // namespace catenae_fit::rational
 

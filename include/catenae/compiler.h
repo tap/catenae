@@ -7,6 +7,7 @@
 /// | `CATENAE_NOINLINE`, `_ALWAYS_INLINE` | inlining control                                   | DEV-002   |
 /// | `CATENAE_RESTRICT`                | no aliasing between a kernel's pointers               | DEV-003   |
 /// | `detail::atomic_*` on a `std::uint32_t` | the words a junction's two sides share (D19)    | DEV-004   |
+/// | `detail::atomic_load_*`, `_store_*` on a `float` | a measured number one side publishes   | DEV-004   |
 ///
 /// @req{CAT-COMPILER-001} A static declared `CATENAE_CONSTINIT` that would need start-up code
 /// does not compile on GCC and Clang, at C++17, 20 and 23; on MSVC the macro is empty and
@@ -19,6 +20,9 @@
 /// @req{CAT-COMPILER-002} The atomic operations act on a plain `std::uint32_t`, so a state
 /// that holds the word is a plain aggregate with no start-up code; each is lock-free on every
 /// target CI runs (asserted), with the memory order its name states.
+/// @req{CAT-COMPILER-003} The loads and stores also act on a plain `float`, as one lock-free
+/// 32-bit word with the order its name states, so a number one side measures (a junction's
+/// report) is shared as a `float` with no copy of its bits in the caller.
 // Copyright 2026 Timothy Place and the catenae contributors
 #ifndef CATENAE_COMPILER_H
 #define CATENAE_COMPILER_H
@@ -28,6 +32,8 @@
 #include "catenae/detail/abi.h"
 
 #if defined(_MSC_VER) && !defined(__clang__)
+#include <cstring>
+
 #include <intrin.h>
 #endif
 
@@ -85,6 +91,34 @@ namespace catenae {
                 return static_cast<std::uint32_t>(
                     _InterlockedExchangeAdd(as_interlocked(word), static_cast<long>(value)));
             }
+            // A float as the long its bits are (MSVC does not optimise by type-based aliasing),
+            // its bits copied in and out (DEV-006).
+            static_assert(sizeof(float) == sizeof(long), "catenae: a float is 32 bits");
+            inline volatile long* as_interlocked(float& word) noexcept {
+                return reinterpret_cast<volatile long*>(&word);
+            }
+            inline float float_of_long(long bits) noexcept {
+                float value;
+                std::memcpy(&value, &bits, sizeof value);
+                return value;
+            }
+            inline long long_of_float(float value) noexcept {
+                long bits;
+                std::memcpy(&bits, &value, sizeof bits);
+                return bits;
+            }
+            inline float atomic_load_acquire(float& word) noexcept {
+                return float_of_long(_InterlockedOr(as_interlocked(word), 0));
+            }
+            inline float atomic_load_relaxed(float& word) noexcept {
+                return float_of_long(_InterlockedOr(as_interlocked(word), 0));
+            }
+            inline void atomic_store_release(float& word, float value) noexcept {
+                static_cast<void>(_InterlockedExchange(as_interlocked(word), long_of_float(value)));
+            }
+            inline void atomic_store_relaxed(float& word, float value) noexcept {
+                static_cast<void>(_InterlockedExchange(as_interlocked(word), long_of_float(value)));
+            }
 #else
             static_assert(__atomic_always_lock_free(sizeof(std::uint32_t), nullptr),
                           "catenae: a junction needs lock-free 32-bit atomic operations (PLAN.md section 6.1)");
@@ -111,6 +145,29 @@ namespace catenae {
             /// The word incremented with no ordering, wrapping; returns what it held.
             inline std::uint32_t atomic_fetch_add_relaxed(std::uint32_t& word, std::uint32_t value) noexcept {
                 return __atomic_fetch_add(&word, value, __ATOMIC_RELAXED);
+            }
+
+            static_assert(sizeof(float) == sizeof(std::uint32_t) && __atomic_always_lock_free(sizeof(float), nullptr),
+                          "catenae: a float is one lock-free 32-bit word");
+            /// The float, read with acquire order.
+            inline float atomic_load_acquire(float& word) noexcept {
+                float value;
+                __atomic_load(&word, &value, __ATOMIC_ACQUIRE);
+                return value;
+            }
+            /// The float, read with no ordering: a number the other side measured.
+            inline float atomic_load_relaxed(float& word) noexcept {
+                float value;
+                __atomic_load(&word, &value, __ATOMIC_RELAXED);
+                return value;
+            }
+            /// The float, written with release order.
+            inline void atomic_store_release(float& word, float value) noexcept {
+                __atomic_store(&word, &value, __ATOMIC_RELEASE);
+            }
+            /// The float, written with no ordering: a number this side measured.
+            inline void atomic_store_relaxed(float& word, float value) noexcept {
+                __atomic_store(&word, &value, __ATOMIC_RELAXED);
             }
 #endif
 

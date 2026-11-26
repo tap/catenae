@@ -31,8 +31,8 @@ namespace catenae_c_types {
     using strip_mono = std::remove_cv_t<decltype(strip_mono_configuration)>;
 
     /// The rational skeleton's 3/2 converter, stereo.
-    using rational_3_2 = catenae_fit::rational::converter<float, 2, catenae_fit::rational::ratio3over2>;
-    inline constexpr rational_3_2 rational_3_2_configuration = catenae_fit::rational::make<rational_3_2>();
+    using rational_3_2 = catenae_fit::rational::converter<float, 2, catenae::ratio_t<3, 2>>;
+    inline constexpr rational_3_2 rational_3_2_configuration = rational_3_2{};
 
     /// The bridge skeleton at 8 taps, stereo, in a chain so that it has process. Its shipped
     /// configuration runs a placeholder ROM table (PLAN.md 9.2's pattern), a triangle the

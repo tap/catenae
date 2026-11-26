@@ -17,6 +17,10 @@
 /// | Latency    | nominal target + group delay in source frames; once locked the backlog a pull  |
 /// |            | sees stays within a push of the target; the range published is Push + 16      |
 /// | Numbers    | the frame loop in `float`; the servo in `double` with `exp` (PLAN.md 12)       |
+/// | Behind     | a chain whose block is smaller than the request: wrap it in `steady<>`. Bare,  |
+/// |            | its pulls vary by a whole block (256, 128, 128, 128 for 160-frame requests     |
+/// |            | behind a 128-frame block) and the servo does not lock (CF finding F1;          |
+/// |            | `ARequestLargerThanTheBlockLocksOnlyThroughSteady`)                            |
 ///
 /// Carried from SampleRateTap 4496888, async/include/tap/sr/async/converter.h: `basic_converter`'s
 /// `push` and `pull` (the adaptive raise, filling, priming, the resync, the servo update, the
@@ -32,7 +36,6 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
-#include <cstring>
 #include <iterator>
 #include <type_traits>
 
@@ -69,20 +72,6 @@ namespace catenae_fit {
         };
 
         namespace detail {
-            // CF finding: catenae/compiler.h's atomic operations act on a std::uint32_t only, and a
-            // report field may be a float (the estimate, the smoothed fill): it is published as its
-            // bits, through a memcpy each way.
-            inline std::uint32_t bits_of(float v) noexcept {
-                std::uint32_t b = 0;
-                std::memcpy(&b, &v, sizeof b);
-                return b;
-            }
-            inline float float_of(std::uint32_t b) noexcept {
-                float v = 0.0f;
-                std::memcpy(&v, &b, sizeof v);
-                return v;
-            }
-
             /// SampleRateTap's feasibility rule: the setpoint a pull of `pull` frames needs is the
             /// pull plus a margin for the block beat's sawtooth, half the pull and at least a chunk.
             constexpr std::size_t target_for(std::size_t pull, std::size_t chunk) noexcept {
@@ -159,8 +148,10 @@ namespace catenae_fit {
                 std::uint32_t                    underruns; ///< the consumer's count
                 std::uint32_t                    resyncs;   ///< the consumer's count
                 std::uint32_t                    phase;     ///< published lock_state; the consumer's
-                std::uint32_t                    ppm_bits;  ///< published float; the consumer's
-                std::uint32_t                    fill_bits; ///< published float; the consumer's
+                // CF finding F12, made: a report's float is published as a float
+                // (catenae/compiler.h, CAT-COMPILER-003), not as its bits through a memcpy.
+                float ppm;  ///< published estimate; the consumer's
+                float fill; ///< published smoothed fill; the consumer's
                 // CF finding: section 12 has async start from its configured targets, and D19 has
                 // all zero be a junction's rest. Both hold because the setpoint in the state is what
                 // a pull raised it to, 0 for none, and the configured one is the configuration's.
@@ -294,8 +285,8 @@ namespace catenae_fit {
                 catenae::detail::atomic_store_relaxed(st.underruns, 0u);
                 catenae::detail::atomic_store_relaxed(st.resyncs, 0u);
                 catenae::detail::atomic_store_relaxed(st.phase, 0u);
-                catenae::detail::atomic_store_relaxed(st.ppm_bits, 0u);
-                catenae::detail::atomic_store_relaxed(st.fill_bits, 0u);
+                catenae::detail::atomic_store_relaxed(st.ppm, 0.0f);
+                catenae::detail::atomic_store_relaxed(st.fill, 0.0f);
                 catenae::detail::atomic_store_release(st.raised, 0u);
                 st.running   = 0;
                 st.fade_left = 0;
@@ -309,8 +300,8 @@ namespace catenae_fit {
                 // The loads take a word they may read-modify-write (MSVC's), as handoff's report does.
                 state& shared = const_cast<state&>(st);
                 return report_type{static_cast<lock_state>(catenae::detail::atomic_load_relaxed(shared.phase)),
-                                   detail::float_of(catenae::detail::atomic_load_relaxed(shared.ppm_bits)),
-                                   detail::float_of(catenae::detail::atomic_load_relaxed(shared.fill_bits)),
+                                   catenae::detail::atomic_load_relaxed(shared.ppm),
+                                   catenae::detail::atomic_load_relaxed(shared.fill),
                                    static_cast<std::uint32_t>(effective_target(shared)),
                                    catenae::detail::atomic_load_relaxed(shared.underruns),
                                    catenae::detail::atomic_load_relaxed(shared.overruns),
@@ -407,10 +398,9 @@ namespace catenae_fit {
                                        : pi_servo::locked(st.servo) ? lock_state::locked
                                                                     : lock_state::acquiring;
                 catenae::detail::atomic_store_relaxed(st.phase, static_cast<std::uint32_t>(now));
-                catenae::detail::atomic_store_relaxed(st.ppm_bits,
-                                                      detail::bits_of(static_cast<float>(st.servo.eps_hat * 1e6)));
-                catenae::detail::atomic_store_relaxed(
-                    st.fill_bits, detail::bits_of(static_cast<float>(pi_servo::smoothed_occupancy(st.servo))));
+                catenae::detail::atomic_store_relaxed(st.ppm, static_cast<float>(st.servo.eps_hat * 1e6));
+                catenae::detail::atomic_store_relaxed(st.fill,
+                                                      static_cast<float>(pi_servo::smoothed_occupancy(st.servo)));
             }
 
             /// The consumer's read of up to `most` frames from the ring into `dst`.

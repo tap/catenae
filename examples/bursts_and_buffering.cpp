@@ -55,8 +55,8 @@ namespace {
     CATENAE_CONSTINIT catenae::fed_by_state<region_t> s_pull{};
     CATENAE_CONSTINIT catenae::fed_by_workspace<region_t, 64> s_pull_work{};
 
-    static_assert(catenae::fed_by_workspace<region_t, 64>::largest_pull == 191, "64, and the 127 it can trail by");
-    static_assert(decltype(ring)::serves(191, 1), "the target is at least 191 + 64 - 1");
+    static_assert(catenae::fed_by_workspace<region_t, 64>::largest_pull == 128, "a hop: requests pull 128, then 0");
+    static_assert(decltype(ring)::serves(128, 1), "the target is at least 128 + 64 - 1");
     // ANCHOR_END: pull
 
 } // namespace

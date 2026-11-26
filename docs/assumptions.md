@@ -10,7 +10,7 @@ level (PLAN.md section 8). An identifier is never reused.
 | AOU-001 | One thread per side of a junction or a mailbox. | no |
 | AOU-002 | A state is reset before its first `process`, and afterwards only between calls, on the thread that runs the chain. | at audit, `check::state_not_reset` (from C1) |
 | AOU-003 | A workspace is used by one thread at a time. | no |
-| AOU-004 | A posted value owns what it refers to. | no |
+| AOU-004 | A posted value owns what it refers to. | where its type says it holds a view (`holds_view`): a mailbox of it does not compile (CAT-MAILBOX-004) |
 | AOU-005 | A junction's configuration does not change while either side runs. | no |
 | AOU-006 | A caller that pushes and pulls a `handoff` by hand in fixed blocks has checked `serves()` for them; `fed_by` asserts it where it makes the pull. | where catenae makes the pull |
 | AOU-007 | `in` and `out` do not overlap; a stage that `is_in_place` may also be given one buffer as both. | at audit, in `gain`, whose loops rely on it (`check::buffers_overlap`) |

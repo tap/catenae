@@ -17,7 +17,11 @@ harness, with the contract pages in `docs/`) are done, and so is **C1**, in four
 the chain, its composition and its first stages (`map`, `gain`, `delay`, `interleave` /
 `deinterleave`, `convert`); `steady` and `parallel`; `handoff`, `mailbox`, `feeding` and
 `fed_by`; and the harness rows (the link-stage gate's first probe image, the layout benchmark,
-the example chain's pinned numbers), with the guide's first five chapters. CF is next.
+the example chain's pinned numbers), with the guide's first five chapters. **CF** is done
+too: throwaway skeletons of SampleRateTap's three engines and the first C ABI manifest in
+`fit/`, whose findings (`fit/README.md`, F1 to F19) the maintainer decided, and the contract
+changes they led to (`ratio_t`, `table_view` and `holds_view`, `outputs_from_rest` and the
+exact largest pull, `fed_by`'s flush). C2 is next.
 
 ## How to work here
 
@@ -90,6 +94,7 @@ whoever writes the code. The guide's reader and its three-step chapter shape are
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release            # -DCATENAE_CXX_STANDARD=20 or 23,
 cmake --build build                                       # -DCATENAE_CHECKS=audit
 ctest --test-dir build --output-on-failure                # -L compile_fail, -L '^link$' for those
+                                                          # -DCATENAE_BUILD_FIT=ON, -L fit: CF's skeletons
 
 python3 waf configure --std=17 --gtest=/path/to/googletest   # waf from waf.io; GoogleTest at
 python3 waf build --alltests                                 # f8d7d77 (v1.14.0); --checks=audit
@@ -169,7 +174,8 @@ CTest check failing when the committed figure is not what they draw, and a mailb
 `handoff` between threads; `racy_level.cpp`, the race they replace, is built and run only
 under the thread sanitizer, by a check that passes only on its report); `tests/bare_metal/`
 what only the Cortex-M legs build (a timer interrupt as the mailbox's poster and the
-junction's producer); `bench/` the harness's workloads
+junction's producer); `fit/` CF's skeletons, which nothing under `include/` or `src/`
+includes and C7 and C8 replace; `bench/` the harness's workloads
 and records; `cmake/` and `platform/` the targets; `tools/warnings/` the warning sets, read by
 both builds; `scripts/` the checks and the harness; `guide/` the mdBook source and
 `docs/Doxyfile` the reference's, over the headers and `docs/contracts/` (the stage, chain,

@@ -7,8 +7,8 @@
 /// | Ratio      | 160/147, not in place, input group 147, shortfall 0, lead 146/147, quantum 1:    |
 /// |            | an output is written when the first frame it needs arrives (PLAN.md 12)          |
 /// | Configured | by a `design<S, Taps>`, a view of a table in the caller's storage or in ROM;    |
-/// |            | from a ROM table directly, never from a temporary one; `set_design()` between    |
-/// |            | calls                                                                            |
+/// |            | from a ROM table directly, never from a temporary one (`table_view`);           |
+/// |            | `set_design()` between calls; it holds a view (`holds_view`)                     |
 /// | State      | per channel a history of Taps + 64 frames, its end, the schedule's position and  |
 /// |            | the frames pending; at rest: silence, end Taps, position 0, one pending (`reset`) |
 /// | Workspace  | none                                                                             |
@@ -79,6 +79,7 @@ namespace catenae_fit::bridge {
         using output_port = catenae::port<S, Ch>;        ///< 48 kHz frames
         using design_type = Design;                      ///< what configures it
         using table_type  = typename Design::table_type; ///< a ROM table of that design
+        using view_type   = typename Design::view_type;  ///< what it takes a ROM table as
 
       private:
         using value_type                         = catenae::storage_t<S>;
@@ -113,14 +114,12 @@ namespace catenae_fit::bridge {
         /// A stage through a design: a view, so the design object itself may be a temporary.
         explicit constexpr basic_bridge(const Design& d) noexcept
             : m_design(d) {}
-        /// A stage through a ROM table, checked by the design's from_table.
-        explicit constexpr basic_bridge(const table_type& rom) noexcept
+        /// A stage through a ROM table, checked by the design's from_table. Never through a
+        /// temporary table, which does not convert to the view (CF finding F7, made: one
+        /// constructor, where a span<const T> would have bound a temporary and the pair of an
+        /// array overload and its deleted rvalue twin was needed).
+        explicit constexpr basic_bridge(view_type rom) noexcept
             : m_design(Design::from_table(rom)) {}
-        /// Never through a temporary table: the view would outlive it (PLAN.md 3.3).
-        // CF finding: written over the table's own type, not span<const T>, which binds a
-        // temporary array as std::span does; so a ROM table must be a std::array of exactly this
-        // type, and every view-taking constructor repeats the pair.
-        basic_bridge(const table_type&&) = delete;
 
         /// The design it runs.
         constexpr const Design& design() const noexcept { return m_design; }
@@ -189,6 +188,8 @@ namespace catenae_fit::bridge {
         static constexpr std::size_t max_outputs_for(std::size_t n) noexcept {
             return catenae::detail::narrow<std::size_t>((std::uint64_t{n} * k_l + k_m - 1) / k_m);
         }
+        /// What n frames write from reset: the same, the schedule starting with one pending.
+        static constexpr std::size_t outputs_from_rest(std::size_t n) noexcept { return max_outputs_for(n); }
         /// Exact, as exact_latency.
         catenae::stage_latency latency() const noexcept {
             return {static_cast<float>(k_l * k_taps - 1) / static_cast<float>(2 * k_m), 0.0f};
@@ -246,6 +247,9 @@ namespace catenae {
         /// The skeleton's battery pins float only (D29).
         template <std::size_t Ch, typename Design>
         struct is_stage<catenae_fit::bridge::basic_bridge<float, Ch, Design>> : std::true_type {};
+        /// The stage holds its design's view.
+        template <typename S, std::size_t Ch, typename Design>
+        struct holds_view<catenae_fit::bridge::basic_bridge<S, Ch, Design>> : holds_view<Design> {};
     } // namespace CATENAE_ABI
 } // namespace catenae
 

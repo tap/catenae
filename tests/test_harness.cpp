@@ -113,6 +113,9 @@ namespace {
     struct bounds_too_low : block_stage<1, 4> {
         static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return n / 4 * 4; }
     };
+    struct miscounts_from_rest : block_stage<1, 4> {
+        static constexpr std::size_t outputs_from_rest(std::size_t n) noexcept { return (n + 3) / 4 * 4; }
+    };
     // A 2:1 that writes on a pair's last frame but claims to lead: the trail goes unbounded.
     struct claims_to_lead : down2_last<1> {
         static constexpr ratio max_shortfall{0, 1};
@@ -158,6 +161,7 @@ namespace {
         EXPECT_FALSE(catenae_test::counts_are_exact(miscounts{}));
         EXPECT_FALSE(catenae_test::counts_are_exact(needs_too_much{}));
         EXPECT_FALSE(catenae_test::counts_are_exact(bounds_too_low{}));
+        EXPECT_FALSE(catenae_test::counts_are_exact(miscounts_from_rest{}));
     }
 
     // Verifies CAT-STAGE-010.

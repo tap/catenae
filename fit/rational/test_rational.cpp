@@ -38,20 +38,20 @@ namespace {
     }
 
     // Each machine, at both directions and at both lengths of each band.
-    using up2_d1        = stage<float, 2, rat::up2, nyquist_design<2, 2>>;
-    using up2_relaxed   = stage<float, 2, rat::up2, nyquist_design<2, 1>>;
-    using down2_d1      = stage<float, 2, rat::down2, nyquist_design<2, 2>>;
-    using up3_d1        = stage<float, 2, rat::up3, nyquist_design<3, 2>>;
-    using down3_relaxed = stage<float, 2, rat::down3, nyquist_design<3, 1>>;
-    using down3_d1      = stage<float, 2, rat::down3, nyquist_design<3, 2>>;
-    using r32_d1        = stage<float, 2, rat::ratio3over2, nyquist_design<3, 2>>;
-    using r32_relaxed   = stage<float, 2, rat::ratio3over2, nyquist_design<3, 1>>;
-    using r23_d1        = stage<float, 2, rat::ratio2over3, nyquist_design<3, 2>>;
+    using up2_d1        = stage<float, 2, catenae::ratio_t<2, 1>, nyquist_design<2, 2>>;
+    using up2_relaxed   = stage<float, 2, catenae::ratio_t<2, 1>, nyquist_design<2, 1>>;
+    using down2_d1      = stage<float, 2, catenae::ratio_t<1, 2>, nyquist_design<2, 2>>;
+    using up3_d1        = stage<float, 2, catenae::ratio_t<3, 1>, nyquist_design<3, 2>>;
+    using down3_relaxed = stage<float, 2, catenae::ratio_t<1, 3>, nyquist_design<3, 1>>;
+    using down3_d1      = stage<float, 2, catenae::ratio_t<1, 3>, nyquist_design<3, 2>>;
+    using r32_d1        = stage<float, 2, catenae::ratio_t<3, 2>, nyquist_design<3, 2>>;
+    using r32_relaxed   = stage<float, 2, catenae::ratio_t<3, 2>, nyquist_design<3, 1>>;
+    using r23_d1        = stage<float, 2, catenae::ratio_t<2, 3>, nyquist_design<3, 2>>;
 
     // The chains: SampleRateTap's two names, and the converter by 3/2.
     using chain31 = rat::up2_ratio3over2<float, 2>;
     using chain16 = rat::down3_down2<float, 2>;
-    using conv32  = rat::converter<float, 2, rat::ratio3over2>;
+    using conv32  = rat::converter<float, 2, catenae::ratio_t<3, 2>>;
 
     // A static chain's memory is plain storage, constant-initialised (D34, D50, CAT-CHAIN-011).
     CATENAE_CONSTINIT catenae::memory_of<chain31> s_memory31{};
@@ -352,8 +352,8 @@ namespace {
     // The alias computes each stage's design divisor and names the design its profile pins there
     // (PLAN.md 3.3): up2 then 3/2 runs its second stage relaxed by 2; down3 then down2 its first.
     TEST(rational_chain, EachStageTakesTheDesignOfItsDivisor) {
-        using rates31 = rat::chain_rates<rat::up2, rat::ratio3over2>;
-        using rates16 = rat::chain_rates<rat::down3, rat::down2>;
+        using rates31 = rat::chain_rates<catenae::ratio_t<2, 1>, catenae::ratio_t<3, 2>>;
+        using rates16 = rat::chain_rates<catenae::ratio_t<1, 3>, catenae::ratio_t<1, 2>>;
         static_assert(same_terms(rates31::divisor(0), ratio{1, 1}) && same_terms(rates31::divisor(1), ratio{2, 1}),
                       "1 -> 2 -> 3: the 3/2 stage's lower rate is twice the lowest");
         static_assert(same_terms(rates16::divisor(0), ratio{2, 1}) && same_terms(rates16::divisor(1), ratio{1, 1}),
@@ -394,19 +394,19 @@ namespace {
         static_assert(t31::has_exact_latency && same_terms(t31::exact_latency, ratio{11, 2}), "11/2");
         // down3 at N = 5: 4/6 at 1/3, 1/3 at 1/6; down2 at N = 7: 6/4. Total 11/6.
         static_assert(t16::has_exact_latency && same_terms(t16::exact_latency, ratio{11, 6}), "11/6");
-        EXPECT_FLOAT_EQ(rat::make<chain31>().latency().nominal, 5.5f);
-        EXPECT_NEAR(rat::make<chain16>().latency().nominal, 11.0f / 6.0f, 1e-6f);
+        EXPECT_FLOAT_EQ(chain31{}.latency().nominal, 5.5f);
+        EXPECT_NEAR(chain16{}.latency().nominal, 11.0f / 6.0f, 1e-6f);
         // And counted: the composed numbers are what the chain does, frame by frame.
-        EXPECT_TRUE(catenae_test::arrival_numbers_hold(rat::make<chain31>(), true));
-        EXPECT_TRUE(catenae_test::arrival_numbers_hold(rat::make<chain16>(), true));
-        EXPECT_TRUE(catenae_test::arrival_numbers_hold(rat::make<conv32>(), true));
+        EXPECT_TRUE(catenae_test::arrival_numbers_hold(chain31{}, true));
+        EXPECT_TRUE(catenae_test::arrival_numbers_hold(chain16{}, true));
+        EXPECT_TRUE(catenae_test::arrival_numbers_hold(conv32{}, true));
     }
 
     // A chain is a stage (CAT-CHAIN-003): the named chains pass the generic tests too.
     TEST(rational_chain, NamedChainsPassTheGenericHarness) {
-        constexpr chain31 c31 = rat::make<chain31>();
-        constexpr chain16 c16 = rat::make<chain16>();
-        constexpr conv32  c32 = rat::make<conv32>();
+        constexpr chain31 c31 = chain31{};
+        constexpr chain16 c16 = chain16{};
+        constexpr conv32  c32 = conv32{};
         EXPECT_TRUE(catenae_test::reset_ignores_storage(c31));
         EXPECT_TRUE(catenae_test::counts_are_exact(c31));
         EXPECT_TRUE(catenae_test::chunking_is_bit_exact(c31));
@@ -437,12 +437,12 @@ namespace {
     // loose: 3/2 then down 3 (lead 5/6, counted 1/2), 2/3 then down 2 (5/6, counted 2/3), 2/3
     // then 3/2 (3/2, counted 1), and 3/2 then 2/3 (output quantum 1, counted 2).
     TEST(rational_chain, ComposedNumbersBoundEveryPairOfStages) {
-        using u2  = stage<float, 1, rat::up2, nyquist_design<2, 2>>;
-        using d2  = stage<float, 1, rat::down2, nyquist_design<2, 2>>;
-        using u3  = stage<float, 1, rat::up3, nyquist_design<3, 1>>;
-        using d3  = stage<float, 1, rat::down3, nyquist_design<3, 1>>;
-        using r32 = stage<float, 1, rat::ratio3over2, nyquist_design<3, 1>>;
-        using r23 = stage<float, 1, rat::ratio2over3, nyquist_design<3, 1>>;
+        using u2  = stage<float, 1, catenae::ratio_t<2, 1>, nyquist_design<2, 2>>;
+        using d2  = stage<float, 1, catenae::ratio_t<1, 2>, nyquist_design<2, 2>>;
+        using u3  = stage<float, 1, catenae::ratio_t<3, 1>, nyquist_design<3, 1>>;
+        using d3  = stage<float, 1, catenae::ratio_t<1, 3>, nyquist_design<3, 1>>;
+        using r32 = stage<float, 1, catenae::ratio_t<3, 2>, nyquist_design<3, 1>>;
+        using r23 = stage<float, 1, catenae::ratio_t<2, 3>, nyquist_design<3, 1>>;
         EXPECT_TRUE((composes<u2, u2>(true) && composes<u2, d2>(true) && composes<u2, u3>(true)));
         EXPECT_TRUE((composes<u2, d3>(true) && composes<u2, r32>(true) && composes<u2, r23>(true)));
         EXPECT_TRUE((composes<d2, u2>(true) && composes<d2, d2>(true) && composes<d2, u3>(true)));
@@ -460,7 +460,7 @@ namespace {
     // The exact latency is where the impulse response is centred: an impulse through up2 then
     // 3/2 comes out symmetric about 11/2 output frames.
     TEST(rational_chain, ExactLatencyIsTheImpulseCentroid) {
-        constexpr chain31  c = rat::make<chain31>();
+        constexpr chain31  c = chain31{};
         std::vector<float> in(2 * 16, 0.0f);
         in[0] = 1.0f;
         in[1] = 1.0f;
@@ -498,7 +498,7 @@ namespace {
     // process in calls of any size writes what the stages alone write in one call, and a fixed
     // block of whole groups writes exactly N L / M frames, checked by the compiler.
     TEST(rational_chain, ProcessesDynamicAndFixedBlocks) {
-        constexpr chain16        c        = rat::make<chain16>();
+        constexpr chain16        c        = chain16{};
         const std::vector<float> in       = input(960, 12);
         const std::vector<float> whole    = process_in(c, in, {960});
         const std::vector<float> by_stage = run_in<down2_d1>(run_in<down3_relaxed>(in, {960}), {320});
@@ -558,8 +558,8 @@ namespace {
     // writes what the input padded with the chain's tail writes, and then the output is silence
     // (no residue: an FIR's tail is exact).
     TEST(rational_chain, FlushDrainsTheTailToSilence) {
-        constexpr chain16 c16 = rat::make<chain16>();
-        constexpr chain31 c31 = rat::make<chain31>();
+        constexpr chain16 c16 = chain16{};
+        constexpr chain31 c31 = chain31{};
         // down2 at N = 7: 6; down3 at N = 5: 4 + ceil((6 + 2/3) x 3) = 24 input frames.
         EXPECT_EQ(c16.tail_frames(), 24u);
         // 3/2 at N = 5: its row of 2; up2 at N = 7: its row of 4 + ceil(2 / 2) = 5.
@@ -586,7 +586,7 @@ namespace {
 
     // A static chain's memory, constant-initialised in .bss, runs once reset.
     TEST(rational_chain, StaticMemoryIsPlainStorage) {
-        constexpr chain31 c = rat::make<chain31>();
+        constexpr chain31 c = chain31{};
         c.reset(s_memory31.state);
         std::array<float, 64 * 2>  in{};
         std::array<float, 192 * 2> out{};

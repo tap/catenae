@@ -2,6 +2,7 @@
 /// @brief The compiler-extension header's contract (include/catenae/compiler.h).
 // Copyright 2026 Timothy Place and the catenae contributors
 #include <cstdint>
+#include <cstring>
 #include <type_traits>
 
 #if defined(CATENAE_TEST_THREADS)
@@ -44,6 +45,32 @@ namespace {
         EXPECT_EQ(word, 9u);
         EXPECT_EQ(atomic_fetch_add_relaxed(word, 4294967295u), 9u); // wraps, as unsigned arithmetic
         EXPECT_EQ(word, 8u);
+    }
+
+    // Verifies CAT-COMPILER-003.
+    TEST(compiler, LoadsAndStoresActOnAPlainFloat) {
+        using namespace catenae::detail;
+        struct report_words {
+            float         ppm;
+            std::uint32_t count;
+        };
+        static_assert(std::is_trivially_default_constructible<report_words>::value, "plain storage");
+        report_words words{};
+        atomic_store_relaxed(words.ppm, -123.25f);
+        EXPECT_EQ(atomic_load_relaxed(words.ppm), -123.25f);
+        atomic_store_release(words.ppm, 1.0e-30f);
+        EXPECT_EQ(atomic_load_acquire(words.ppm), 1.0e-30f);
+        // Every bit pattern goes through, a NaN's payload and a negative zero's sign included.
+        for (const std::uint32_t bits : {0x7FC00001u, 0x80000000u, 0x00000001u, 0xFF800000u}) {
+            float value;
+            std::memcpy(&value, &bits, sizeof value);
+            atomic_store_relaxed(words.ppm, value);
+            const float   back = atomic_load_relaxed(words.ppm);
+            std::uint32_t seen = 0;
+            std::memcpy(&seen, &back, sizeof seen);
+            EXPECT_EQ(seen, bits);
+        }
+        EXPECT_EQ(words.count, 0u);
     }
 
 #if defined(CATENAE_TEST_THREADS)

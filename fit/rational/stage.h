@@ -4,7 +4,7 @@
 /// | Contract   |                                                                                |
 /// |------------|--------------------------------------------------------------------------------|
 /// | Ports      | `port<float, Ch>` in and out (CF instantiates float only)                      |
-/// | Ratio      | L/M of `Ratio`, a `ratio<L, M>` of the charter                                 |
+/// | Ratio      | L/M of `Ratio`, a `catenae::ratio_t<L, M>` of the charter                      |
 /// | Machines   | L >= 2: the L-phase polyphase machine on bridge's (phase, advance) schedule;  |
 /// |            | L = 1: the M-branch commutator                                                 |
 /// | Configured | by its type alone: `Design` names the table, so the object is empty (D54)      |
@@ -175,7 +175,7 @@ namespace catenae_fit::rational {
     class stage {
         static_assert(std::is_same<S, float>::value, "catenae_fit::rational: the CF skeleton is float only");
         static_assert(Ch >= 1, "catenae_fit::rational: a stage has at least one channel");
-        static_assert(is_ratio<Ratio>::value, "catenae_fit::rational: a stage's Ratio is a ratio<L, M>");
+        static_assert(is_ratio<Ratio>::value, "catenae_fit::rational: a stage's Ratio is a catenae::ratio_t<L, M>");
         static_assert(Design::band == ratio_traits<Ratio>::band,
                       "catenae_fit::rational: a stage's design is a max(L, M)-th-band filter");
         static_assert(is_nyquist_table<Design>(),
@@ -309,6 +309,9 @@ namespace catenae_fit::rational {
         static constexpr std::size_t max_outputs_for(std::size_t n) noexcept {
             return (n * k_up + k_down - 1) / k_down;
         }
+        /// From rest the first frame of a group writes its output: ceil(n L / M), the most from
+        /// any state (CF finding F10, made: fed_by sizes its pull from it).
+        static constexpr std::size_t outputs_from_rest(std::size_t n) noexcept { return max_outputs_for(n); }
 
         /// The exact latency as a float, deviation 0.
         catenae::stage_latency latency() const noexcept {

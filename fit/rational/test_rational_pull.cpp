@@ -60,7 +60,7 @@ namespace {
 
     using chain31 = rat::up2_ratio3over2<float, 2>;
     using chain16 = rat::down3_down2<float, 2>;
-    using conv32  = rat::converter<float, 2, rat::ratio3over2>;
+    using conv32  = rat::converter<float, 2, catenae::ratio_t<3, 2>>;
 
     // The largest pull a request can need: the request plus the chain's shortfall and lead, at its
     // input rate.
@@ -83,21 +83,15 @@ namespace {
         std::vector<float>                    tail;    ///< the end of the stream, drained by hand
     };
 
-    /// The end of a pulled stream: what the holdover keeps, then the chain's flush on the state
-    /// fed_by holds, one burst at a time.
-    ///
-    /// CF finding 6: fed_by has no end of stream. A chain behind it is flushed only by reaching
-    /// into fed_by_state's members (its holdover, then its chain's state and fed_by_workspace's
-    /// chain workspace), which is what this does; include/catenae/fed_by.h offers neither a flush
-    /// nor a flush_remaining.
+    /// The end of the stream on the pull side: catenae::flush, in calls of one burst, until
+    /// catenae::flushed. CF finding F9, made: the skeleton first flushed by reaching into the
+    /// pull side's state (its holdover, then the chain's flush through its state and workspace).
     template <typename C, std::size_t MaxRequest>
-    std::vector<float> drain_by_hand(const C& c, catenae::fed_by_state<C>& st,
-                                     catenae::fed_by_workspace<C, MaxRequest>& ws) {
-        std::vector<float> tail(st.holdover.begin(), st.holdover.begin() + static_cast<std::ptrdiff_t>(st.held * 2));
-        st.held = 0;
+    std::vector<float> drain(const C& c, catenae::fed_by_state<C>& st, catenae::fed_by_workspace<C, MaxRequest>& ws) {
+        std::vector<float> tail;
         std::vector<float> burst(C::max_outputs_for(1) * 2);
-        while (c.flush_remaining(st.chain) > 0) {
-            const std::size_t n = c.flush(st.chain, ws.chain, catenae::span<float>(burst));
+        while (!catenae::flushed(c, st)) {
+            const std::size_t n = catenae::flush(c, st, ws, catenae::span<float>(burst));
             tail.insert(tail.end(), burst.begin(), burst.begin() + static_cast<std::ptrdiff_t>(n * 2));
         }
         return tail;
@@ -147,7 +141,7 @@ namespace {
         record.real    = Link::real();
         record.starved = st->starved;
         record.report  = link.report(*link_state);
-        record.tail    = drain_by_hand(c, *st, *ws);
+        record.tail    = drain(c, *st, *ws);
         return record;
     }
 
@@ -155,7 +149,7 @@ namespace {
     /// one call, from reset.
     template <typename C>
     std::vector<float> straight(std::vector<float> in) {
-        constexpr C c = rat::make<C>();
+        constexpr C c = C{};
         in.resize(in.size() + c.practical_tail_frames() * 2, 0.0f);
         auto m = std::make_unique<catenae::memory_of<C>>();
         c.reset(m->state);
@@ -177,7 +171,7 @@ namespace {
     // requests delivered is what the chain writes straight over the frames it was given.
     TEST(rational_pull, ThreeOverTwoPullsVaryAndEachRequestIsExact) {
         using link_t              = recording<catenae::handoff<float, 2, 128, 80, 32>, 2>;
-        constexpr conv32  c       = rat::make<conv32>();
+        constexpr conv32  c       = conv32{};
         const run_record  rec     = drive<link_t, 64>(c, {64}, 48);
         const std::size_t cycle[] = {43, 42, 43};
         for (std::size_t i = 0; i < rec.pulls.size(); ++i) {
@@ -202,7 +196,7 @@ namespace {
     TEST(rational_pull, AHoldoverCoversSomeRequestsAndNoneUnderruns) {
         using link_t               = recording<catenae::handoff<float, 2, 64, 40, 16>, 2>;
         constexpr std::size_t most = catenae::fed_by_workspace<chain31, 64>::largest_pull;
-        constexpr chain31     c    = rat::make<chain31>();
+        constexpr chain31     c    = chain31{};
         const run_record      rec  = drive<link_t, 64>(c, {64, 1, 2, 30, 64, 5, 1, 17}, 64);
         std::size_t           none = 0;
         std::set<std::size_t> sizes;
@@ -225,14 +219,18 @@ namespace {
         EXPECT_EQ(std::memcmp(all.data(), owed.data(), all.size() * sizeof(float)), 0);
     }
 
-    // CF finding 7: fed_by's largest pull is the request plus the chain's shortfall and lead at
-    // its input rate (include/catenae/fed_by.h, detail::most_frames_in), but a chain whose stages
-    // write a group on its first frame never needs the lead: it is ahead exactly when it writes.
-    // Down by 6 at 64-frame requests the staging and the handoff's target are sized for 389
-    // frames, and no state needs more than 384. Counted here from every position of the group.
-    TEST(rational_pull, TheLargestPullCountsALeadTheChainNeverNeeds) {
-        static_assert(catenae::fed_by_workspace<chain16, 64>::largest_pull == 389, "(64 + 5/6) x 6");
-        constexpr chain16  c = rat::make<chain16>();
+    // CF finding F10, made: fed_by's largest pull was the request plus the chain's shortfall and
+    // lead at its input rate (detail::most_frames_in), but a chain whose stages write a group on
+    // its first frame never needs the lead: it is ahead exactly when it writes. Down by 6 at
+    // 64-frame requests that bound is 389 frames; fed_by now enumerates the chain's count from
+    // rest (outputs_from_rest) and sizes the staging and the handoff's target for 384, which no
+    // state needs more than. Counted here from every position of the group.
+    TEST(rational_pull, TheLargestPullIsWhatTheChainNeeds) {
+        static_assert(catenae::fed_by_workspace<chain16, 64>::largest_pull == 384, "64 groups of 6");
+        static_assert(
+            catenae::detail::most_frames_in(chain16::rate_ratio, chain16::max_shortfall, chain16::max_lead, 64) == 389,
+            "(64 + 5/6) x 6 from any state");
+        constexpr chain16  c = chain16{};
         auto               m = std::make_unique<catenae::memory_of<chain16>>();
         std::vector<float> one(2, 0.5f);
         std::vector<float> out(chain16::max_outputs_for(1) * 2);

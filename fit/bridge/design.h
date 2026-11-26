@@ -13,8 +13,12 @@
 /// |            | for a spec that is not a number or not positive, `out_of_range` for a passband   |
 /// |            | at or above 24 kHz or an attenuation Kaiser's estimate puts beyond Taps          |
 /// | from_table | a ROM table, checked without libm: finite, every row summing to 1 (1e-5); a      |
-/// |            | temporary is refused                                                             |
-/// | Held       | by view: the design is a pointer to the caller's table, which outlives it        |
+/// |            | temporary is refused (a `table_view`); a bad one met at run time is            |
+/// |            | `check::table_rejected`                                                          |
+/// | bind()     | `constexpr`: the design over the caller's storage before make() fills it, so a   |
+/// |            | configuration made at run time is constant-initialised; all zero until then, a  |
+/// |            | filter that writes silence (CF finding F2)                                       |
+/// | Held       | by view (`catenae::table_view`, `holds_view`): the caller's table outlives it    |
 /// | Method     | Kaiser-windowed sinc (Kaiser 1974), per-branch unity DC (bridge's design.h)      |
 ///
 /// Carried from SampleRateTap 4496888 bridge/include/tap/sr/bridge/{design.h (the cutoff, the
@@ -34,6 +38,7 @@
 #include "catenae/expected.h"
 #include "catenae/sample_format.h"
 #include "catenae/span.h"
+#include "catenae/table_view.h"
 
 namespace catenae_fit::bridge {
 
@@ -144,11 +149,20 @@ namespace catenae_fit::bridge {
         static constexpr std::size_t stored_rows = (phases + 1) / 2;      ///< the half that is kept
         /// A table in ROM, for from_table.
         using table_type = std::array<coeff, stored_rows * Taps>;
+        /// What the design holds: the caller's table, by view.
+        using view_type = catenae::table_view<coeff, stored_rows * Taps>;
 
         /// The coefficients the caller's table holds.
         static constexpr std::size_t table_size() noexcept { return stored_rows * Taps; }
         /// The doubles make() needs as its workspace: the whole prototype.
         static constexpr std::size_t workspace_size() noexcept { return phases * Taps; }
+
+        /// The design over `storage` before make() has filled it: a constant, so a configuration
+        /// made at run time is constant-initialised and make() fills its table in place. Until
+        /// then the storage is all zero, a filter that writes silence. CF finding F2.
+        static constexpr design bind(table_type& storage) noexcept {
+            return design(view_type(catenae::span<coeff, stored_rows * Taps>(storage)));
+        }
 
         /// Designs into `storage` (at least table_size()) through `scratch` (at least
         /// workspace_size()). Writes nothing unless it succeeds.
@@ -173,29 +187,27 @@ namespace catenae_fit::bridge {
                     storage[ph * Taps + (Taps - 1 - t)] = static_cast<coeff>(proto[t * phases + ph]);
                 }
             }
-            return design(storage.data());
+            return design(view_type(storage.template first<stored_rows * Taps>()));
         }
 
         /// A table in ROM, checked without libm: a bad one that initialises a constant does not
-        /// compile, and one met at run time reaches the handler.
-        static constexpr design from_table(const table_type& rom) noexcept {
+        /// compile, and one met at run time reaches the handler. A temporary table does not
+        /// convert to the view (CF finding F7, made).
+        static constexpr design from_table(view_type rom) noexcept {
             for (std::size_t row = 0; row < stored_rows; ++row) {
                 coeff sum{};
                 for (std::size_t t = 0; t < Taps; ++t) {
                     const coeff c = rom[row * Taps + t];
-                    // CF finding: check.h has no code for a table that fails its check (PLAN.md
-                    // 3.3 says one met at run time reaches the handler); invariant stands in.
-                    catenae::detail::check_always(c > coeff{-4} && c < coeff{4}, catenae::check::invariant);
+                    // CF finding F5, made: the code for a table its design's check refuses.
+                    catenae::detail::check_always(c > coeff{-4} && c < coeff{4}, catenae::check::table_rejected);
                     sum += c;
                 }
                 catenae::detail::check_always(sum > coeff{1} - static_cast<coeff>(1e-5)
                                                   && sum < coeff{1} + static_cast<coeff>(1e-5),
-                                              catenae::check::invariant);
+                                              catenae::check::table_rejected);
             }
-            return design(rom.data());
+            return design(rom);
         }
-        /// A temporary table would leave the design viewing nothing.
-        static design from_table(const table_type&&) = delete;
 
         /// Whether phase `ph` reads its partner's stored row backward.
         static constexpr bool is_mirrored(std::size_t ph) noexcept { return ph >= stored_rows; }
@@ -206,20 +218,26 @@ namespace catenae_fit::bridge {
         /// The stored row serving phase `ph`, tap-reversed: read forward against a window whose
         /// oldest frame is first, or backward when the phase is mirrored.
         constexpr catenae::span<const coeff> row(std::size_t ph) const noexcept {
-            return catenae::span<const coeff>(m_rows + stored_index(ph) * Taps, Taps);
+            return catenae::span<const coeff>(m_rows.data() + stored_index(ph) * Taps, Taps);
         }
         /// The whole stored table.
-        constexpr catenae::span<const coeff> table() const noexcept {
-            return catenae::span<const coeff>(m_rows, table_size());
-        }
+        constexpr catenae::span<const coeff> table() const noexcept { return m_rows.values(); }
 
       private:
-        explicit constexpr design(const coeff* rows) noexcept
+        explicit constexpr design(view_type rows) noexcept
             : m_rows(rows) {}
 
-        const coeff* m_rows; // the caller's table: a view (PLAN.md 3.3)
+        view_type m_rows; // the caller's table: a view (PLAN.md 3.3)
     };
 
 } // namespace catenae_fit::bridge
+
+namespace catenae {
+    inline namespace CATENAE_ABI {
+        /// A design views the caller's table (CF finding F8, made): a mailbox refuses it.
+        template <typename S, std::size_t Taps>
+        struct holds_view<catenae_fit::bridge::design<S, Taps>> : std::true_type {};
+    } // namespace CATENAE_ABI
+} // namespace catenae
 
 #endif // CATENAE_FIT_BRIDGE_DESIGN_H

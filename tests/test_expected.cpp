@@ -3,6 +3,7 @@
 // Copyright 2026 Timothy Place and the catenae contributors
 #include <cstdint>
 #include <type_traits>
+#include <utility>
 
 #include <gtest/gtest.h>
 
@@ -81,6 +82,26 @@ namespace {
         static_assert(std::is_trivially_copyable<expected<design, status>>::value, "a plain value to copy");
         static_assert(std::is_trivially_destructible<expected<design, status>>::value, "nothing to destroy");
         EXPECT_TRUE(make(1).has_value());
+    }
+
+    // Verifies CAT-EXPECTED-006.
+    TEST(expected, AnExpectedAboutToEndGivesACopy) {
+        using e_t = expected<design, status>;
+        static_assert(std::is_same<decltype(*std::declval<e_t>()), design>::value, "*make() is a copy");
+        static_assert(std::is_same<decltype(std::declval<e_t>().value()), design>::value, "so is value()");
+        static_assert(std::is_same<decltype(std::declval<e_t>().error()), status>::value, "and error()");
+        static_assert(std::is_same<decltype(*std::declval<e_t&>()), design&>::value, "one that lives on: a reference");
+        static_assert(std::is_same<decltype(std::declval<const e_t&>().value()), const design&>::value, "const");
+        static_assert(std::is_same<decltype(std::declval<const e_t&>().error()), const status&>::value, "const");
+        // Bound to a reference, the copy lives as long as the reference (the sanitizer legs
+        // would see a read of the ended expected otherwise).
+        const design& kept = *make(12);
+        const status& why  = make(0).error();
+        EXPECT_EQ(kept.taps, 12);
+        EXPECT_EQ(why, status::invalid_argument);
+        CATENAE_EXPECT_CHECK(catenae::check::expected_empty, static_cast<void>(*make(0)));
+        CATENAE_EXPECT_CHECK(catenae::check::expected_empty, static_cast<void>(make(0).value()));
+        CATENAE_EXPECT_CHECK(catenae::check::expected_not_error, static_cast<void>(make(3).error()));
     }
 
     // Verifies CAT-EXPECTED-005.

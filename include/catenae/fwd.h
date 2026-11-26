@@ -34,6 +34,12 @@ namespace catenae {
         class expected;
 
         struct ratio;
+        template <std::uint32_t Up, std::uint32_t Down>
+        struct ratio_t;
+        template <typename T>
+        struct holds_view;
+        template <typename T, std::size_t N>
+        class table_view;
         template <typename Storage, int F>
         struct fixed;
         template <typename T>

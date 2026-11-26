@@ -108,8 +108,8 @@ namespace {
         ASSERT_EQ(catenae_c_rational_3_2_process(configuration, size, state, sizeof state, workspace, sizeof workspace,
                                                  in.data(), in.size(), out.data(), out.size(), &written),
                   CATENAE_C_OK);
-        using converter_t = catenae_fit::rational::converter<float, 2, catenae_fit::rational::ratio3over2>;
-        constexpr auto                         chain = catenae_fit::rational::make<converter_t>();
+        using converter_t = catenae_fit::rational::converter<float, 2, catenae::ratio_t<3, 2>>;
+        constexpr auto                         chain = converter_t{};
         static catenae::memory_of<converter_t> memory{};
         chain.reset(memory.state);
         std::array<float, 2 * 96> direct{};

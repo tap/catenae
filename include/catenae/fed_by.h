@@ -5,12 +5,17 @@
 /// | Contract   |                                                                                 |
 /// |------------|---------------------------------------------------------------------------------|
 /// | Joins      | a junction's source port to a chain's input port: the same type (a joint)      |
-/// | Memory     | `fed_by_state<Chain>`: the chain's state, the holdover, `starved`; `fed_by_workspace<Chain,
-/// MaxRequest>`: the chain's workspace and the staging for one pull | | Pulls      | at most one a request, none when
-/// the holdover covers it; at most `largest_pull` frames | | Checks     | the junction serves `largest_pull` (compile
-/// time); whole frames and at most `MaxRequest` (boundary) | | Returns    | the frames asked for, always; input the
-/// junction supplied as silence counts in `starved` | | Limits     | an interleaved output port: a planar one arrives
-/// with a junction that has one  | | Rationale  | D19, D35, D52 |
+/// | Memory     | `fed_by_state<Chain>`: the chain's state, the holdover, `starved`;              |
+/// |            | `fed_by_workspace<Chain, MaxRequest>`: its workspace and one pull's staging     |
+/// | Pulls      | at most one a request, none when the holdover covers it; at most `largest_pull` |
+/// |            | frames, the most a request needs from the states fed_by reaches                 |
+/// | Checks     | the junction serves `largest_pull` (compile time); whole frames and at most     |
+/// |            | `MaxRequest` (boundary)                                                         |
+/// | Returns    | the frames asked for, always; input the junction supplied as silence counts in  |
+/// |            | `starved`                                                                       |
+/// | End        | `flush`: the holdover, then the chain's tail, pulling nothing; then `flushed`   |
+/// | Limits     | an interleaved output port: a planar one arrives with a junction that has one  |
+/// | Rationale  | D19, D35, D52                                                                   |
 ///
 /// @req{CAT-FED-BY-001} `fed_by` fills its output with exactly the frames asked for, which are
 /// what the chain writes from the junction's frames, in order, and holds what one pull's last
@@ -20,10 +25,22 @@
 /// 128, nothing; behind a chain up by 4, 102-frame requests pull 26, 25, 26, 25; a request of
 /// 700 frames up by 4 pulls 175 in one pull.
 /// @req{CAT-FED-BY-003} `fed_by_workspace<Chain, MaxRequest>::largest_pull` is the most input
-/// frames a request of `MaxRequest` can need, from any state: the request plus the chain's
-/// `max_shortfall` and `max_lead`, at its input rate. A junction whose `serves(largest_pull, 1)`
-/// is false does not compile; a request above `MaxRequest`, or not whole frames, is a boundary
-/// failure; the input frames a pull got as silence are added to `starved`.
+/// frames a request of `MaxRequest` needs from any state `fed_by` reaches. The chain has taken
+/// the fewest frames whose output from rest (`outputs_from_rest`) reaches what was delivered,
+/// so the pull is T(D + MaxRequest) - T(D) at the frames delivered so far, D, and it repeats
+/// with the chain's output per input group above D = 0: enumerated over that one period at
+/// compile time (at 64-frame requests, 128 behind a 128-frame block and 256 behind two
+/// decimators by 2 that write on a pair's first frame, where the bound from any state is 191
+/// and 259). Where the count from rest is not periodic
+/// in the input group, it is that bound: the request plus `max_shortfall` and `max_lead`, at the
+/// input rate. A junction whose `serves(largest_pull, 1)` is false does not compile; a request
+/// above `MaxRequest`, or not whole frames, is a boundary failure; the input frames a pull got
+/// as silence are added to `starved`.
+/// @req{CAT-FED-BY-004} `flush(chain, st, ws, out)` ends the stream on the pull side and pulls
+/// nothing: first what the holdover keeps, then the chain's resumable flush, in calls whose
+/// output holds a burst (`check::flush_output_too_small`, every build). `flushed(chain, st)` is
+/// true once both are out; the requests and the flush together are what the chain writes over
+/// the frames the junction gave, zero-padded by its tail, in calls of any size.
 // Copyright 2026 Timothy Place and the catenae contributors
 #ifndef CATENAE_FED_BY_H
 #define CATENAE_FED_BY_H
@@ -31,6 +48,7 @@
 #include <algorithm>
 #include <array>
 #include <cstddef>
+#include <cstdint>
 #include <tuple>
 #include <type_traits>
 
@@ -38,6 +56,7 @@
 #include "catenae/check.h"
 #include "catenae/detail/abi.h"
 #include "catenae/detail/arrival.h"
+#include "catenae/detail/convert.h"
 #include "catenae/detail/views.h"
 #include "catenae/fwd.h"
 #include "catenae/junction_traits.h"
@@ -46,6 +65,60 @@
 
 namespace catenae {
     inline namespace CATENAE_ABI {
+
+        namespace detail {
+
+            /// T(d): the fewest input frames whose output from rest reaches d frames, by
+            /// bisection below `high`, which reaches it.
+            template <typename Chain>
+            constexpr std::size_t inputs_reaching(std::size_t d, std::size_t high) noexcept {
+                if (d == 0) {
+                    return 0;
+                }
+                std::size_t low = 0; // writes fewer than d; `high` writes at least d
+                while (high - low > 1) {
+                    const std::size_t mid = low + (high - low) / 2;
+                    if (Chain::outputs_from_rest(mid) >= d) {
+                        high = mid;
+                    }
+                    else {
+                        low = mid;
+                    }
+                }
+                return high;
+            }
+
+            /// The most input frames one request of k frames needs behind fed_by. After every
+            /// pull the chain has taken T(D), D the frames delivered so far (a pull takes the
+            /// fewest that reach the request), so a request of k pulls T(D + k) - T(D), largest at
+            /// k. With G the input group and P its output, T(D + P) = T(D) + G for D >= 1 when the
+            /// count from rest repeats, O(t + G) = O(t) + P: so D from 0 to P is every case. A
+            /// count that does not repeat is bounded from any state instead.
+            template <typename Chain>
+            constexpr std::size_t reachable_pull(std::size_t k) noexcept {
+                const std::size_t bound = most_frames_in(Chain::rate_ratio, Chain::max_shortfall, Chain::max_lead, k);
+                constexpr std::size_t group = Chain::input_group;
+                constexpr std::size_t per_group =
+                    narrow<std::size_t>(std::uint64_t{group} * Chain::rate_ratio.up / Chain::rate_ratio.down);
+                if (per_group == 0) {
+                    return bound;
+                }
+                for (std::size_t t = 0; t < group; ++t) {
+                    if (Chain::outputs_from_rest(t + group) != Chain::outputs_from_rest(t) + per_group) {
+                        return bound;
+                    }
+                }
+                std::size_t largest = 0;
+                for (std::size_t d = 0; d <= per_group; ++d) {
+                    // O(G j) = P j, so G ceil(d / P) reaches d.
+                    const std::size_t from = inputs_reaching<Chain>(d, group * ((d + per_group - 1) / per_group));
+                    const std::size_t to = inputs_reaching<Chain>(d + k, group * ((d + k + per_group - 1) / per_group));
+                    largest              = std::max(largest, to - from);
+                }
+                return largest;
+            }
+
+        } // namespace detail
 
         /// What the pull side remembers: the chain's state, what a request's last block wrote
         /// beyond it, and how many input frames the junction has supplied as silence.
@@ -75,9 +148,9 @@ namespace catenae {
             static_assert(MaxRequest != 0, "catenae: fed_by's largest request is at least one frame");
             using input_port  = typename Chain::input_port;  ///< the junction's source, the chain's input
             using output_port = typename Chain::output_port; ///< the chain's output, the request's port
-            /// The most input frames one request can need, from any state: its single pull's size.
-            static constexpr std::size_t largest_pull =
-                detail::most_frames_in(Chain::rate_ratio, Chain::max_shortfall, Chain::max_lead, MaxRequest);
+            /// The most input frames one request needs, from the states fed_by reaches: its single
+            /// pull's size (CAT-FED-BY-003).
+            static constexpr std::size_t largest_pull = detail::reachable_pull<Chain>(MaxRequest);
             /// The most frames a request asks for.
             static constexpr std::size_t largest_request = MaxRequest;
 
@@ -95,6 +168,29 @@ namespace catenae {
         /// The pull side's workspace, for requests of up to `MaxRequest` frames.
         template <typename Chain, std::size_t MaxRequest>
         using fed_by_workspace = fed_by_scratch<std::remove_cv_t<Chain>, MaxRequest>;
+
+        namespace detail {
+            /// Up to `want` frames from the holdover into `out`, the rest moved to its front;
+            /// returns the frames given. It never holds more than its own room, which bounding
+            /// `held` by it tells the compiler too: inlined, GCC 13 cannot see the invariant and
+            /// calls the copies out of bounds (-Warray-bounds).
+            template <typename Chain>
+            std::size_t from_holdover(fed_by_memory<Chain>& st, span<typename Chain::output_port::value_type> out,
+                                      std::size_t want) noexcept {
+                constexpr std::size_t width = Chain::output_port::values_per_frame;
+                constexpr std::size_t room =
+                    std::tuple_size<std::remove_reference_t<decltype(st.holdover)>>::value / width;
+                check_audit(st.held <= room, check::invariant);
+                const std::size_t held = std::min(st.held, room);
+                const std::size_t done = std::min(held, want);
+                std::copy(st.holdover.begin(), st.holdover.begin() + static_cast<std::ptrdiff_t>(done * width),
+                          out.begin());
+                std::copy(st.holdover.begin() + static_cast<std::ptrdiff_t>(done * width),
+                          st.holdover.begin() + static_cast<std::ptrdiff_t>(held * width), st.holdover.begin());
+                st.held = held - done;
+                return done;
+            }
+        } // namespace detail
 
         /// The pull side at rest: the chain reset, nothing held, nothing starved.
         template <typename Chain>
@@ -131,15 +227,7 @@ namespace catenae {
             // The holdover first: a request it covers makes no pull. It never holds more than its
             // own room, which bounding `held` by it tells the compiler too: inlined, GCC 13 cannot
             // see the invariant and calls the copies out of bounds (-Warray-bounds).
-            constexpr std::size_t room = std::tuple_size<std::remove_reference_t<decltype(st.holdover)>>::value / width;
-            detail::check_audit(st.held <= room, check::invariant);
-            const std::size_t held = std::min(st.held, room);
-            std::size_t       done = std::min(held, want);
-            std::copy(st.holdover.begin(), st.holdover.begin() + static_cast<std::ptrdiff_t>(done * width),
-                      out.begin());
-            std::copy(st.holdover.begin() + static_cast<std::ptrdiff_t>(done * width),
-                      st.holdover.begin() + static_cast<std::ptrdiff_t>(held * width), st.holdover.begin());
-            st.held = held - done;
+            std::size_t done = detail::from_holdover(st, out, want);
             if (done == want) {
                 return want;
             }
@@ -170,6 +258,32 @@ namespace catenae {
                       ws.made.begin() + static_cast<std::ptrdiff_t>(made * width), st.holdover.begin());
             detail::check_audit(done + taken == want, check::invariant);
             return want;
+        }
+
+        /// @brief The end of the stream on the pull side, resumable, pulling nothing: what the
+        /// holdover keeps, then the chain's flush (its tail of zeros), as much as `out` takes.
+        /// Returns the frames written; `out` holds at least a burst, max_outputs_for(1) frames.
+        template <typename Chain, std::size_t MaxRequest>
+        [[nodiscard]] std::size_t
+        flush(const Chain& chain, fed_by_memory<Chain>& st, fed_by_scratch<Chain, MaxRequest>& ws,
+              span<typename Chain::output_port::value_type> out, tail which = tail::practical) noexcept {
+            constexpr std::size_t width = Chain::output_port::values_per_frame;
+            constexpr std::size_t burst = Chain::max_outputs_for(1);
+            detail::check_always(out.size() % width == 0, check::input_not_whole_frames);
+            const std::size_t want = out.size() / width;
+            detail::check_always(want >= burst, check::flush_output_too_small);
+            const std::size_t done = detail::from_holdover(st, out, want);
+            if (st.held != 0 || want - done < burst) {
+                return done; // the holdover filled it, or what is left cannot take a burst
+            }
+            return done + chain.flush(st.chain, ws.chain, out.subspan(done * width), which);
+        }
+
+        /// Whether the pull side's flush is finished: nothing held, and the chain's tail fed.
+        template <typename Chain>
+        [[nodiscard]] bool flushed(const Chain& chain, const fed_by_memory<Chain>& st,
+                                   tail which = tail::practical) noexcept {
+            return st.held == 0 && chain.flush_remaining(st.chain, which) == 0;
         }
 
     } // namespace CATENAE_ABI

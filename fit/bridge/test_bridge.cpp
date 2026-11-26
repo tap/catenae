@@ -20,9 +20,9 @@
 #include "catenae/compiler.h"
 #include "catenae/expected.h"
 #include "catenae/gain.h"
-#include "catenae/mailbox.h"
 #include "catenae/span.h"
 #include "catenae/stage_traits.h"
+#include "catenae/table_view.h"
 #include "catenae_test/check_trap.h"
 #include "catenae_test/harness.h"
 
@@ -188,30 +188,34 @@ namespace {
         static_assert(!std::is_constructible<stereo_t, const table_t&&>::value, "an expiring one: refused");
         // A design is itself a view of the caller's storage, so a temporary design is safe.
         static_assert(std::is_constructible<stereo_t, design_t>::value, "a design is copied, not viewed");
-        // make() writes through a span of the caller's storage, which a temporary cannot give.
+        // make() writes through a span of the caller's storage, which a temporary cannot give;
+        // so does bind().
         static_assert(!std::is_constructible<catenae::span<float>, table_t>::value, "no span over a temporary");
-        // CF finding: span<const T> accepts a temporary array, as std::span does, so a
-        // view-taking constructor cannot be written over a span: it takes the array by reference
-        // and deletes the rvalue overload.
-        static_assert(std::is_constructible<catenae::span<const float>, table_t>::value, "span<const T> dangles");
-        // CF finding: catenae::expected's accessors are not ref-qualified, so on a temporary
-        // expected they give an lvalue: a stage that viewed its design (rather than copying a
-        // view) could not refuse `stage{*design::make(...)}` by deleting its rvalue overload.
-        // std::expected's operator* && and value() && give T&&.
+        static_assert(std::is_same<decltype(design_t::bind(std::declval<table_t&>())), design_t>::value, "storage");
+        // CF finding F7, made: span<const T> accepts a temporary array, as std::span does, so
+        // the stage takes a catenae::table_view, which does not: one constructor, no deleted twin.
+        static_assert(std::is_constructible<catenae::span<const float>, table_t>::value, "span<const T> would dangle");
+        static_assert(!std::is_constructible<design_t::view_type, table_t>::value, "a table_view does not");
+        // CF finding F6, made: catenae::expected's accessors on a temporary give a copy
+        // (CAT-EXPECTED-006), so a stage that viewed its design (rather than copying a view)
+        // would refuse `stage{*design::make(...)}` by deleting its rvalue overload.
         using made_t = catenae::expected<design_t, catenae::status>;
-        static_assert(std::is_same<decltype(*std::declval<made_t>()), design_t&>::value, "an lvalue of a temporary");
-        static_assert(std::is_same<decltype(std::declval<made_t>().value()), design_t&>::value, "the same");
+        static_assert(std::is_same<decltype(*std::declval<made_t>()), design_t>::value, "a copy, from a temporary");
+        static_assert(std::is_same<decltype(std::declval<made_t>().value()), design_t>::value, "the same");
+        static_assert(std::is_same<decltype(*std::declval<made_t&>()), design_t&>::value, "a reference, from one kept");
         SUCCEED();
     }
 
-    TEST(fit_bridge, AMailboxAcceptsAConfigurationThatHoldsAView) {
-        // CF finding: D44 says a posted value owns what it refers to, and the compiler cannot
-        // check it. A strip with a bridge stage is a pointer to a table, trivially copyable and
-        // 16 bytes, so mailbox<strip_t> compiles; 6.3's acknowledgement protocol is the only
-        // guard. A stage that holds a view could say so as a constant its chain composes, for
-        // mailbox to refuse.
+    TEST(fit_bridge, AConfigurationThatHoldsAViewSaysSo) {
+        // CF finding F8, made: D44 says a posted value owns what it refers to. A strip with a
+        // bridge stage is a pointer to a table, trivially copyable; the design says it holds a
+        // view, the stage and the chain compose it, and mailbox<strip_t> does not compile
+        // (CAT-MAILBOX-004, pinned by tests/compile_fail/mailbox_holds_view.cpp). A design is
+        // replaced through 6.3's acknowledgement instead.
         static_assert(std::is_trivially_copyable<strip_t>::value, "a view is trivially copyable");
-        static_assert(sizeof(catenae::mailbox<strip_t>) > 0, "and a mailbox of it compiles");
+        static_assert(catenae::holds_view<design_t>::value && catenae::holds_view<stereo_t>::value, "it says so");
+        static_assert(catenae::holds_view<strip_t>::value, "and so does its chain");
+        static_assert(!catenae::holds_view<catenae::chain<catenae::gain<2>>>::value, "a gain's does not");
         SUCCEED();
     }
 
@@ -453,36 +457,39 @@ namespace {
     TEST(fit_bridge, ABadRomTableMetAtRunTimeReachesTheHandler) {
         auto bad = std::make_unique<table_t>(k_rom);
         (*bad)[3] += 0.5f; // row 0 no longer sums to 1
-        CATENAE_EXPECT_CHECK(catenae::check::invariant, static_cast<void>(design_t::from_table(*bad)));
+        CATENAE_EXPECT_CHECK(catenae::check::table_rejected, static_cast<void>(design_t::from_table(*bad)));
         *bad      = k_rom;
         (*bad)[9] = std::numeric_limits<float>::quiet_NaN();
-        CATENAE_EXPECT_CHECK(catenae::check::invariant, static_cast<void>(stereo_t{*bad}));
+        CATENAE_EXPECT_CHECK(catenae::check::table_rejected, static_cast<void>(stereo_t{*bad}));
         CATENAE_EXPECT_NO_CHECK(static_cast<void>(design_t::from_table(k_rom)));
     }
 
     // The make() path. The table's storage, the designer's workspace and the strip's memory are
-    // plain storage, constant-initialised in .bss. The configuration is not: it is built from a
-    // design that only make() produces, at run time.
-    CATENAE_CONSTINIT std::array<float, design_t::table_size()> s_made_table{};
+    // plain storage, constant-initialised in .bss; and so is the configuration, bound to the
+    // table's storage before make() fills it (CF finding F2, made: design::bind).
+    CATENAE_CONSTINIT table_t s_made_table{};
     CATENAE_CONSTINIT std::array<double, design_t::workspace_size()> s_made_scratch{};
     CATENAE_CONSTINIT catenae::memory_of<strip_t> s_made_memory{};
-    // CF finding: a configuration made at run time has no constant initialiser (no design
-    // exists before make(), and a design has no default, D37). This is the narrowest constant
-    // slot catenae offers for it: an expected that holds the status until make() has run.
-    CATENAE_CONSTINIT catenae::expected<strip_t, catenae::status> s_made_strip{
-        catenae::unexpected(catenae::status::unsupported)};
+    CATENAE_CONSTINIT auto s_made_strip = stereo_t{design_t::bind(s_made_table)} | catenae::gain<2>{1.0f, 0};
 
-    TEST(fit_bridge, AMadeTableLeavesOnlyTheConfigurationToRunTime) {
-        ASSERT_FALSE(s_made_strip.has_value());
+    TEST(fit_bridge, AMadeTableLeavesNothingToRunTimeButMake) {
+        static_assert(std::is_same<decltype(s_made_strip), strip_t>::value, "the same strip type");
+        EXPECT_EQ(s_made_strip.stage<0>().design().table().data(), s_made_table.data());
+        const auto         x = noise(400, 2, 26);
+        std::vector<float> out(stereo_t::max_outputs_for(400) * 2, 1.0f);
+        // Bound and not yet made: an all-zero table, a filter that writes silence.
+        s_made_strip.reset(s_made_memory.state);
+        EXPECT_EQ(s_made_strip.process(s_made_memory, catenae::span<const float>(x), catenae::span<float>(out)),
+                  stereo_t::max_outputs_for(400));
+        for (const float v : out) {
+            ASSERT_EQ(v, 0.0f);
+        }
+        // make() fills the bound storage in place; the configuration is not touched.
         const auto made = design_t::make(k_spec, s_made_table, s_made_scratch);
         ASSERT_TRUE(made.has_value());
-        s_made_strip = stereo_t{*made} | catenae::gain<2>{1.0f, 0}; // trivially copied in
-        ASSERT_TRUE(s_made_strip.has_value());
-        const strip_t& strip = *s_made_strip;
-        strip.reset(s_made_memory.state);
-        const auto         x = noise(400, 2, 26);
-        std::vector<float> out(stereo_t::max_outputs_for(400) * 2);
-        EXPECT_EQ(strip.process(s_made_memory, catenae::span<const float>(x), catenae::span<float>(out)),
+        EXPECT_EQ(made->table().data(), s_made_table.data());
+        s_made_strip.reset(s_made_memory.state);
+        EXPECT_EQ(s_made_strip.process(s_made_memory, catenae::span<const float>(x), catenae::span<float>(out)),
                   stereo_t::max_outputs_for(400));
         EXPECT_TRUE(bit_equal(out, upfirdn<float>(prototype_of(made->table()), x, 2, stereo_t::max_outputs_for(400))));
     }

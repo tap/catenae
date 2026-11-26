@@ -48,6 +48,7 @@
 #include "catenae/fwd.h"
 #include "catenae/ratio.h"
 #include "catenae/stage_traits.h"
+#include "catenae/table_view.h"
 
 namespace catenae {
     inline namespace CATENAE_ABI {
@@ -220,6 +221,9 @@ namespace catenae {
 
         template <typename Config>
         struct is_stage<steady<Config>> : std::true_type {};
+        /// steady<> holds a view when the configuration it wraps does.
+        template <typename Config>
+        struct holds_view<steady<Config>> : holds_view<Config> {};
 
     } // namespace CATENAE_ABI
 } // namespace catenae

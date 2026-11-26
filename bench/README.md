@@ -211,6 +211,67 @@ Probe `c2`: each cell is the recorded figure / its ceiling, in bytes (start-up f
 | `stack.reset.static` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
 | `code.process` | 2,202 / 2,304 | 784 / 832 | 780 / 832 | 798 / 832 |  |
 | `code.reset` | 258 / 320 | 258 / 320 | 258 / 320 | 262 / 320 |  |
+
+Probe `recursive`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
+
+| figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
+|---|--:|--:|--:|--:|--:|
+| `image.bss` | 1,588 / 1,664 | 1,588 / 1,664 | 1,588 / 1,664 | 1,588 / 1,664 | 860 / 896 |
+| `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
+| `image.rodata` | 156 / 192 | 156 / 192 | 156 / 192 | 156 / 192 | 104 / 128 |
+| `image.text` | 9,432 / 9,728 | 8,216 / 8,512 | 8,060 / 8,320 | 8,084 / 8,384 | 8,404 / 8,704 |
+| `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.text` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.bss` | 572 / 640 | 572 / 640 | 572 / 640 | 572 / 640 | 572 / 640 |
+| `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.rodata` | 68 / 128 | 68 / 128 | 68 / 128 | 68 / 128 | 68 / 128 |
+| `unit.text` | 730 / 768 | 700 / 768 | 700 / 768 | 722 / 768 | 1,264 / 1,344 |
+| `sizeof.state` | 56 / 64 | 56 / 64 | 56 / 64 | 56 / 64 |  |
+| `sizeof.workspace` | 516 / 576 | 516 / 576 | 516 / 576 | 516 / 576 |  |
+| `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
+| `stack.process.measured` | 180 / 192 | 128 / 136 | 128 / 136 | 128 / 136 |  |
+| `stack.process.static` | 184 / 192 | 128 / 136 | 128 / 136 | 128 / 136 |  |
+| `stack.reset.measured` | 20 / 24 | 20 / 24 | 24 / 32 | 24 / 32 |  |
+| `stack.reset.static` | 20 / 24 | 20 / 24 | 24 / 32 | 24 / 32 |  |
+| `code.process` | 2,118 / 2,240 | 674 / 704 | 674 / 704 | 694 / 768 |  |
+| `code.reset` | 210 / 256 | 210 / 256 | 210 / 256 | 210 / 256 |  |
+
+Probe `designers`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
+
+| figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
+|---|--:|--:|--:|--:|--:|
+| `image.bss` | 1,016 / 1,088 | 1,016 / 1,088 | 1,016 / 1,088 | 1,016 / 1,088 | 284 / 320 |
+| `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
+| `image.rodata` | 616 / 640 | 616 / 640 | 616 / 640 | 9,116 / 9,408 | 11,344 / 11,712 |
+| `image.text` | 35,672 / 36,800 | 35,864 / 36,992 | 35,728 / 36,800 | 23,936 / 24,704 | 47,812 / 49,280 |
+| `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 36 / 64 |
+| `core.text` | 3,678 / 3,840 | 3,968 / 4,096 | 3,968 / 4,096 | 2,576 / 2,688 | 5,276 / 5,440 |
+| `unit.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.rodata` | 32 / 64 | 32 / 64 | 32 / 64 | 32 / 64 | 0 / 0 |
+| `unit.text` | 6,668 / 6,912 | 6,576 / 6,784 | 6,576 / 6,784 | 5,678 / 5,888 | 8,820 / 9,088 |
+| `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
+| `stack.butterworth_16.measured` | 22,000 / 22,664 | 22,000 / 22,664 | 22,000 / 22,664 | 21,800 / 22,456 |  |
+| `stack.butterworth_16.static` | 22,008 / 22,672 | 22,008 / 22,672 | 22,008 / 22,672 | 21,824 / 22,480 |  |
+| `stack.butterworth_2.measured` | 1,000 / 1,032 | 992 / 1,024 | 992 / 1,024 | 800 / 824 |  |
+| `stack.butterworth_2.static` | 1,292 / 1,336 | 1,300 / 1,344 | 1,300 / 1,344 | 1,200 / 1,240 |  |
+| `stack.butterworth_4.measured` | 1,992 / 2,056 | 2,000 / 2,064 | 2,000 / 2,064 | 1,800 / 1,856 |  |
+| `stack.butterworth_4.static` | 2,000 / 2,064 | 2,008 / 2,072 | 2,008 / 2,072 | 1,824 / 1,880 |  |
+| `stack.butterworth_8.measured` | 6,112 / 6,296 | 6,112 / 6,296 | 6,112 / 6,296 | 5,904 / 6,088 |  |
+| `stack.butterworth_8.static` | 6,120 / 6,304 | 6,120 / 6,304 | 6,120 / 6,304 | 5,928 / 6,112 |  |
+| `stack.cookbook.measured` | 1,056 / 1,088 | 1,056 / 1,088 | 1,056 / 1,088 | 864 / 896 |  |
+| `stack.cookbook.static` | 1,364 / 1,408 | 1,380 / 1,424 | 1,380 / 1,424 | 1,288 / 1,328 |  |
+| `code.butterworth_16` | 17,612 / 18,176 | 17,322 / 17,856 | 17,322 / 17,856 | 9,416 / 9,728 |  |
+| `code.butterworth_2` | 17,386 / 17,920 | 17,088 / 17,664 | 17,160 / 17,728 | 9,072 / 9,408 |  |
+| `code.butterworth_4` | 17,440 / 17,984 | 17,122 / 17,664 | 17,122 / 17,664 | 9,224 / 9,536 |  |
+| `code.butterworth_8` | 17,576 / 18,112 | 17,248 / 17,792 | 17,248 / 17,792 | 9,338 / 9,664 |  |
+| `code.cookbook` | 22,144 / 22,848 | 22,134 / 22,848 | 22,154 / 22,848 | 11,398 / 11,776 |  |
 <!-- ceilings:end -->
 
 ## The layout benchmark (informational, never a gate)
@@ -266,6 +327,23 @@ the cheaper for stereo on the M4F and M33 (0.948, 0.947) and from 1.44 to 1.95 t
 dearer at 6 and 12 channels on every key but the soft-float M4. The delay and the map columns
 did not move.
 
+The recursive stage, `butterworth` of order 4 at 0.1 from its table (kind `biquad`), planar over
+interleaved from Bench run [45837885047](https://github.com/tap/catenae/actions/runs/45837885047)
+at `79b6ad7`, 2026-11-26, every pair bit-identical on every key:
+
+| key | `biquad` 2 | `biquad` 6 | `biquad` 12 |
+|---|---:|---:|---:|
+| `m4-softfp` | 1.002 | 1.003 | 1.003 |
+| `m4f` | 1.017 | 1.019 | 1.020 |
+| `m33` | 1.017 | 1.018 | 1.019 |
+| `m55` | 1.006 | 1.008 | 1.008 |
+| `hexagon` | 1.285 | 1.286 | 1.284 |
+| host (x86-64) | 1.027 | 0.998 | 0.999 |
+
+Unlike the stages above, the recursion costs nearly the same in either layout on the Cortex-M
+and the host (within 3 %): its block kernel already runs one channel's history at a time in
+registers, interleaved or not. Hexagon pays 28 % more for the mono configurations.
+
 ```sh
 cmake -S . -B build-17 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m33-mps2.cmake \
       -DCATENAE_BUILD_TESTS=OFF -DCATENAE_BUILD_EXAMPLES=OFF -DCATENAE_BUILD_BENCH=ON
@@ -305,6 +383,7 @@ ctest --test-dir build-size -L link_gate
 | `ceilings.json`: 50 figures of the probe sets `strip` and `c1`, every key but `host`; the layout table above | Bench run [45715344934](https://github.com/tap/catenae/actions/runs/45715344934) at `0de8a2b`, 2026-11-25: its `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, each figure that differed from its record copied and its ceiling computed by `scripts/ceilings.py`'s rule. Re-recorded because `gain`'s new loops cost code: the strip's `process` reaches 168 more bytes on the M4F and M33 (320 to 488), 208 on the M55 and 196 on the soft-float M4, and its stack is 8 bytes deeper (24 on the soft-float M4), for the counts in the row above. `c1`'s `reset` figures fell in the same run and are recorded as measured. Every ratchet count in that run equal to its baseline |
 | `baselines.json`: `edges`, every key; `ceilings.json`: the probe set `c2`, every key but `host` | Bench run [45754937497](https://github.com/tap/catenae/actions/runs/45754937497) at `a1ac08b`, 2026-11-26 (`workflow_dispatch` on the C2 branch `claude/catenae-c2-pack`): its `measured-<key>.json` and `ceilings-measured-<key>.json` artifacts, the counts copied unchanged and the ceilings computed by `scripts/ceilings.py`'s rule. Every other count and figure in that run equal to its record, C++20 and C++23 equal to C++17 on every key, and the link-stage gate's four tests passing on each Arm key, `C2ImageHasNoSoftwareDouble` among them |
 | `baselines.json`: `edges`, every key; `ceilings.json`: the probe set `c2`, every key but `host` | Bench run [45759547555](https://github.com/tap/catenae/actions/runs/45759547555) at `316cbfd`, 2026-11-26 (`workflow_dispatch` on `claude/catenae-c2-edges`): its artifacts, copied and computed as in the row above. Re-recorded because C2's second part puts `sanitize`, `mix` and `dither` in the path where the gain was: `edges` costs 41 % more on the M33 (9,195,445 to 12,963,516) and the checksum is now `e4697eabbeb92f5c`. Every other count and figure in that run equal to its record, C++20 and C++23 equal to C++17 on every key, and the link-stage gate passing on each Arm key |
+| `baselines.json`: `recursive`, every key, and the five `callmax_design_` workloads, every key but `host`; `ceilings.json`: the probe sets `recursive` and `designers`, every key but `host`; the biquad layout table below | Bench run [45837885047](https://github.com/tap/catenae/actions/runs/45837885047) at `79b6ad7`, 2026-11-26 (`workflow_dispatch` on `claude/catenae-c3-recursive`): its `measured-<key>.json`, `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The recursive filters' first figures. Every other count and figure in that run equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.RecursiveImageHasNoSoftwareDouble` among its tests |
 
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
 (Ubuntu's `gcc-arm-none-eabi` 15:13.2.rel1-2) and `qemu-system-arm` 8.2.2 for the Arm keys;
@@ -371,3 +450,40 @@ through a crossfeed matrix and dithered at 24 bits; and converted back and packe
 | `m55` | 11,819,295 |
 | `hexagon` | 6,227,294 packets |
 | `host` | 13,072,650 (inside `catenae_host_counted()`) |
+
+### The recursive filters
+
+`recursive` runs the `recursive` probe's path (`bench/probe/recursive_probe.cpp`) over 1000
+blocks of 64 stereo frames: the order-4 Butterworth at 0.1 from its table
+(`examples/lowpass_table.h`) and a gain. It folds the first and last samples of each block into
+a checksum: `9c50ad246f351745` where the compiler fuses no multiply-add (the soft-float M4,
+x86-64), `adc3c78fb10efbd9` where it does (the M4F, M33, M55 and Hexagon), the header kernel
+compiled under the workload's flags as the stage's card says. Every key counted C++20 and C++23
+equal to C++17.
+
+| Key | `recursive` |
+|---|--:|
+| `m4-softfp` | 121,018,351 |
+| `m4f` | 4,198,120 |
+| `m33` | 4,325,126 |
+| `m55` | 3,698,128 |
+| `hexagon` | 1,369,906 packets |
+| `host` | 5,887,167 (inside `catenae_host_counted()`) |
+
+### What a recursive design's make() costs
+
+Each `callmax_design_` workload brackets every `make()` it calls and counts the worst single
+call (`bench/icount/design_main.cpp`, QEMU keys only): the cookbook's nine at 0.05 and 0.2, and
+each Butterworth at 0.45 / 2, 4, 8 and 16, in float. The stack is the `designers` probe's
+(`bench/probe/designers_probe.cpp`): the static worst path, then the painted high-water, in
+bytes. Both from Bench run [45837885047](https://github.com/tap/catenae/actions/runs/45837885047);
+the checksums of what `make()` returned are the same on every key. The M4F and M33 pay for
+software double, as the soft-float M4 does; the M55 has it in hardware.
+
+| `make()` | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` | stack, `m33` |
+|---|--:|--:|--:|--:|--:|--:|
+| cookbook, one section | 28,069,964 | 28,115,880 | 28,189,561 | 919,750 | 5,866,129 packets | 1,380 / 1,056 |
+| Butterworth, order 2 | 9,721,879 | 9,740,915 | 9,788,708 | 311,692 | 1,456,174 packets | 1,300 / 992 |
+| Butterworth, order 4 | 16,627,420 | 16,661,667 | 16,757,532 | 481,214 | 2,080,746 packets | 2,008 / 2,000 |
+| Butterworth, order 8 | 32,722,345 | 32,782,041 | 32,954,144 | 900,043 | 3,329,290 packets | 6,120 / 6,112 |
+| Butterworth, order 16 | 74,346,227 | 74,436,657 | 74,826,914 | 2,249,441 | 6,743,188 packets | 22,008 / 22,000 |

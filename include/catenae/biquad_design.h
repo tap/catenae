@@ -26,14 +26,14 @@
 /// | Tails       | of the coefficients in S, plus one frame per section: exact, where DspTap's    |
 /// |             | binary search over A^(2^j) finds ln(S's largest) + ln ||A^n|| below ln(S's    |
 /// |             | smallest normal); practical, where it finds ln ||A^n|| below ln 1e-6 (120 dB)  |
-/// | Limits      | ||A^n|| rises and falls within a period of the slowest pole, so the search's n |
-/// |             | lies between the first frame the bound holds and the last it fails (18 frames |
-/// |             | before the last at order 8, 0.01, float); from a full-scale state the decay is |
-/// |             | far quicker than the bound, which starts at S's largest value                 |
+/// | Limits      | ||A^n|| rises and falls within the slowest pole's period: the search's n lies   |
+/// |             | between the first frame the bound holds and the last it fails (18 frames short |
+/// |             | at order 8, 0.01, float); from full scale a state decays far sooner than that  |
 /// | Residue     | 256 times S's smallest normal after the exact tail (DspTap's bound), pinned at |
 /// |             | the battery's designs under either flush-to-zero setting                      |
-/// | Cost        | `make()` runs the tail search in the caller's frame, outside the audio path: |
-/// |             | its stack and instructions per section count are in `bench/README.md`         |
+/// | Cost        | `make()` runs in the caller's frame, outside the audio path. Cortex-M33, worst |
+/// |             | call (Bench run 45837885047): a cookbook section 28.2 M instructions, 1,380 B of |
+/// |             | stack; order 2, 4, 8, 16: 9.8, 16.8, 33.0, 74.8 M, 1,300, 2,008, 6,120, 22,008 B |
 /// | Table       | `from_table(rows, numbers)` checks, exactly in S, each row's poles inside the |
 /// |             | unit circle and its coefficients finite: a failing table does not initialise a |
 /// |             | constant, and one met at run time reaches `check::table_rejected`              |

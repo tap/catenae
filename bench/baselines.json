@@ -1,41 +1,72 @@
 {
   "hexagon": {
+    "callmax_design_butterworth_16": 6743188,
+    "callmax_design_butterworth_2": 1456174,
+    "callmax_design_butterworth_4": 2080746,
+    "callmax_design_butterworth_8": 3329290,
+    "callmax_design_cookbook": 5866129,
     "callmax_version": 5,
     "edges": 6227294,
+    "recursive": 1369906,
     "strip_chain": 1030150,
     "strip_graph": 1135888,
     "version": 20886
   },
   "host": {
     "edges": 13072650,
+    "recursive": 5887167,
     "strip_chain": 2711175,
     "strip_graph": 3051166,
     "version": 21013
   },
   "m33": {
+    "callmax_design_butterworth_16": 74826914,
+    "callmax_design_butterworth_2": 9788708,
+    "callmax_design_butterworth_4": 16757532,
+    "callmax_design_butterworth_8": 32954144,
+    "callmax_design_cookbook": 28189561,
     "callmax_version": 9,
     "edges": 12963516,
+    "recursive": 4325126,
     "strip_chain": 3656695,
     "strip_graph": 3453430,
     "version": 31916
   },
   "m4-softfp": {
+    "callmax_design_butterworth_16": 74346227,
+    "callmax_design_butterworth_2": 9721879,
+    "callmax_design_butterworth_4": 16627420,
+    "callmax_design_butterworth_8": 32722345,
+    "callmax_design_cookbook": 28069964,
     "callmax_version": 9,
     "edges": 83590529,
+    "recursive": 121018351,
     "strip_chain": 23888126,
     "strip_graph": 23446864,
     "version": 31871
   },
   "m4f": {
+    "callmax_design_butterworth_16": 74436657,
+    "callmax_design_butterworth_2": 9740915,
+    "callmax_design_butterworth_4": 16661667,
+    "callmax_design_butterworth_8": 32782041,
+    "callmax_design_cookbook": 28115880,
     "callmax_version": 9,
     "edges": 13090510,
+    "recursive": 4198120,
     "strip_chain": 3592666,
     "strip_graph": 3453400,
     "version": 31887
   },
   "m55": {
+    "callmax_design_butterworth_16": 2249441,
+    "callmax_design_butterworth_2": 311692,
+    "callmax_design_butterworth_4": 481214,
+    "callmax_design_butterworth_8": 900043,
+    "callmax_design_cookbook": 919750,
     "callmax_version": 9,
     "edges": 11819295,
+    "recursive": 3698128,
     "strip_chain": 2339702,
     "strip_graph": 2440434,
     "version": 31921

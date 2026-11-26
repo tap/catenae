@@ -9,6 +9,7 @@
 // Verifies CAT-STAGE-001.
 #include <cstdint>
 
+#include "catenae/biquad.h"
 #include "catenae/chain.h"
 #include "catenae/convert.h"
 #include "catenae/delay.h"
@@ -51,6 +52,8 @@ namespace {
     static_assert(contract<catenae::parallel<catenae::deinterleave_q31<2>, catenae::deinterleave_q31<1>,
                                              catenae::align::by_caller>>(),
                   "parallel in q31, planar out, aligned by the caller");
+    static_assert(contract<catenae::biquad_q31<2>>(), "biquad in q31: its contract");
+    static_assert(contract<catenae::biquad_q31<1, 4>>(), "a cascade of four in q31: its contract");
     static_assert(contract<catenae::dither_q31<2, 24>>(), "dither in q31");
     static_assert(contract<catenae::mix_q31<2, 1>>(), "mix in q31: its contract, Q1.30 coefficients");
     static_assert(contract<catenae::unpack<catenae::wire::s24le_packed, 2>>(), "unpack to q31");

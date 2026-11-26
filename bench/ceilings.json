@@ -108,6 +108,60 @@
         "recorded": 1744
       }
     },
+    "designers": {
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 64,
+        "recorded": 36
+      },
+      "core.text": {
+        "ceiling": 5440,
+        "recorded": 5276
+      },
+      "image.bss": {
+        "ceiling": 320,
+        "recorded": 284
+      },
+      "image.data": {
+        "ceiling": 64,
+        "recorded": 4
+      },
+      "image.rodata": {
+        "ceiling": 11712,
+        "recorded": 11344
+      },
+      "image.text": {
+        "ceiling": 49280,
+        "recorded": 47812
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.text": {
+        "ceiling": 9088,
+        "recorded": 8820
+      }
+    },
     "fft": {
       "core.bss": {
         "ceiling": 0,
@@ -160,6 +214,60 @@
       "unit.text": {
         "ceiling": 256,
         "recorded": 232
+      }
+    },
+    "recursive": {
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 896,
+        "recorded": 860
+      },
+      "image.data": {
+        "ceiling": 64,
+        "recorded": 4
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 104
+      },
+      "image.text": {
+        "ceiling": 8704,
+        "recorded": 8404
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.bss": {
+        "ceiling": 640,
+        "recorded": 572
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 128,
+        "recorded": 68
+      },
+      "unit.text": {
+        "ceiling": 1344,
+        "recorded": 1264
       }
     },
     "strip": {
@@ -506,6 +614,124 @@
         "recorded": 726
       }
     },
+    "designers": {
+      "code.butterworth_16": {
+        "ceiling": 17856,
+        "recorded": 17322
+      },
+      "code.butterworth_2": {
+        "ceiling": 17728,
+        "recorded": 17160
+      },
+      "code.butterworth_4": {
+        "ceiling": 17664,
+        "recorded": 17122
+      },
+      "code.butterworth_8": {
+        "ceiling": 17792,
+        "recorded": 17248
+      },
+      "code.cookbook": {
+        "ceiling": 22848,
+        "recorded": 22154
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 4096,
+        "recorded": 3968
+      },
+      "image.bss": {
+        "ceiling": 1088,
+        "recorded": 1016
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 640,
+        "recorded": 616
+      },
+      "image.text": {
+        "ceiling": 36800,
+        "recorded": 35728
+      },
+      "stack.butterworth_16.measured": {
+        "ceiling": 22664,
+        "recorded": 22000
+      },
+      "stack.butterworth_16.static": {
+        "ceiling": 22672,
+        "recorded": 22008
+      },
+      "stack.butterworth_2.measured": {
+        "ceiling": 1024,
+        "recorded": 992
+      },
+      "stack.butterworth_2.static": {
+        "ceiling": 1344,
+        "recorded": 1300
+      },
+      "stack.butterworth_4.measured": {
+        "ceiling": 2064,
+        "recorded": 2000
+      },
+      "stack.butterworth_4.static": {
+        "ceiling": 2072,
+        "recorded": 2008
+      },
+      "stack.butterworth_8.measured": {
+        "ceiling": 6296,
+        "recorded": 6112
+      },
+      "stack.butterworth_8.static": {
+        "ceiling": 6304,
+        "recorded": 6120
+      },
+      "stack.cookbook.measured": {
+        "ceiling": 1088,
+        "recorded": 1056
+      },
+      "stack.cookbook.static": {
+        "ceiling": 1424,
+        "recorded": 1380
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 32
+      },
+      "unit.text": {
+        "ceiling": 6784,
+        "recorded": 6576
+      }
+    },
     "fft": {
       "code.forward": {
         "ceiling": 4032,
@@ -598,6 +824,96 @@
       "unit.text": {
         "ceiling": 192,
         "recorded": 184
+      }
+    },
+    "recursive": {
+      "code.process": {
+        "ceiling": 704,
+        "recorded": 674
+      },
+      "code.reset": {
+        "ceiling": 256,
+        "recorded": 210
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 1664,
+        "recorded": 1588
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 192,
+        "recorded": 156
+      },
+      "image.text": {
+        "ceiling": 8320,
+        "recorded": 8060
+      },
+      "sizeof.state": {
+        "ceiling": 64,
+        "recorded": 56
+      },
+      "sizeof.workspace": {
+        "ceiling": 576,
+        "recorded": 516
+      },
+      "stack.process.measured": {
+        "ceiling": 136,
+        "recorded": 128
+      },
+      "stack.process.static": {
+        "ceiling": 136,
+        "recorded": 128
+      },
+      "stack.reset.measured": {
+        "ceiling": 32,
+        "recorded": 24
+      },
+      "stack.reset.static": {
+        "ceiling": 32,
+        "recorded": 24
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 640,
+        "recorded": 572
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 128,
+        "recorded": 68
+      },
+      "unit.text": {
+        "ceiling": 768,
+        "recorded": 700
       }
     },
     "strip": {
@@ -1012,6 +1328,124 @@
         "recorded": 734
       }
     },
+    "designers": {
+      "code.butterworth_16": {
+        "ceiling": 18176,
+        "recorded": 17612
+      },
+      "code.butterworth_2": {
+        "ceiling": 17920,
+        "recorded": 17386
+      },
+      "code.butterworth_4": {
+        "ceiling": 17984,
+        "recorded": 17440
+      },
+      "code.butterworth_8": {
+        "ceiling": 18112,
+        "recorded": 17576
+      },
+      "code.cookbook": {
+        "ceiling": 22848,
+        "recorded": 22144
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 3840,
+        "recorded": 3678
+      },
+      "image.bss": {
+        "ceiling": 1088,
+        "recorded": 1016
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 640,
+        "recorded": 616
+      },
+      "image.text": {
+        "ceiling": 36800,
+        "recorded": 35672
+      },
+      "stack.butterworth_16.measured": {
+        "ceiling": 22664,
+        "recorded": 22000
+      },
+      "stack.butterworth_16.static": {
+        "ceiling": 22672,
+        "recorded": 22008
+      },
+      "stack.butterworth_2.measured": {
+        "ceiling": 1032,
+        "recorded": 1000
+      },
+      "stack.butterworth_2.static": {
+        "ceiling": 1336,
+        "recorded": 1292
+      },
+      "stack.butterworth_4.measured": {
+        "ceiling": 2056,
+        "recorded": 1992
+      },
+      "stack.butterworth_4.static": {
+        "ceiling": 2064,
+        "recorded": 2000
+      },
+      "stack.butterworth_8.measured": {
+        "ceiling": 6296,
+        "recorded": 6112
+      },
+      "stack.butterworth_8.static": {
+        "ceiling": 6304,
+        "recorded": 6120
+      },
+      "stack.cookbook.measured": {
+        "ceiling": 1088,
+        "recorded": 1056
+      },
+      "stack.cookbook.static": {
+        "ceiling": 1408,
+        "recorded": 1364
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 32
+      },
+      "unit.text": {
+        "ceiling": 6912,
+        "recorded": 6668
+      }
+    },
     "fft": {
       "code.forward": {
         "ceiling": 5824,
@@ -1104,6 +1538,96 @@
       "unit.text": {
         "ceiling": 192,
         "recorded": 184
+      }
+    },
+    "recursive": {
+      "code.process": {
+        "ceiling": 2240,
+        "recorded": 2118
+      },
+      "code.reset": {
+        "ceiling": 256,
+        "recorded": 210
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 1664,
+        "recorded": 1588
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 192,
+        "recorded": 156
+      },
+      "image.text": {
+        "ceiling": 9728,
+        "recorded": 9432
+      },
+      "sizeof.state": {
+        "ceiling": 64,
+        "recorded": 56
+      },
+      "sizeof.workspace": {
+        "ceiling": 576,
+        "recorded": 516
+      },
+      "stack.process.measured": {
+        "ceiling": 192,
+        "recorded": 180
+      },
+      "stack.process.static": {
+        "ceiling": 192,
+        "recorded": 184
+      },
+      "stack.reset.measured": {
+        "ceiling": 24,
+        "recorded": 20
+      },
+      "stack.reset.static": {
+        "ceiling": 24,
+        "recorded": 20
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 640,
+        "recorded": 572
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 128,
+        "recorded": 68
+      },
+      "unit.text": {
+        "ceiling": 768,
+        "recorded": 730
       }
     },
     "strip": {
@@ -1518,6 +2042,124 @@
         "recorded": 730
       }
     },
+    "designers": {
+      "code.butterworth_16": {
+        "ceiling": 17856,
+        "recorded": 17322
+      },
+      "code.butterworth_2": {
+        "ceiling": 17664,
+        "recorded": 17088
+      },
+      "code.butterworth_4": {
+        "ceiling": 17664,
+        "recorded": 17122
+      },
+      "code.butterworth_8": {
+        "ceiling": 17792,
+        "recorded": 17248
+      },
+      "code.cookbook": {
+        "ceiling": 22848,
+        "recorded": 22134
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 4096,
+        "recorded": 3968
+      },
+      "image.bss": {
+        "ceiling": 1088,
+        "recorded": 1016
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 640,
+        "recorded": 616
+      },
+      "image.text": {
+        "ceiling": 36992,
+        "recorded": 35864
+      },
+      "stack.butterworth_16.measured": {
+        "ceiling": 22664,
+        "recorded": 22000
+      },
+      "stack.butterworth_16.static": {
+        "ceiling": 22672,
+        "recorded": 22008
+      },
+      "stack.butterworth_2.measured": {
+        "ceiling": 1024,
+        "recorded": 992
+      },
+      "stack.butterworth_2.static": {
+        "ceiling": 1344,
+        "recorded": 1300
+      },
+      "stack.butterworth_4.measured": {
+        "ceiling": 2064,
+        "recorded": 2000
+      },
+      "stack.butterworth_4.static": {
+        "ceiling": 2072,
+        "recorded": 2008
+      },
+      "stack.butterworth_8.measured": {
+        "ceiling": 6296,
+        "recorded": 6112
+      },
+      "stack.butterworth_8.static": {
+        "ceiling": 6304,
+        "recorded": 6120
+      },
+      "stack.cookbook.measured": {
+        "ceiling": 1088,
+        "recorded": 1056
+      },
+      "stack.cookbook.static": {
+        "ceiling": 1424,
+        "recorded": 1380
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 32
+      },
+      "unit.text": {
+        "ceiling": 6784,
+        "recorded": 6576
+      }
+    },
     "fft": {
       "code.forward": {
         "ceiling": 4032,
@@ -1610,6 +2252,96 @@
       "unit.text": {
         "ceiling": 192,
         "recorded": 184
+      }
+    },
+    "recursive": {
+      "code.process": {
+        "ceiling": 704,
+        "recorded": 674
+      },
+      "code.reset": {
+        "ceiling": 256,
+        "recorded": 210
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 1664,
+        "recorded": 1588
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 192,
+        "recorded": 156
+      },
+      "image.text": {
+        "ceiling": 8512,
+        "recorded": 8216
+      },
+      "sizeof.state": {
+        "ceiling": 64,
+        "recorded": 56
+      },
+      "sizeof.workspace": {
+        "ceiling": 576,
+        "recorded": 516
+      },
+      "stack.process.measured": {
+        "ceiling": 136,
+        "recorded": 128
+      },
+      "stack.process.static": {
+        "ceiling": 136,
+        "recorded": 128
+      },
+      "stack.reset.measured": {
+        "ceiling": 24,
+        "recorded": 20
+      },
+      "stack.reset.static": {
+        "ceiling": 24,
+        "recorded": 20
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 640,
+        "recorded": 572
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 128,
+        "recorded": 68
+      },
+      "unit.text": {
+        "ceiling": 768,
+        "recorded": 700
       }
     },
     "strip": {
@@ -2024,6 +2756,124 @@
         "recorded": 742
       }
     },
+    "designers": {
+      "code.butterworth_16": {
+        "ceiling": 9728,
+        "recorded": 9416
+      },
+      "code.butterworth_2": {
+        "ceiling": 9408,
+        "recorded": 9072
+      },
+      "code.butterworth_4": {
+        "ceiling": 9536,
+        "recorded": 9224
+      },
+      "code.butterworth_8": {
+        "ceiling": 9664,
+        "recorded": 9338
+      },
+      "code.cookbook": {
+        "ceiling": 11776,
+        "recorded": 11398
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 2688,
+        "recorded": 2576
+      },
+      "image.bss": {
+        "ceiling": 1088,
+        "recorded": 1016
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 9408,
+        "recorded": 9116
+      },
+      "image.text": {
+        "ceiling": 24704,
+        "recorded": 23936
+      },
+      "stack.butterworth_16.measured": {
+        "ceiling": 22456,
+        "recorded": 21800
+      },
+      "stack.butterworth_16.static": {
+        "ceiling": 22480,
+        "recorded": 21824
+      },
+      "stack.butterworth_2.measured": {
+        "ceiling": 824,
+        "recorded": 800
+      },
+      "stack.butterworth_2.static": {
+        "ceiling": 1240,
+        "recorded": 1200
+      },
+      "stack.butterworth_4.measured": {
+        "ceiling": 1856,
+        "recorded": 1800
+      },
+      "stack.butterworth_4.static": {
+        "ceiling": 1880,
+        "recorded": 1824
+      },
+      "stack.butterworth_8.measured": {
+        "ceiling": 6088,
+        "recorded": 5904
+      },
+      "stack.butterworth_8.static": {
+        "ceiling": 6112,
+        "recorded": 5928
+      },
+      "stack.cookbook.measured": {
+        "ceiling": 896,
+        "recorded": 864
+      },
+      "stack.cookbook.static": {
+        "ceiling": 1328,
+        "recorded": 1288
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 32
+      },
+      "unit.text": {
+        "ceiling": 5888,
+        "recorded": 5678
+      }
+    },
     "fft": {
       "code.forward": {
         "ceiling": 4032,
@@ -2116,6 +2966,96 @@
       "unit.text": {
         "ceiling": 256,
         "recorded": 196
+      }
+    },
+    "recursive": {
+      "code.process": {
+        "ceiling": 768,
+        "recorded": 694
+      },
+      "code.reset": {
+        "ceiling": 256,
+        "recorded": 210
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 1664,
+        "recorded": 1588
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 192,
+        "recorded": 156
+      },
+      "image.text": {
+        "ceiling": 8384,
+        "recorded": 8084
+      },
+      "sizeof.state": {
+        "ceiling": 64,
+        "recorded": 56
+      },
+      "sizeof.workspace": {
+        "ceiling": 576,
+        "recorded": 516
+      },
+      "stack.process.measured": {
+        "ceiling": 136,
+        "recorded": 128
+      },
+      "stack.process.static": {
+        "ceiling": 136,
+        "recorded": 128
+      },
+      "stack.reset.measured": {
+        "ceiling": 32,
+        "recorded": 24
+      },
+      "stack.reset.static": {
+        "ceiling": 32,
+        "recorded": 24
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 640,
+        "recorded": 572
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 128,
+        "recorded": 68
+      },
+      "unit.text": {
+        "ceiling": 768,
+        "recorded": 722
       }
     },
     "strip": {

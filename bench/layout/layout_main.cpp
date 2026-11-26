@@ -12,6 +12,8 @@
 //                          1 delay: catenae::delay of 32 frames
 //                          2 map: catenae::map halving each value (stateless)
 //                          3 strip: the three as one chain, as examples/strip.h writes it
+//                          4 biquad: catenae::butterworth of order 4 at 0.1, from its table
+//                            (examples/lowpass_table.h): the recursive stage's row
 //   CATENAE_LAYOUT_CH      channels: 1, 2, 6 (5.1) or 12 (7.1.4)
 //   CATENAE_LAYOUT_PLANAR  0: one configuration of Ch channels over interleaved frames
 //                          1: Ch mono configurations, each with its own state, each over its
@@ -43,6 +45,11 @@
 #include "catenae/delay.h"
 #include "catenae/gain.h"
 #include "catenae/map.h"
+
+#if CATENAE_LAYOUT_KIND == 4
+#include "catenae/biquad.h"
+#include "lowpass_table.h"
+#endif
 
 #ifndef CATENAE_LAYOUT_KIND
 #define CATENAE_LAYOUT_KIND 0
@@ -82,8 +89,10 @@ namespace {
         return catenae::chain(catenae::map<Ch, halve>{halve{}});
 #elif CATENAE_LAYOUT_KIND == 3
         return catenae::gain<Ch>{0.5f, 96} | catenae::delay<Ch, 32>{} | catenae::map<Ch, halve>{halve{}};
+#elif CATENAE_LAYOUT_KIND == 4
+        return catenae::chain(catenae::butterworth<Ch, 4>{example::lowpass_at_0_1});
 #else
-#error "CATENAE_LAYOUT_KIND: 0 gain, 1 delay, 2 map or 3 strip"
+#error "CATENAE_LAYOUT_KIND: 0 gain, 1 delay, 2 map, 3 strip or 4 biquad"
 #endif
     }
 

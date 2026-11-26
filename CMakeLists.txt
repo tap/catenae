@@ -44,6 +44,18 @@ if(NOT CATENAE_CHECKS MATCHES "^(boundary|audit)$")
     message(FATAL_ERROR "CATENAE_CHECKS is boundary or audit (got '${CATENAE_CHECKS}')")
 endif()
 string(TOUPPER "CATENAE_CHECKS_${CATENAE_CHECKS}" CATENAE_CHECKS_VALUE)
+# The host's flush-to-zero setting (AOU-008): on, the default, or off. It is written into
+# catenae/config.h; at the audit level a recursive stage checks the thread's setting against it.
+set(CATENAE_FLUSH_TO_ZERO on CACHE STRING "whether the host flushes subnormals to zero: on or off")
+set_property(CACHE CATENAE_FLUSH_TO_ZERO PROPERTY STRINGS on off)
+if(NOT CATENAE_FLUSH_TO_ZERO MATCHES "^(on|off)$")
+    message(FATAL_ERROR "CATENAE_FLUSH_TO_ZERO is on or off (got '${CATENAE_FLUSH_TO_ZERO}')")
+endif()
+if(CATENAE_FLUSH_TO_ZERO STREQUAL "on")
+    set(CATENAE_FLUSH_TO_ZERO_VALUE 1)
+else()
+    set(CATENAE_FLUSH_TO_ZERO_VALUE 0)
+endif()
 set(CATENAE_CONFIG_WRITER "CMake")
 
 # The FFT back end of each sample type (D28, PLAN.md section 7.2), each a choice from its own list
@@ -83,8 +95,8 @@ if(CATENAE_AMALGAMATION)
     set(_catenae_amalgamation "${PROJECT_BINARY_DIR}/amalgamation")
     execute_process(
         COMMAND "${Python3_EXECUTABLE}" "${PROJECT_SOURCE_DIR}/scripts/amalgamate.py" --out "${_catenae_amalgamation}"
-                --checks "${CATENAE_CHECKS}" --fft-f32 "${CATENAE_FFT_F32}" --fft-f64 "${CATENAE_FFT_F64}"
-                --fft-q15 "${CATENAE_FFT_Q15}" --fft-q31 "${CATENAE_FFT_Q31}"
+                --checks "${CATENAE_CHECKS}" --flush-to-zero "${CATENAE_FLUSH_TO_ZERO}" --fft-f32 "${CATENAE_FFT_F32}"
+                --fft-f64 "${CATENAE_FFT_F64}" --fft-q15 "${CATENAE_FFT_Q15}" --fft-q31 "${CATENAE_FFT_Q31}"
         COMMAND_ERROR_IS_FATAL ANY)
     set(_catenae_sources "${_catenae_amalgamation}/catenae.cpp")
     set(_catenae_include "${_catenae_amalgamation}/include")

@@ -7,10 +7,10 @@
 # catenae_layout_ --report-only, which prints each count and each planar / interleaved ratio
 # and fails only when a binary yields no count.
 #
-# Scenarios: <kind>_f32_ch<C>_<i|p>, kind in {gain, delay, map, strip}, C in {1, 2, 6, 12}; at
+# Scenarios: <kind>_f32_ch<C>_<i|p>, kind in {gain, delay, map, strip, biquad}, C in {1, 2, 6, 12}; at
 # one channel the two layouts are the same buffer, so only _i is built. Entries are name:id
 # (layout_main.cpp's CATENAE_LAYOUT_KIND).
-set(_catenae_layout_kinds gain:0 delay:1 map:2 strip:3)
+set(_catenae_layout_kinds gain:0 delay:1 map:2 strip:3 biquad:4)
 set(_catenae_layout_channels 1 2 6 12)
 
 foreach(_kind IN LISTS _catenae_layout_kinds)
@@ -31,6 +31,7 @@ foreach(_kind IN LISTS _catenae_layout_kinds)
             target_compile_definitions(${_target} PRIVATE CATENAE_LAYOUT_KIND=${_kid} CATENAE_LAYOUT_CH=${_ch}
                                                           CATENAE_LAYOUT_PLANAR=${_planar})
             target_link_libraries(${_target} PRIVATE catenae_bench_support)
+            target_include_directories(${_target} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
             if(NOT _catenae_bare_metal)
                 add_test(NAME bench.layout.${_kname}_f32_ch${_ch}_${_lname}
                          COMMAND ${CMAKE_COMMAND} -DBINARY=$<TARGET_FILE:${_target}>

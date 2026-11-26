@@ -101,7 +101,11 @@ endfunction()
 catenae_add_gtest_executable(catenae_tests
     SOURCES
         support/catenae_test/check_trap.cpp
+        support/catenae_test/floating_point.cpp
         test_analyzer_traits.cpp
+        test_biquad.cpp
+        test_biquad_design.cpp
+        test_biquad_kernel.cpp
         test_chain.cpp
         test_chain_composition.cpp
         test_check.cpp

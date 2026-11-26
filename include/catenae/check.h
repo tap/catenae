@@ -54,7 +54,7 @@ namespace catenae {
             fifo_short         = 68, ///< steady<>'s FIFO ran short
             fifo_over          = 69, ///< steady<>'s FIFO ran over
             pull_above_staging = 70, ///< a pull larger than fed_by's staging
-            flush_to_zero      = 71, ///< the host's flush-to-zero setting (the check arrives at C3)
+            flush_to_zero      = 71, ///< the host's flush-to-zero setting is not the build's (AOU-008)
             buffers_overlap    = 72, ///< a stage's in and out that overlap without being one buffer
         };
 

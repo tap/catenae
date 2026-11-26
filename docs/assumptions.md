@@ -14,7 +14,7 @@ level (PLAN.md section 8). An identifier is never reused.
 | AOU-005 | A junction's configuration does not change while either side runs. | no |
 | AOU-006 | A caller that pushes and pulls a `handoff` by hand in fixed blocks has checked `serves()` for them; `fed_by` asserts it where it makes the pull. | where catenae makes the pull |
 | AOU-007 | `in` and `out` do not overlap; a stage that `is_in_place` may also be given one buffer as both. | at audit, in `gain`, whose loops rely on it (`check::buffers_overlap`) |
-| AOU-008 | The host's flush-to-zero setting is the one the build states. | at audit, `check::flush_to_zero` (from C3) |
+| AOU-008 | The host's flush-to-zero setting is the one the build states (`CATENAE_FLUSH_TO_ZERO`, on by default). | at audit, by every recursive stage's `run`, `check::flush_to_zero` |
 | AOU-009 | `check_failed` does not return. | `[[noreturn]]`: the compiler warns at a return |
 | AOU-010 | A setter is called between calls, never during one. | no |
 | AOU-011 | The amalgamation is built with floating-point contraction off. | no |

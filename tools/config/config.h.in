@@ -3,8 +3,9 @@
  *
  * Generated from tools/config/config.h.in by @CATENAE_CONFIG_WRITER@. Do not edit: choose the
  * level with the build's CATENAE_CHECKS option (CMake, waf) or scripts/amalgamate.py --checks,
- * and each sample type's FFT back end with CATENAE_FFT_F32, _F64, _Q15 and _Q31 (or --fft-f32
- * and the like). catenae/detail/abi.h reads it and spells the level and the four choices into
+ * and the host's flush-to-zero setting with CATENAE_FLUSH_TO_ZERO (--flush-to-zero), and each
+ * sample type's FFT back end with CATENAE_FFT_F32, _F64, _Q15 and _Q31 (or --fft-f32 and the
+ * like). catenae/detail/abi.h reads it and spells the level and the four FFT choices into
  * catenae's inline namespace, so a file built under one configuration cannot link against code
  * built under another.
  */
@@ -17,6 +18,12 @@
 
 /* This build's level. */
 #define CATENAE_CHECKS @CATENAE_CHECKS_VALUE@
+
+/* Whether the host flushes subnormal results to zero on the threads that run catenae's
+ * recursive stages: 1 (on, the default) or 0 (off). The library never writes the control
+ * register; at the audit level a recursive stage reads it and checks it against this
+ * (AOU-008, check::flush_to_zero). */
+#define CATENAE_FLUSH_TO_ZERO @CATENAE_FLUSH_TO_ZERO_VALUE@
 
 /* The FFT back ends (D28, PLAN.md section 7.2): none leaves that type's FFT out of the build. */
 #define CATENAE_FFT_NONE 1

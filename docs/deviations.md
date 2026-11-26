@@ -17,7 +17,7 @@ last column, and in a comment citing the entry where it is.
 | DEV-002 | A compiler extension: inlining control | kernels and checks inline where they are called, cold paths stay out of line | — | `catenae/compiler.h` |
 | DEV-003 | A compiler extension: `restrict` | a kernel's pointers do not alias, and the compiler is told so | — | `catenae/compiler.h`; used by `catenae/gain.h`'s steady loops, on a stage's `in` and `out` (AOU-007, checked at audit) |
 | DEV-004 | A compiler extension: atomic operations on a plain word | a `std::atomic` member would give a junction's state a constructor from C++20 on | — | `catenae/compiler.h` |
-| DEV-005 | A compiler extension: reading the floating-point control register | the audit check of the host's flush-to-zero setting | — | from C3 |
+| DEV-005 | A compiler extension: reading the floating-point control register | the audit check of the host's flush-to-zero setting | — | `catenae/compiler.h`; read by `catenae/biquad.h`'s `run` at audit |
 | DEV-006 | `memcpy` bit casts, and the `memset` behind `rests_at_zero` | C++17 has no `std::bit_cast`; zeroing a plain state in place builds no temporary | — | `catenae/stage_traits.h`; `catenae/sanitize.h`, which reads a sample's exponent through its bits |
 | DEV-007 | A shift of a signed value | the fixed-point formats scale by shifting; one helper does every such shift, and shifts only values that are not negative, so none is implementation-defined | — | `catenae/detail/shift.h` |
 | DEV-008 | Guard-clause early returns, against a single exit point | a precondition handled first reads more plainly than a nested body | — | where a function has one |

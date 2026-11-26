@@ -60,6 +60,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", required=True, type=pathlib.Path)
     ap.add_argument("--checks", choices=["boundary", "audit"], default="boundary")
+    ap.add_argument("--flush-to-zero", choices=["on", "off"], default="on")
     for name, choices in FFT_CHOICES.items():
         ap.add_argument(f"--fft-{name}", choices=choices, default="own",
                         help=f"the {name} FFT back end (PLAN.md section 7.2) [default: own]")
@@ -81,6 +82,7 @@ def main() -> int:
     template = (REPO / "tools" / "config" / "config.h.in").read_text()
     config = template.replace("@CATENAE_CONFIG_WRITER@", "scripts/amalgamate.py")
     config = config.replace("@CATENAE_CHECKS_VALUE@", f"CATENAE_CHECKS_{args.checks.upper()}")
+    config = config.replace("@CATENAE_FLUSH_TO_ZERO_VALUE@", "1" if args.flush_to_zero == "on" else "0")
     for name in FFT_CHOICES:
         choice = getattr(args, f"fft_{name}")
         if choice in LATER:

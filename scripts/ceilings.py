@@ -61,7 +61,9 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 # The probe sets (bench/CMakeLists.txt, catenae_add_probe) and each one's calls: the stack
 # probe prints CATENAE_STACK <call> <bytes> and roots each call at catenae_probe::probe_<call>.
 PROBES = {"version": ["version"], "strip": ["reset", "process"], "strip_object": ["process"],
-          "c1": ["reset", "process"], "c2": ["reset", "process"], "fft": ["forward", "inverse", "make"]}
+          "c1": ["reset", "process"], "c2": ["reset", "process"], "fft": ["forward", "inverse", "make"],
+          "recursive": ["reset", "process"],
+          "designers": ["cookbook", "butterworth_2", "butterworth_4", "butterworth_8", "butterworth_16"]}
 # A call's root, catenae_probe::probe_<call>, as a mangled name or a call graph's title: anchored,
 # so a static constructor whose name embeds the root's (_GLOBAL__sub_I_...) is not taken for it.
 ROOT = r"(?:^|:)_ZN13catenae_probe\d+probe_{call}E"
@@ -70,7 +72,7 @@ ROOT = r"(?:^|:)_ZN13catenae_probe\d+probe_{call}E"
 # probe whose start-up cannot be bounded fails.
 UNBOUNDED_STARTUP = {"strip_object": "operator new calls the new-handler through a pointer"}
 # The probe sets that call the compiled core (the rest are header templates alone).
-CALLS_CORE = {"version", "c2", "fft"}
+CALLS_CORE = {"version", "c2", "fft", "designers"}
 # The keys, as the ratchet names them, and their QEMU machines (Arm) or none (Hexagon).
 KEYS = {"m4-softfp": "mps2-an386", "m4f": "mps2-an386", "m33": "mps2-an505", "m55": "mps3-an547",
         "hexagon": None}

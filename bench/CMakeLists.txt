@@ -79,6 +79,15 @@ catenae_add_icount(fft_f32_2048 icount/fft_main.cpp DEFINITIONS CATENAE_FFT_T=fl
 catenae_add_icount(fft_f64_512 icount/fft_main.cpp DEFINITIONS CATENAE_FFT_T=double CATENAE_FFT_N=512)
 catenae_add_icount(callmax_fft_f32_512 icount/fft_main.cpp
                    DEFINITIONS CATENAE_FFT_T=float CATENAE_FFT_N=512 CATENAE_ICOUNT_BRACKET=1)
+catenae_add_icount(recursive icount/recursive_main.cpp)
+target_include_directories(catenae_icount_recursive PRIVATE "${PROJECT_SOURCE_DIR}/examples")
+# What one recursive make() costs, the worst single call (QEMU keys only): its card's numbers.
+catenae_add_icount(callmax_design_cookbook icount/design_main.cpp DEFINITIONS CATENAE_DESIGN_SECTIONS=0)
+foreach(_order IN ITEMS 2 4 8 16)
+    math(EXPR _sections "${_order} / 2")
+    catenae_add_icount(callmax_design_butterworth_${_order} icount/design_main.cpp
+                       DEFINITIONS CATENAE_DESIGN_SECTIONS=${_sections})
+endforeach()
 
 # --- The layout benchmark: interleaved against planar, informational (bench/layout/) --------
 add_subdirectory(layout)
@@ -111,7 +120,9 @@ catenae_add_probe(c2 probe/c2_probe.cpp)
 # C4's: a float transform of 512 both ways from the constant tables, and a plan made at run
 # time; the FFT family's image for the link-stage gate.
 catenae_add_probe(fft probe/fft_probe.cpp)
-foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip)
+catenae_add_probe(recursive probe/recursive_probe.cpp)
+catenae_add_probe(designers probe/designers_probe.cpp)
+foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip catenae_probe_recursive catenae_stack_recursive)
     target_include_directories(${_probe} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 
@@ -146,6 +157,9 @@ int main() { return 0; }" CATENAE_HARDWARE_DOUBLE)
     add_test(NAME link_gate.FftImageHasNoSoftwareDouble
              COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
                      $<TARGET_FILE:catenae_probe_fft>)
+    add_test(NAME link_gate.RecursiveImageHasNoSoftwareDouble
+             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
+                     $<TARGET_FILE:catenae_probe_recursive>)
     if(CATENAE_HARDWARE_DOUBLE)
         add_test(NAME link_gate.HardwareDoubleIsInvisible
                  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py

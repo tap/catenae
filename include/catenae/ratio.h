@@ -6,13 +6,17 @@
 /// | Fields    | `up`, `down`: unsigned 32-bit; `down` is never 0                             |
 /// | Reduced   | `reduce(r)` divides both by their gcd; a stage's `rate_ratio` is reduced   |
 /// | Arithmetic| `+`, `-` (never below zero), `*`, comparison, all `constexpr` and exact   |
-/// | Rationale | D18, D35, D39                                                                |
+/// | As a type | `ratio_t<Up, Down>::value`, reduced: C++17 takes no class as a template argument |
+/// | Rationale | D2, D18, D35, D39                                                            |
 ///
 /// @req{CAT-RATIO-001} Two ratios are equal when they are the same fraction, reduced or not;
 /// `reduce` gives the form with gcd(up, down) = 1 and `is_reduced` says whether a ratio is.
 /// @req{CAT-RATIO-002} Sums, differences, products and comparisons are exact and `constexpr`,
 /// in 64-bit intermediates reduced back to 32 bits.
 /// @req{CAT-RATIO-003} A difference below zero is an audit check (`check::invariant`).
+/// @req{CAT-RATIO-004} `ratio_t<Up, Down>` carries a ratio as a type: its `value` is Up/Down
+/// reduced, `up` and `down` are that value's terms, `type` is the reduced `ratio_t`, and a
+/// denominator of 0 does not compile.
 // Copyright 2026 Timothy Place and the catenae contributors
 #ifndef CATENAE_RATIO_H
 #define CATENAE_RATIO_H
@@ -100,6 +104,20 @@ namespace catenae {
         constexpr ratio operator*(ratio a, ratio b) noexcept {
             return detail::reduce64(std::uint64_t{a.up} * b.up, std::uint64_t{a.down} * b.down);
         }
+
+        /// A ratio as a type, for a template argument: C++17 takes no class there (D2), so a
+        /// template that is given a ratio, such as a stage's rate, is given a `ratio_t`. Like
+        /// `std::ratio`, its value is reduced, and two spellings of one fraction are two types
+        /// whose `type` is the same.
+        template <std::uint32_t Up, std::uint32_t Down>
+        struct ratio_t {
+            static_assert(Down != 0, "catenae: a ratio_t's denominator is never 0");
+
+            static constexpr ratio         value = reduce(ratio{Up, Down}); ///< Up/Down, reduced
+            static constexpr std::uint32_t up    = value.up;                ///< the reduced numerator
+            static constexpr std::uint32_t down  = value.down;              ///< the reduced denominator
+            using type                           = ratio_t<up, down>;       ///< the reduced spelling
+        };
 
     } // namespace CATENAE_ABI
 } // namespace catenae

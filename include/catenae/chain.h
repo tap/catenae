@@ -37,6 +37,7 @@
 #include "catenae/ratio.h"
 #include "catenae/span.h"
 #include "catenae/stage_traits.h"
+#include "catenae/table_view.h"
 
 namespace catenae {
     inline namespace CATENAE_ABI {
@@ -355,6 +356,12 @@ namespace catenae {
             /// The chain of these configurations.
             explicit constexpr chain_body(const Stages&... stages) noexcept
                 : m_stages(detail::packed(stages...)) {}
+            /// The chain of each stage's default configuration, when every stage has one;
+            /// `constexpr` when theirs are, so a named chain is written `constexpr C c{};`.
+            template <bool Every                   = (std::is_default_constructible<Stages>::value && ...),
+                      std::enable_if_t<Every, int> = 0>
+            constexpr chain_body() noexcept
+                : m_stages(detail::packed(Stages{}...)) {}
 
             /// Stage I's configuration.
             template <std::size_t I>
@@ -387,6 +394,8 @@ namespace catenae {
 
             /// The most frames a call of n frames writes, from any state.
             static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return most_out<0>(n); }
+            /// Exactly what the first n frames write from rest: each stage's count from rest, composed.
+            static constexpr std::size_t outputs_from_rest(std::size_t n) noexcept { return from_rest<0>(n); }
             /// Exactly what the next call of n frames writes.
             constexpr std::size_t outputs_for(const state& st, std::size_t n) const noexcept {
                 return out_from<0>(st, n);
@@ -603,6 +612,16 @@ namespace catenae {
                 }
             }
             template <std::size_t I>
+            static constexpr std::size_t from_rest(std::size_t n) noexcept {
+                const std::size_t made = stage_traits<stage_t<I>>::outputs_from_rest(n);
+                if constexpr (I + 1 < k_count) {
+                    return from_rest<I + 1>(made);
+                }
+                else {
+                    return made;
+                }
+            }
+            template <std::size_t I>
             constexpr std::size_t out_from(const state& st, std::size_t n) const noexcept {
                 const std::size_t made = stage<I>().outputs_for(detail::pack_at<I>::get(st.stages), n);
                 if constexpr (I + 1 < k_count) {
@@ -685,6 +704,12 @@ namespace catenae {
         struct is_stage<blocked_chain<Block, Stages...>> : std::true_type {};
         template <std::size_t Block, typename... Stages>
         struct is_chain<blocked_chain<Block, Stages...>> : std::true_type {};
+        /// A chain holds a view when any of its stages does.
+        template <typename... Stages>
+        struct holds_view<chain<Stages...>> : std::integral_constant<bool, (holds_view<Stages>::value || ...)> {};
+        template <std::size_t Block, typename... Stages>
+        struct holds_view<blocked_chain<Block, Stages...>>
+            : std::integral_constant<bool, (holds_view<Stages>::value || ...)> {};
 
         namespace detail {
             template <typename T>

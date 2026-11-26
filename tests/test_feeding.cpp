@@ -40,17 +40,26 @@ namespace feeding_fixture {
         }
     };
 
+    /// A block stage of 4 whose count from rest does not repeat in its group (its first hop is
+    /// said to write nothing): fed_by cannot enumerate it, and sizes its pull from any state.
+    struct unrepeating : catenae_fixtures::block_stage<1, 4> {
+        static constexpr std::size_t outputs_from_rest(std::size_t n) noexcept { return n < 8 ? 0 : n / 4 * 4; }
+    };
+
 } // namespace feeding_fixture
 
 namespace catenae {
     template <std::size_t Ch, std::size_t Capacity>
     struct is_junction<feeding_fixture::recording_ring<Ch, Capacity>> : std::true_type {};
+    template <>
+    struct is_stage<feeding_fixture::unrepeating> : std::true_type {};
 } // namespace catenae
 
 namespace {
 
     using catenae::operator|;
     using catenae_fixtures::block_stage;
+    using catenae_fixtures::down2_first;
     using catenae_fixtures::ring_junction;
     using catenae_fixtures::up2_toy;
     using feeding_fixture::recording_ring;
@@ -162,8 +171,24 @@ namespace {
         constexpr auto block = catenae::chain(block_stage<1, 128>{});
         constexpr auto up4   = up2_toy<1>{} | up2_toy<1>{};
         constexpr auto level = catenae::chain(catenae::gain<1>{0.5f, 0});
-        static_assert(catenae::fed_by_workspace<decltype(block), 64>::largest_pull == 191, "64 + 127, at 1:1");
+        // What fed_by reaches, not the bound from any state: behind a 128-frame block, 64-frame
+        // requests pull 128 and nothing (64 + 127 = 191 from any state); behind two decimators by
+        // 2 that write on a pair's first frame, 64 frames out take 256 in (259 from any state).
+        static_assert(catenae::fed_by_workspace<decltype(block), 64>::largest_pull == 128, "a whole block");
+        static_assert(catenae::detail::most_frames_in(decltype(block)::rate_ratio, decltype(block)::max_shortfall,
+                                                      decltype(block)::max_lead, 64)
+                          == 191,
+                      "the bound from any state");
+        constexpr auto by4 = down2_first<1>{} | down2_first<1>{};
+        static_assert(catenae::fed_by_workspace<decltype(by4), 64>::largest_pull == 256, "64 groups of 4");
+        static_assert(catenae::detail::most_frames_in(decltype(by4)::rate_ratio, decltype(by4)::max_shortfall,
+                                                      decltype(by4)::max_lead, 64)
+                          == 259,
+                      "a lead of 3/4 the chain never needs");
         static_assert(catenae::fed_by_workspace<decltype(up4), 700>::largest_pull == 175, "700 / 4");
+        // A count from rest that does not repeat is sized from any state: 64 + 3.
+        constexpr auto unrepeating = catenae::chain(feeding_fixture::unrepeating{});
+        static_assert(catenae::fed_by_workspace<decltype(unrepeating), 64>::largest_pull == 67, "the bound");
         static_assert(catenae::fed_by_workspace<decltype(level), 256>::largest_pull == 256, "256, frame by frame");
 
         // From an empty handoff every input frame is silence, and `starved` counts it.
@@ -180,6 +205,56 @@ namespace {
         CATENAE_EXPECT_CHECK(
             catenae::check::request_too_large,
             static_cast<void>(catenae::fed_by(link, *link_state, level, *st, *ws, catenae::span<float>(too_many))));
+    }
+
+    // Verifies CAT-FED-BY-004: requests that leave frames in the holdover and a chain with a
+    // tail, then a flush in calls that each hold a burst and no more than the rest.
+    TEST(fed_by, AFlushEndsTheStreamWithoutPulling) {
+        constexpr auto c = catenae::chain(block_stage<1, 48>{}) | catenae::delay<1, 5>{};
+        using chain_t    = std::remove_cv_t<decltype(c)>;
+        using ring_t     = recording_ring<1, 4096>;
+        static_assert(chain_t::max_outputs_for(1) == 48, "a burst is a block");
+        const ring_t ring{};
+        auto         ring_state = std::make_unique<ring_t::state>();
+        const auto   in         = ramp_input(300);
+        static_cast<void>(ring.push(*ring_state, catenae::span<const float>(in)));
+        auto st = std::make_unique<catenae::fed_by_state<chain_t>>();
+        auto ws = std::make_unique<catenae::fed_by_workspace<chain_t, 64>>();
+        reset(c, *st);
+        ring_t::pulls().clear();
+        std::vector<float> delivered;
+        for (const std::size_t n : {37u, 64u, 64u}) {
+            std::vector<float> part(n);
+            EXPECT_EQ(catenae::fed_by(ring, *ring_state, c, *st, *ws, catenae::span<float>(part)), n);
+            delivered.insert(delivered.end(), part.begin(), part.end());
+        }
+        std::size_t pulled = 0;
+        for (const std::size_t n : ring_t::pulls()) {
+            pulled += n;
+        }
+        EXPECT_EQ(pulled, 192u); // four blocks reach 165 frames
+        EXPECT_GT(st->held, 0u);
+        EXPECT_FALSE(catenae::flushed(c, *st));
+
+        // A call that cannot hold a burst is refused in every build.
+        std::vector<float> small(47);
+        CATENAE_EXPECT_CHECK(catenae::check::flush_output_too_small,
+                             static_cast<void>(catenae::flush(c, *st, *ws, catenae::span<float>(small))));
+
+        ring_t::pulls().clear();
+        std::size_t calls = 0;
+        while (!catenae::flushed(c, *st)) {
+            std::vector<float> part(50);
+            const std::size_t  n = catenae::flush(c, *st, *ws, catenae::span<float>(part));
+            delivered.insert(delivered.end(), part.begin(), part.begin() + static_cast<std::ptrdiff_t>(n));
+            ASSERT_LT(++calls, 10u);
+        }
+        EXPECT_GT(calls, 1u); // resumable
+        EXPECT_TRUE(ring_t::pulls().empty()) << "a flush pulls nothing";
+        // What the chain writes over the frames pulled, zero-padded by its tail.
+        std::vector<float> padded(in.begin(), in.begin() + static_cast<std::ptrdiff_t>(pulled));
+        padded.resize(pulled + c.practical_tail_frames(), 0.0f);
+        EXPECT_TRUE(catenae_test::bit_equal(delivered, alone(c, padded)));
     }
 
 } // namespace

@@ -14,6 +14,8 @@
 //                         decimators' convention): input_group 2, max_lead 1/2, no shortfall.
 //   down2_last<Ch>        2:1, writing it when the pair's last frame arrives: input_group 2,
 //                         max_shortfall 1/2, no lead.
+//   table_gain<Ch>        1:1, channel c times level c of a table it holds by view: the
+//                         smallest stage that says it holds one (holds_view).
 #ifndef CATENAE_TESTS_FIXTURES_CATENAE_FIXTURES_STAGES_H
 #define CATENAE_TESTS_FIXTURES_CATENAE_FIXTURES_STAGES_H
 
@@ -26,6 +28,7 @@
 #include "catenae/ratio.h"
 #include "catenae/span.h"
 #include "catenae/stage_traits.h"
+#include "catenae/table_view.h"
 
 namespace catenae_fixtures {
 
@@ -75,6 +78,7 @@ namespace catenae_fixtures {
             return k == 0 ? 0 : (k + Hop - 1) / Hop * Hop - st.count;
         }
         static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return (Hop - 1 + n) / Hop * Hop; }
+        static constexpr std::size_t outputs_from_rest(std::size_t n) noexcept { return n / Hop * Hop; }
         catenae::stage_latency       latency() const noexcept { return {0.0f, 0.0f}; }
         std::size_t                  tail_frames() const noexcept { return Hop - 1; }
         std::size_t                  practical_tail_frames() const noexcept { return Hop - 1; }
@@ -166,16 +170,61 @@ namespace catenae_fixtures {
             return k == 0 ? 0 : (next_writes ? 2 * k - 1 : 2 * k);
         }
         static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return (n + 1) / 2; }
-        catenae::stage_latency       latency() const noexcept { return {WritesOnFirst ? 0.0f : 0.5f, 0.0f}; }
-        std::size_t                  tail_frames() const noexcept { return 0; }
-        std::size_t                  practical_tail_frames() const noexcept { return 0; }
-        float                        flush_residue() const noexcept { return 0.0f; }
+        static constexpr std::size_t outputs_from_rest(std::size_t n) noexcept {
+            return WritesOnFirst ? (n + 1) / 2 : n / 2;
+        }
+        catenae::stage_latency latency() const noexcept { return {WritesOnFirst ? 0.0f : 0.5f, 0.0f}; }
+        std::size_t            tail_frames() const noexcept { return 0; }
+        std::size_t            practical_tail_frames() const noexcept { return 0; }
+        float                  flush_residue() const noexcept { return 0.0f; }
     };
 
     template <std::size_t Ch>
     using down2_first = down2_toy<Ch, true>;
     template <std::size_t Ch>
     using down2_last = down2_toy<Ch, false>;
+
+    /// 1:1, channel c times level c of a table the caller owns, held by view.
+    template <std::size_t Ch>
+    class table_gain {
+      public:
+        using input_port  = catenae::port<float, Ch>;
+        using output_port = catenae::port<float, Ch>;
+        static constexpr catenae::ratio rate_ratio{1, 1};
+        static constexpr std::size_t    input_group = 1;
+        static constexpr catenae::ratio max_shortfall{0, 1};
+        static constexpr catenae::ratio max_lead{0, 1};
+        static constexpr std::size_t    output_quantum    = 1;
+        static constexpr bool           is_in_place       = true;
+        static constexpr bool           has_exact_latency = true;
+        static constexpr catenae::ratio exact_latency{0, 1};
+        static constexpr bool           rests_at_zero = true;
+
+        struct state {};
+        using workspace = catenae::no_workspace;
+
+        /// Over the caller's levels, which outlive the stage: a temporary does not convert.
+        explicit constexpr table_gain(catenae::table_view<float, Ch> levels) noexcept
+            : m_levels(levels) {}
+
+        std::size_t run(state&, workspace&, catenae::span<const float> in, catenae::span<float> out) const noexcept {
+            for (std::size_t i = 0; i < in.size(); ++i) {
+                out[i] = in[i] * m_levels[i % Ch];
+            }
+            return in.size() / Ch;
+        }
+
+        static constexpr std::size_t outputs_for(const state&, std::size_t n) noexcept { return n; }
+        static constexpr std::size_t frames_needed(const state&, std::size_t k) noexcept { return k; }
+        static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return n; }
+        catenae::stage_latency       latency() const noexcept { return {0.0f, 0.0f}; }
+        std::size_t                  tail_frames() const noexcept { return 0; }
+        std::size_t                  practical_tail_frames() const noexcept { return 0; }
+        float                        flush_residue() const noexcept { return 0.0f; }
+
+      private:
+        catenae::table_view<float, Ch> m_levels;
+    };
 
 } // namespace catenae_fixtures
 
@@ -186,6 +235,10 @@ namespace catenae {
     struct is_stage<catenae_fixtures::up2_toy<Ch>> : std::true_type {};
     template <std::size_t Ch, bool WritesOnFirst>
     struct is_stage<catenae_fixtures::down2_toy<Ch, WritesOnFirst>> : std::true_type {};
+    template <std::size_t Ch>
+    struct is_stage<catenae_fixtures::table_gain<Ch>> : std::true_type {};
+    template <std::size_t Ch>
+    struct holds_view<catenae_fixtures::table_gain<Ch>> : std::true_type {};
 } // namespace catenae
 
 #endif // CATENAE_TESTS_FIXTURES_CATENAE_FIXTURES_STAGES_H

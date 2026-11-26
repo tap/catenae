@@ -24,6 +24,24 @@ are documented here, once.
 | `reset(state&) const noexcept` | Empties it, while neither side runs. A static state needs none before first use. |
 | `restart(state&) const noexcept` | The consumer's thread, while the producer runs: discards what is buffered and fills again. |
 
+## What the members leave to the junction
+
+Three things a junction decides for itself, which the asynchronous converter's fit skeleton
+(`fit/async/`, CF) met. None adds a member.
+
+- **A target raised at run time.** A junction may raise its own target when a pull is larger
+  than any before it, as SampleRateTap's asynchronous converter does. The state then holds the
+  raise, 0 for none, so all zero is still rest, and `serves(largest_pull, quantum)` asks
+  whether the raise a pull of `largest_pull` frames needs stays within `capacity_frames`. A
+  target configured from `fed_by`'s largest pull is never raised.
+- **What `quantum` means.** It is for a junction whose fill moves in whole pushes and pulls,
+  as a `handoff`'s does. A resampler's fill moves by fractions of a frame, so it may ignore
+  `quantum`; `fed_by` asks with 1.
+- **A configuration made at run time.** A junction whose configuration is computed from
+  numbers known only at run time (a sample rate, a target) makes it as a design is made
+  (D37): a `make()` that returns an `expected`, outside the audio path, with the codes its
+  card names. Its default configuration is a constant, what a static one holds until then.
+
 ## Requirements
 
 @req{CAT-JUNCTION-001} `junction_traits<T>` reads each member of the table, and a member that

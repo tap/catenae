@@ -4,11 +4,13 @@
 ///
 /// | Contract   |                                                                                |
 /// |------------|--------------------------------------------------------------------------------|
-/// | Value      | `T`, trivially copyable and trivially destructible, owning all it refers to   |
+/// | Value      | `T`, trivially copyable and trivially destructible, owning all it refers to;  |
+/// |            | a `T` that says it holds a view (`holds_view<T>`, a table design) is refused   |
 /// | Sides      | one poster thread, one taker thread; an interrupt handler counts as a thread   |
 /// | Storage    | three slots of `T` and one atomic word; starts empty, `.bss` when static       |
 /// | Waits      | never: a post replaces a value never taken, a take finds a value or nothing   |
-/// | Limits     | a value that refers to storage it does not own is a race the compiler cannot see |
+/// | Limits     | a value that refers to storage it does not own and does not say so is a race  |
+/// |            | the compiler cannot see (AOU-004)                                              |
 /// | Method     | a triple buffer: each side owns a slot and swaps it with the one in the middle |
 /// | Rationale  | D19, D22, D44                                                                  |
 ///
@@ -23,6 +25,9 @@
 /// @req{CAT-MAILBOX-003} A post begins its value's lifetime with placement new in the poster's
 /// slot, never by assignment, and a take reads it through `std::launder` (DEV-013);
 /// `scripts/check_slots.py` refuses an assignment into a slot.
+/// @req{CAT-MAILBOX-004} A mailbox of a type that holds a view (`holds_view<T>`, true for a
+/// `table_view`, and for a chain, `steady<>` or `parallel<>` with a stage that holds one) does
+/// not compile: a table design is replaced through the acknowledgement of PLAN.md 6.3.
 // Copyright 2026 Timothy Place and the catenae contributors
 #ifndef CATENAE_MAILBOX_H
 #define CATENAE_MAILBOX_H
@@ -35,6 +40,7 @@
 
 #include "catenae/detail/abi.h"
 #include "catenae/fwd.h"
+#include "catenae/table_view.h"
 
 namespace catenae {
     inline namespace CATENAE_ABI {
@@ -44,6 +50,9 @@ namespace catenae {
         class mailbox {
             static_assert(std::is_trivially_copyable<T>::value && std::is_trivially_destructible<T>::value,
                           "catenae: a mailbox carries a trivially copyable, trivially destructible value");
+            static_assert(!holds_view<T>::value,
+                          "catenae: a mailbox carries a value that owns what it refers to, not one that holds a "
+                          "view; a table design is replaced through an acknowledgement (PLAN.md 6.3)");
             static_assert(std::atomic<std::uint32_t>::is_always_lock_free,
                           "catenae: a mailbox needs lock-free 32-bit atomic operations (PLAN.md section 6.1)");
 

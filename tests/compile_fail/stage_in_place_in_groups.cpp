@@ -7,6 +7,9 @@
 #define CF_OMIT_INPUT_GROUP
 #define CF_MEMBERS                                                                                                     \
     static constexpr bool        is_in_place = true;                                                                   \
-    static constexpr std::size_t input_group = 2;
+    static constexpr std::size_t input_group = 2;                                                                      \
+    static constexpr std::size_t outputs_from_rest(std::size_t n) noexcept {                                           \
+        return n / 2 * 2;                                                                                              \
+    }
 #endif
 #include "cf_stage.h"

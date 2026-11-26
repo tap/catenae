@@ -116,6 +116,15 @@ namespace catenae {
                 return a;
             }
 
+            /// `p` squared `times` times.
+            template <std::size_t D>
+            scaled_matrix<D> squared(scaled_matrix<D> p, std::size_t times) noexcept {
+                for (; times > 0; --times) {
+                    p = p * p;
+                }
+                return p;
+            }
+
             /// The smallest n with start + ln ||A^n||_inf < goal, plus K; the largest size_t
             /// where that does not fit half of size_t's range or the cascade does not decay.
             template <std::size_t K>
@@ -147,11 +156,7 @@ namespace catenae {
                     }
                 }
                 const auto power = [&kept, stride](std::size_t j) noexcept { // A^(2^j), j < levels
-                    mat p = kept[j / stride];
-                    for (std::size_t i = j % stride; i > 0; --i) {
-                        p = p * p;
-                    }
-                    return p;
+                    return squared(kept[j / stride], j % stride);
                 };
                 // Binary lifting: the largest n from those powers not yet done. The top power is
                 // done alone, so the descent starts below it.

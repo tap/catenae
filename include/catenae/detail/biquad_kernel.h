@@ -118,6 +118,9 @@ namespace catenae {
                 static_assert(std::is_same<S, float>::value || std::is_same<S, double>::value,
                               "catenae: the biquad kernel is float or double");
                 static_assert(K >= 1 && Ch >= 1, "catenae: a cascade has a section and a channel");
+                if (n == 0) {
+                    return; // nothing to filter, and an empty buffer's pointer may be null
+                }
                 if constexpr (K >= 4) {
                     if (n == 1) {
                         for (std::size_t c = 0; c < Ch; ++c) {

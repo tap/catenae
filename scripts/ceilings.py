@@ -245,7 +245,8 @@ def runtime_depths(binary: str):
         ins = re.match(r"^\s*[0-9a-f]+:\s+(\S+)\s*(.*)$", line)
         if cur is None or not ins:
             continue
-        mnem, ops = ins.group(1), ins.group(2).split(";")[0].strip()
+        # objdump's comment follows ";" or "@" ("sub sp, #52 @ 0x34"): it is not an operand.
+        mnem, ops = ins.group(1), ins.group(2).split(";")[0].split("@")[0].strip()
         f = funcs[cur]
         regs = re.search(r"\{([^}]*)\}", ops)
         if mnem.startswith(("push", "vpush")) or (mnem.startswith(("stmdb", "vstmdb")) and ops.startswith("sp!")):

@@ -215,6 +215,7 @@ def build(bld):
     # that the test step runs, the strawman graph with its nodes' source beside it.
     examples = {
         "bursts_and_buffering": ["examples/bursts_and_buffering.cpp"],
+        "edges": ["examples/edges.cpp"],
         "print_version": ["examples/print_version.cpp"],
         "stages_and_chains": ["examples/stages_and_chains.cpp"],
         "threads_and_clocks": ["examples/threads_and_clocks.cpp"],

@@ -6,8 +6,10 @@ The one glossary (PLAN.md section 11.2, rule 6). Every page uses these words in 
 
 | Word | Meaning |
 |---|---|
-| **frame** | One sample of each channel, at one instant: `Ch` values of an audio port, `Ch` x `Bins` of a spectrum. |
+| **frame** | One sample of each channel, at one instant: `Ch` values of an audio port, `Ch` x `Bins` of a spectrum, `Ch` samples' bytes of a wire port. |
 | **port** | The type of what a stage reads or writes: its kind (audio, spectrum, wire), sample format, channel count and layout, all compile-time. |
+| **wire format** | How samples sit in bytes outside a chain: their width, their packing and their byte order (`catenae::wire`). Only `unpack` reads one and only `pack` writes one (D8). |
+| **native format** | The sample format a wire format unpacks to and packs from: `q15` for 16-bit, `q31` for 24- and 32-bit (D29). |
 | **stage** | A unit of processing, read through `stage_traits`: a configuration, with a state and a workspace beside it (@ref stage_contract). |
 | **configuration** | A stage's parameters: a small, trivially copyable constant, at most 512 bytes (D34, D54). |
 | **state** | What one instance of a stage remembers between calls: plain storage, apart from the configuration. All zero is "not yet reset". |

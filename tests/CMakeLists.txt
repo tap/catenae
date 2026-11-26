@@ -64,6 +64,11 @@ function(catenae_add_gtest_executable target)
     # compiled core is built so, and the header templates are tested so; a consumer's own
     # flags are its own, and each card says what they can move.
     target_link_libraries(${target} PRIVATE catenae::catenae catenae_test_warnings catenae_contraction)
+    # Under an emulator (the QEMU legs, Hexagon) an exhaustive sweep that takes a second natively
+    # takes minutes: a test may stride through it there, and says so where it does.
+    if(CMAKE_CROSSCOMPILING)
+        target_compile_definitions(${target} PRIVATE CATENAE_TEST_EMULATED=1)
+    endif()
     if(CATENAE_BARE_METAL)
         target_sources(${target} PRIVATE ${CMAKE_CURRENT_FUNCTION_LIST_DIR}/bare_metal_main.cpp)
         target_link_libraries(${target} PRIVATE GTest::gtest)
@@ -116,6 +121,7 @@ catenae_add_gtest_executable(catenae_tests
         test_junction_traits.cpp
         test_mailbox.cpp
         test_map.cpp
+        test_pack.cpp
         test_parallel.cpp
         test_port.cpp
         test_ratio.cpp
@@ -125,7 +131,9 @@ catenae_add_gtest_executable(catenae_tests
         test_stage_traits.cpp
         test_steady.cpp
         test_table_view.cpp
+        test_unpack.cpp
         test_version.cpp
+        test_wire.cpp
         # The guide's stage of its own (examples/difference.h): its battery runs with this one.
         ../examples/difference_battery.cpp)
 # On a bare-metal leg a timer interrupt is one side of a mailbox and a junction (PLAN.md 7.3).

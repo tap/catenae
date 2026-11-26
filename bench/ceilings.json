@@ -54,6 +54,60 @@
         "recorded": 3284
       }
     },
+    "c2": {
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 192,
+        "recorded": 136
+      },
+      "image.bss": {
+        "ceiling": 2368,
+        "recorded": 2252
+      },
+      "image.data": {
+        "ceiling": 64,
+        "recorded": 4
+      },
+      "image.rodata": {
+        "ceiling": 64,
+        "recorded": 56
+      },
+      "image.text": {
+        "ceiling": 8896,
+        "recorded": 8628
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.bss": {
+        "ceiling": 2048,
+        "recorded": 1964
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 20
+      },
+      "unit.text": {
+        "ceiling": 1408,
+        "recorded": 1336
+      }
+    },
     "fft": {
       "core.bss": {
         "ceiling": 0,
@@ -360,6 +414,96 @@
       "unit.text": {
         "ceiling": 1600,
         "recorded": 1526
+      }
+    },
+    "c2": {
+      "code.process": {
+        "ceiling": 640,
+        "recorded": 612
+      },
+      "code.reset": {
+        "ceiling": 64,
+        "recorded": 44
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 128,
+        "recorded": 112
+      },
+      "image.bss": {
+        "ceiling": 3072,
+        "recorded": 2980
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 108
+      },
+      "image.text": {
+        "ceiling": 8256,
+        "recorded": 7976
+      },
+      "sizeof.state": {
+        "ceiling": 64,
+        "recorded": 36
+      },
+      "sizeof.workspace": {
+        "ceiling": 2048,
+        "recorded": 1928
+      },
+      "stack.process.measured": {
+        "ceiling": 32,
+        "recorded": 24
+      },
+      "stack.process.static": {
+        "ceiling": 32,
+        "recorded": 24
+      },
+      "stack.reset.measured": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "stack.reset.static": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 2048,
+        "recorded": 1964
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 20
+      },
+      "unit.text": {
+        "ceiling": 576,
+        "recorded": 506
       }
     },
     "fft": {
@@ -778,6 +922,96 @@
         "recorded": 1570
       }
     },
+    "c2": {
+      "code.process": {
+        "ceiling": 1792,
+        "recorded": 1686
+      },
+      "code.reset": {
+        "ceiling": 64,
+        "recorded": 44
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 128,
+        "recorded": 112
+      },
+      "image.bss": {
+        "ceiling": 3072,
+        "recorded": 2980
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 108
+      },
+      "image.text": {
+        "ceiling": 9600,
+        "recorded": 9304
+      },
+      "sizeof.state": {
+        "ceiling": 64,
+        "recorded": 36
+      },
+      "sizeof.workspace": {
+        "ceiling": 2048,
+        "recorded": 1928
+      },
+      "stack.process.measured": {
+        "ceiling": 88,
+        "recorded": 80
+      },
+      "stack.process.static": {
+        "ceiling": 88,
+        "recorded": 80
+      },
+      "stack.reset.measured": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "stack.reset.static": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 2048,
+        "recorded": 1964
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 20
+      },
+      "unit.text": {
+        "ceiling": 576,
+        "recorded": 518
+      }
+    },
     "fft": {
       "code.forward": {
         "ceiling": 5824,
@@ -1194,6 +1428,96 @@
         "recorded": 1526
       }
     },
+    "c2": {
+      "code.process": {
+        "ceiling": 640,
+        "recorded": 612
+      },
+      "code.reset": {
+        "ceiling": 64,
+        "recorded": 44
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 128,
+        "recorded": 112
+      },
+      "image.bss": {
+        "ceiling": 3072,
+        "recorded": 2980
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 108
+      },
+      "image.text": {
+        "ceiling": 8384,
+        "recorded": 8088
+      },
+      "sizeof.state": {
+        "ceiling": 64,
+        "recorded": 36
+      },
+      "sizeof.workspace": {
+        "ceiling": 2048,
+        "recorded": 1928
+      },
+      "stack.process.measured": {
+        "ceiling": 32,
+        "recorded": 24
+      },
+      "stack.process.static": {
+        "ceiling": 32,
+        "recorded": 24
+      },
+      "stack.reset.measured": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "stack.reset.static": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 2048,
+        "recorded": 1964
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 20
+      },
+      "unit.text": {
+        "ceiling": 576,
+        "recorded": 506
+      }
+    },
     "fft": {
       "code.forward": {
         "ceiling": 4032,
@@ -1608,6 +1932,96 @@
       "unit.text": {
         "ceiling": 1792,
         "recorded": 1680
+      }
+    },
+    "c2": {
+      "code.process": {
+        "ceiling": 704,
+        "recorded": 650
+      },
+      "code.reset": {
+        "ceiling": 64,
+        "recorded": 44
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 128,
+        "recorded": 118
+      },
+      "image.bss": {
+        "ceiling": 3072,
+        "recorded": 2980
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 108
+      },
+      "image.text": {
+        "ceiling": 8320,
+        "recorded": 8020
+      },
+      "sizeof.state": {
+        "ceiling": 64,
+        "recorded": 36
+      },
+      "sizeof.workspace": {
+        "ceiling": 2048,
+        "recorded": 1928
+      },
+      "stack.process.measured": {
+        "ceiling": 32,
+        "recorded": 24
+      },
+      "stack.process.static": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "stack.reset.measured": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "stack.reset.static": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 2048,
+        "recorded": 1964
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 20
+      },
+      "unit.text": {
+        "ceiling": 576,
+        "recorded": 538
       }
     },
     "fft": {

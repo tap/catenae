@@ -355,7 +355,11 @@ scripts/icount.py --key m33 --build-dir build-17 --plugin /tmp/libinsncount.so -
 
 `scripts/link_gate.py` refuses an image that links a software-double or double-`libm` symbol
 (D36). It runs on named probe images, one per `float` stage family; the first is C1's,
-`catenae_probe_c1`, every C1 stage in one float path (`link_gate.C1ImageHasNoSoftwareDouble`).
+`catenae_probe_c1`, every C1 stage in one float path (`link_gate.C1ImageHasNoSoftwareDouble`);
+then C2's edges (`catenae_probe_c2`, `link_gate.C2ImageHasNoSoftwareDouble`) and the recursive
+family, a biquad cascade whose design is a table in ROM with a gain after it
+(`catenae_probe_recursive`, `link_gate.RecursiveImageHasNoSoftwareDouble`). The `designers`
+probe links `make()` and so its software double on purpose, and the gate does not read it.
 It also proves itself on two fixtures on every Arm key (`bench/link_gate/`, CTest label
 `link_gate`). On the M55, GCC's default FPU has double precision, so a double product is an
 instruction and no symbol: the gate cannot see it there, and a test pins that limit.

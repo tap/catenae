@@ -73,6 +73,15 @@
 #define CATENAE_SRDIF_INLINE
 #endif
 
+// Under GCC each compile-time block the kernel's switch reaches is a function of its own. Inlined
+// into the switch, GCC gives the blocks' locals separate stack slots, so the kernel's frame is
+// their sum: 944 bytes on the Cortex-M33 at -O3, beyond the library's 512 (tools/warnings).
+#if defined(__GNUC__) && !defined(__clang__)
+#define CATENAE_SRDIF_BLOCK __attribute__((noinline))
+#else
+#define CATENAE_SRDIF_BLOCK
+#endif
+
 namespace catenae {
     inline namespace CATENAE_ABI {
         namespace detail {
@@ -483,28 +492,34 @@ namespace catenae {
                     a[J + 3u * q] = x3;
                 }
 
+                /// A compile-time block as the kernel's switch reaches it (CATENAE_SRDIF_BLOCK).
+                template <bool Inverse, std::size_t L>
+                CATENAE_SRDIF_BLOCK static void root_block(cx* a, const T* small_tables) noexcept {
+                    block<Inverse, L>(a, small_tables);
+                }
+
                 /// Split-radix DIF over l values at a, output in bit-reversed order.
                 template <bool Inverse>
                 static void kernel(const T* tables, std::size_t n, cx* a, std::size_t l) noexcept {
                     const T* const small_tables = tables + n / 2u;
                     switch (l) {
                     case 64u:
-                        block<Inverse, 64u>(a, small_tables);
+                        root_block<Inverse, 64u>(a, small_tables);
                         return;
                     case 32u:
-                        block<Inverse, 32u>(a, small_tables);
+                        root_block<Inverse, 32u>(a, small_tables);
                         return;
                     case 16u:
-                        block<Inverse, 16u>(a, small_tables);
+                        root_block<Inverse, 16u>(a, small_tables);
                         return;
                     case 8u:
-                        block<Inverse, 8u>(a, small_tables);
+                        root_block<Inverse, 8u>(a, small_tables);
                         return;
                     case 4u:
-                        block<Inverse, 4u>(a, small_tables);
+                        root_block<Inverse, 4u>(a, small_tables);
                         return;
                     case 2u:
-                        block<Inverse, 2u>(a, small_tables);
+                        root_block<Inverse, 2u>(a, small_tables);
                         return;
                     default:
                         break;
@@ -543,10 +558,12 @@ namespace catenae {
                         const T gp = s * cr + dr * ci;
                         return {ur - gr, gp - ui, vr + gr, gp - vi};
                     }
-                    const T di = ui + vi;
-                    const T gr = mul_sub(dr, cr, di, ci);
-                    const T gi = dr * ci + di * cr;
-                    return {ur - gr, gi - ui, vr + gr, gi - vi};
+                    else {
+                        const T di = ui + vi;
+                        const T gr = mul_sub(dr, cr, di, ci);
+                        const T gi = dr * ci + di * cr;
+                        return {ur - gr, gi - ui, vr + gr, gi - vi};
+                    }
                 }
 
                 template <bool Inverse>

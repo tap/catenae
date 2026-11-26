@@ -1,35 +1,58 @@
 {
   "hexagon": {
+    "callmax_fft_f32_512": 6000,
     "callmax_version": 5,
+    "fft_f32_2048": 33173708,
+    "fft_f32_512": 26884812,
+    "fft_f64_512": 58262005,
     "strip_chain": 1030150,
     "strip_graph": 1135888,
     "version": 20886
   },
   "host": {
+    "fft_f32_2048": 115896869,
+    "fft_f32_512": 96063525,
+    "fft_f64_512": 94748709,
     "strip_chain": 2711175,
     "strip_graph": 3051166,
     "version": 21013
   },
   "m33": {
+    "callmax_fft_f32_512": 17368,
     "callmax_version": 9,
+    "fft_f32_2048": 97044425,
+    "fft_f32_512": 79831625,
+    "fft_f64_512": 2435374978,
     "strip_chain": 3656695,
     "strip_graph": 3453430,
     "version": 31916
   },
   "m4-softfp": {
+    "callmax_fft_f32_512": 432961,
     "callmax_version": 9,
+    "fft_f32_2048": 2260341932,
+    "fft_f32_512": 1827129136,
+    "fft_f64_512": 2441467727,
     "strip_chain": 23888126,
     "strip_graph": 23446864,
     "version": 31871
   },
   "m4f": {
+    "callmax_fft_f32_512": 17391,
     "callmax_version": 9,
+    "fft_f32_2048": 97255819,
+    "fft_f32_512": 79985163,
+    "fft_f64_512": 2434049887,
     "strip_chain": 3592666,
     "strip_graph": 3453400,
     "version": 31887
   },
   "m55": {
+    "callmax_fft_f32_512": 18289,
     "callmax_version": 9,
+    "fft_f32_2048": 100065742,
+    "fft_f32_512": 83044942,
+    "fft_f64_512": 86936678,
     "strip_chain": 2339702,
     "strip_graph": 2440434,
     "version": 31921

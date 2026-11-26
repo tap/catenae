@@ -294,6 +294,23 @@ namespace {
         EXPECT_EQ(decltype(c)::stage_state<1>(m->state).write, 0u);
     }
 
+    // Verifies CAT-CHAIN-014.
+    TEST(chain, ADefaultChainWhenEveryStageHasOne) {
+        using c_t = chain<catenae::delay<2, 3>, up2_toy<2>, catenae::delay<2, 5>>;
+        constexpr c_t c{}; // constexpr: the stages' defaults are
+        static_assert(std::is_default_constructible<catenae::blocked_chain<32, catenae::delay<2, 3>>>::value,
+                      "a blocked chain too");
+        static_assert(!std::is_default_constructible<chain<catenae::gain<2>, catenae::delay<2, 3>>>::value,
+                      "a gain has no default level, so its chain has no default");
+        // The chain of the stages' default configurations.
+        constexpr auto           spelled = catenae::delay<2, 3>{} | up2_toy<2>{} | catenae::delay<2, 5>{};
+        const std::vector<float> in      = ramp_input(2 * 200);
+        const std::vector<float> a       = run_in_calls(c, in, 64);
+        const std::vector<float> b       = run_in_calls(spelled, in, 64);
+        ASSERT_EQ(a.size(), b.size());
+        EXPECT_EQ(std::memcmp(a.data(), b.data(), a.size() * sizeof(float)), 0);
+    }
+
     // Verifies CAT-CHAIN-008.
     TEST(chain, LatencyComposesAtTheOutputRate) {
         constexpr auto c = catenae::delay<1, 3>{} | up2_toy<1>{} | catenae::delay<1, 5>{};

@@ -83,6 +83,8 @@ namespace example {
             return k == 0 ? 0 : (k + Hop - 1) / Hop * Hop - st.count;
         }
         static constexpr std::size_t max_outputs_for(std::size_t n) noexcept { return (Hop - 1 + n) / Hop * Hop; }
+        /// From rest, a hop is written when its last frame arrives.
+        static constexpr std::size_t outputs_from_rest(std::size_t n) noexcept { return n / Hop * Hop; }
         catenae::stage_latency       latency() const noexcept { return {0.0f, 0.0f}; }
         std::size_t                  tail_frames() const noexcept { return Hop - 1; }
         std::size_t                  practical_tail_frames() const noexcept { return Hop - 1; }

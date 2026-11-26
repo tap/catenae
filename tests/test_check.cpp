@@ -62,6 +62,7 @@ namespace {
         EXPECT_EQ(static_cast<int>(check::request_too_large), 6);
         EXPECT_EQ(static_cast<int>(check::expected_empty), 32);
         EXPECT_EQ(static_cast<int>(check::expected_not_error), 33);
+        EXPECT_EQ(static_cast<int>(check::table_rejected), 34);
         EXPECT_EQ(static_cast<int>(check::index_out_of_range), 64);
         EXPECT_EQ(static_cast<int>(check::invariant), 65);
         EXPECT_EQ(static_cast<int>(check::outputs_exceeded), 66);
@@ -70,6 +71,7 @@ namespace {
         EXPECT_EQ(static_cast<int>(check::fifo_over), 69);
         EXPECT_EQ(static_cast<int>(check::pull_above_staging), 70);
         EXPECT_EQ(static_cast<int>(check::flush_to_zero), 71);
+        EXPECT_EQ(static_cast<int>(check::buffers_overlap), 72);
     }
 
 } // namespace

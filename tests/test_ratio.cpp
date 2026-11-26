@@ -2,6 +2,7 @@
 /// @brief ratio's contract (include/catenae/ratio.h).
 // Copyright 2026 Timothy Place and the catenae contributors
 #include <cstdint>
+#include <type_traits>
 
 #include <gtest/gtest.h>
 
@@ -51,6 +52,30 @@ namespace {
             CATENAE_EXPECT_CHECK(catenae::check::invariant, static_cast<void>(ratio{1, 3} - ratio{1, 2}));
         }
         CATENAE_EXPECT_NO_CHECK(static_cast<void>(ratio{1, 2} - ratio{1, 3}));
+    }
+
+    /// A template that takes a ratio, as a stage takes its rate.
+    template <typename R>
+    struct takes_a_ratio {
+        static constexpr ratio rate = R::value;
+    };
+
+    // Verifies CAT-RATIO-004.
+    TEST(ratio, ARatioIsATypeForATemplateArgument) {
+        using three_over_two = catenae::ratio_t<3, 2>;
+        static_assert(same_terms(three_over_two::value, ratio{3, 2}), "the value");
+        static_assert(three_over_two::up == 3 && three_over_two::down == 2, "its terms");
+        static_assert(same_terms(takes_a_ratio<three_over_two>::rate, ratio{3, 2}), "through a template");
+        // Reduced, as std::ratio is: two spellings of one fraction share a value and a type.
+        using six_over_four = catenae::ratio_t<6, 4>;
+        static_assert(same_terms(six_over_four::value, ratio{3, 2}), "the value is reduced");
+        static_assert(!std::is_same<six_over_four, three_over_two>::value, "two spellings are two types");
+        static_assert(std::is_same<six_over_four::type, three_over_two>::value, "whose type is one");
+        static_assert(std::is_same<three_over_two::type, three_over_two>::value, "a reduced spelling is its type");
+        static_assert(same_terms(catenae::ratio_t<0, 9>::value, ratio{0, 1}), "zero is 0/1");
+        static_assert(same_terms(catenae::ratio_t<147, 160>::value * catenae::ratio_t<160, 147>::value, ratio{1, 1}),
+                      "values do arithmetic");
+        EXPECT_EQ((catenae::ratio_t<160, 147>::up), 160u);
     }
 
 } // namespace

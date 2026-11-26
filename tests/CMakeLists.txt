@@ -129,6 +129,7 @@ catenae_add_gtest_executable(catenae_tests
         test_span.cpp
         test_stage_traits.cpp
         test_steady.cpp
+        test_table_view.cpp
         test_unpack.cpp
         test_version.cpp
         test_wire.cpp

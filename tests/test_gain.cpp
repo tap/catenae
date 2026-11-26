@@ -10,6 +10,7 @@
 #include <gtest/gtest.h>
 
 #include "catenae/gain.h"
+#include "catenae_test/check_trap.h"
 #include "catenae_test/harness.h"
 
 namespace {
@@ -161,6 +162,32 @@ namespace {
             at += n;
         }
         EXPECT_EQ(std::memcmp(whole.data(), pieces.data(), whole.size() * sizeof(TypeParam)), 0);
+    }
+
+    // Verifies CAT-GAIN-004.
+    TEST(gain, ItsBuffersAreCheckedAtTheAuditLevel) {
+        using g_t = catenae::gain<2>;
+        constexpr g_t           g{0.5f, 0};
+        typename g_t::state     st;
+        typename g_t::workspace ws{};
+        catenae::stage_traits<g_t>::reset(g, st);
+        std::array<float, 64> buffer{};
+        // One buffer as both, and two apart, run at every level.
+        EXPECT_EQ(g.run(st, ws, catenae::span<const float>(buffer.data(), 32), catenae::span<float>(buffer.data(), 32)),
+                  16u);
+        EXPECT_EQ(
+            g.run(st, ws, catenae::span<const float>(buffer.data(), 32), catenae::span<float>(buffer.data() + 32, 32)),
+            16u);
+        if constexpr (catenae::detail::k_audit_level) {
+            // An output with less room than the input, and two views of one buffer that overlap
+            // without being one: the loops would write past the one and break restrict on the other.
+            CATENAE_EXPECT_CHECK(catenae::check::index_out_of_range,
+                                 static_cast<void>(g.run(st, ws, catenae::span<const float>(buffer.data(), 32),
+                                                         catenae::span<float>(buffer.data() + 32, 16))));
+            CATENAE_EXPECT_CHECK(catenae::check::buffers_overlap,
+                                 static_cast<void>(g.run(st, ws, catenae::span<const float>(buffer.data(), 32),
+                                                         catenae::span<float>(buffer.data() + 2, 32))));
+        }
     }
 
 } // namespace

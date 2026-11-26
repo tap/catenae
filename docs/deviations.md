@@ -15,7 +15,7 @@ last column, and in a comment citing the entry where it is.
 |---|---|---|---|---|
 | DEV-001 | A compiler extension: `CATENAE_CONSTINIT` | C++17 has no `constinit`; GCC's and Clang's spellings make a static that start-up code would build an error | — | `catenae/compiler.h` |
 | DEV-002 | A compiler extension: inlining control | kernels and checks inline where they are called, cold paths stay out of line | — | `catenae/compiler.h` |
-| DEV-003 | A compiler extension: `restrict` | a kernel's pointers do not alias, and the compiler is told so | — | `catenae/compiler.h` |
+| DEV-003 | A compiler extension: `restrict` | a kernel's pointers do not alias, and the compiler is told so | — | `catenae/compiler.h`; used by `catenae/gain.h`'s steady loops, on a stage's `in` and `out` (AOU-007, checked at audit) |
 | DEV-004 | A compiler extension: atomic operations on a plain word | a `std::atomic` member would give a junction's state a constructor from C++20 on | — | `catenae/compiler.h` |
 | DEV-005 | A compiler extension: reading the floating-point control register | the audit check of the host's flush-to-zero setting | — | from C3 |
 | DEV-006 | `memcpy` bit casts, and the `memset` behind `rests_at_zero` | C++17 has no `std::bit_cast`; zeroing a plain state in place builds no temporary | — | `catenae/stage_traits.h` |

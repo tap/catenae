@@ -47,6 +47,7 @@
 #include "catenae/port.h"
 #include "catenae/ratio.h"
 #include "catenae/stage_traits.h"
+#include "catenae/table_view.h"
 
 namespace catenae {
     inline namespace CATENAE_ABI {
@@ -327,6 +328,10 @@ namespace catenae {
 
         template <typename A, typename B, align Align>
         struct is_stage<parallel<A, B, Align>> : std::true_type {};
+        /// parallel<> holds a view when either arm does.
+        template <typename A, typename B, align Align>
+        struct holds_view<parallel<A, B, Align>>
+            : std::integral_constant<bool, holds_view<A>::value || holds_view<B>::value> {};
 
     } // namespace CATENAE_ABI
 } // namespace catenae

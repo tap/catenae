@@ -220,26 +220,26 @@ Probe `fft`: each cell is the recorded figure / its ceiling, in bytes (start-up 
 | `image.bss` | 5,012 / 5,184 | 5,012 / 5,184 | 5,012 / 5,184 | 5,012 / 5,184 | 4,284 / 4,416 |
 | `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
 | `image.rodata` | 2,148 / 2,240 | 2,148 / 2,240 | 2,148 / 2,240 | 2,148 / 2,240 | 2,144 / 2,240 |
-| `image.text` | 19,544 / 20,160 | 17,560 / 18,112 | 17,436 / 17,984 | 17,380 / 17,920 | 20,292 / 20,928 |
+| `image.text` | 19,480 / 20,096 | 17,496 / 18,048 | 17,400 / 17,984 | 17,344 / 17,920 | 20,260 / 20,928 |
 | `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.rodata` | 2,048 / 2,112 | 2,048 / 2,112 | 2,048 / 2,112 | 2,048 / 2,112 | 2,104 / 2,176 |
-| `core.text` | 10,740 / 11,072 | 9,412 / 9,728 | 9,412 / 9,728 | 9,342 / 9,664 | 12,676 / 13,120 |
+| `core.text` | 10,724 / 11,072 | 9,396 / 9,728 | 9,396 / 9,728 | 9,326 / 9,664 | 12,640 / 13,056 |
 | `unit.bss` | 3,996 / 4,160 | 3,996 / 4,160 | 3,996 / 4,160 | 3,996 / 4,160 | 3,996 / 4,160 |
 | `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `unit.rodata` | 8 / 64 | 8 / 64 | 8 / 64 | 8 / 64 | 0 / 0 |
-| `unit.text` | 208 / 256 | 208 / 256 | 208 / 256 | 220 / 256 | 240 / 256 |
+| `unit.text` | 184 / 192 | 184 / 192 | 184 / 192 | 196 / 256 | 232 / 256 |
 | `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
-| `stack.forward.measured` | 512 / 528 | 408 / 424 | 408 / 424 | 408 / 424 |  |
-| `stack.forward.static` | 512 / 528 | 424 / 440 | 424 / 440 | 424 / 440 |  |
-| `stack.inverse.measured` | 512 / 528 | 408 / 424 | 408 / 424 | 408 / 424 |  |
-| `stack.inverse.static` | 512 / 528 | 424 / 440 | 424 / 440 | 424 / 440 |  |
+| `stack.forward.measured` | 568 / 592 | 464 / 480 | 464 / 480 | 464 / 480 |  |
+| `stack.forward.static` | 568 / 592 | 480 / 496 | 480 / 496 | 480 / 496 |  |
+| `stack.inverse.measured` | 568 / 592 | 464 / 480 | 464 / 480 | 464 / 480 |  |
+| `stack.inverse.static` | 568 / 592 | 480 / 496 | 480 / 496 | 480 / 496 |  |
 | `stack.make.measured` | 540 / 560 | 540 / 560 | 540 / 560 | 540 / 560 |  |
 | `stack.make.static` | 540 / 560 | 540 / 560 | 540 / 560 | 540 / 560 |  |
-| `code.forward` | 5,654 / 5,824 | 3,894 / 4,032 | 3,894 / 4,032 | 3,918 / 4,096 |  |
-| `code.inverse` | 5,658 / 5,888 | 3,912 / 4,032 | 3,912 / 4,032 | 3,936 / 4,096 |  |
-| `code.make` | 3,372 / 3,520 | 2,386 / 2,496 | 2,386 / 2,496 | 2,272 / 2,368 |  |
+| `code.forward` | 5,634 / 5,824 | 3,874 / 4,032 | 3,874 / 4,032 | 3,898 / 4,032 |  |
+| `code.inverse` | 5,636 / 5,824 | 3,890 / 4,032 | 3,890 / 4,032 | 3,914 / 4,032 |  |
+| `code.make` | 3,374 / 3,520 | 2,388 / 2,496 | 2,388 / 2,496 | 2,274 / 2,368 |  |
 <!-- ceilings:end -->
 
 ## The layout benchmark (informational, never a gate)
@@ -335,7 +335,7 @@ ctest --test-dir build-size -L link_gate
 | `baselines.json`: `edges`, every key; `ceilings.json`: the probe set `c2`, every key but `host` | Bench run [45754937497](https://github.com/tap/catenae/actions/runs/45754937497) at `a1ac08b`, 2026-11-26 (`workflow_dispatch` on the C2 branch `claude/catenae-c2-pack`): its `measured-<key>.json` and `ceilings-measured-<key>.json` artifacts, the counts copied unchanged and the ceilings computed by `scripts/ceilings.py`'s rule. Every other count and figure in that run equal to its record, C++20 and C++23 equal to C++17 on every key, and the link-stage gate's four tests passing on each Arm key, `C2ImageHasNoSoftwareDouble` among them |
 
 | `baselines.json`: `fft_f32_512`, `fft_f32_2048`, `fft_f64_512` and `callmax_fft_f32_512`, every key | Bench run [45762911188](https://github.com/tap/catenae/actions/runs/45762911188) at `1525e89`, 2026-11-26 (`workflow_dispatch` on the C4 FFT branch): its `measured-<key>` artifacts, copied unchanged; every other count in that run equal to its baseline, C++20 and C++23 equal to C++17, and each FFT workload's checksum the same on all six keys. The kernel's recursion became a loop afterwards (`e7bf0d2`, so that the stack bound reads every frame): Bench run [45771572341](https://github.com/tap/catenae/actions/runs/45771572341) counted every FFT workload within 0.75 % of these on every key, inside the gate, and they stand |
-| `ceilings.json`: the probe set `fft`, every key but `host` | Bench run [45771572341](https://github.com/tap/catenae/actions/runs/45771572341) at `e7bf0d2`, 2026-11-26: its `ceilings-measured-<key>.json` artifacts, the ceilings computed by `scripts/ceilings.py`'s rule; every other figure in that run equal to its record, the link-stage gate's four tests passing on each Arm key, and every call's painted stack within its static bound |
+| `ceilings.json`: the probe set `fft`, every key but `host` | Bench run [45821938097](https://github.com/tap/catenae/actions/runs/45821938097) at `4989d0e`, 2026-11-26: its `ceilings-measured-<key>.json` artifacts, the ceilings computed by `scripts/ceilings.py`'s rule. Plans made at run time to 2^20 (Q1) widened the kernel's 29 pending entries from 16 to 32 bits, so `forward` and `inverse` reach 56 B more stack on each Arm key (480 B static on the M33, M4F and M55, 568 B on the soft-float M4), and the code figures moved by under 70 B, inside their ceilings, recorded too; every other figure in that run equal to its record (C2's `c2` probe among them), and the link-stage gate's tests passing on each Arm key. The run before, [45771572341](https://github.com/tap/catenae/actions/runs/45771572341) at `e7bf0d2`, recorded the 16-bit list |
 
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
 (Ubuntu's `gcc-arm-none-eabi` 15:13.2.rel1-2) and `qemu-system-arm` 8.2.2 for the Arm keys;

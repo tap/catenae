@@ -122,8 +122,8 @@
         "recorded": 2104
       },
       "core.text": {
-        "ceiling": 13120,
-        "recorded": 12676
+        "ceiling": 13056,
+        "recorded": 12640
       },
       "image.bss": {
         "ceiling": 4416,
@@ -139,7 +139,7 @@
       },
       "image.text": {
         "ceiling": 20928,
-        "recorded": 20292
+        "recorded": 20260
       },
       "startup.functions": {
         "ceiling": 0,
@@ -159,7 +159,7 @@
       },
       "unit.text": {
         "ceiling": 256,
-        "recorded": 240
+        "recorded": 232
       }
     },
     "strip": {
@@ -509,15 +509,15 @@
     "fft": {
       "code.forward": {
         "ceiling": 4032,
-        "recorded": 3894
+        "recorded": 3874
       },
       "code.inverse": {
         "ceiling": 4032,
-        "recorded": 3912
+        "recorded": 3890
       },
       "code.make": {
         "ceiling": 2496,
-        "recorded": 2386
+        "recorded": 2388
       },
       "core.bss": {
         "ceiling": 0,
@@ -533,7 +533,7 @@
       },
       "core.text": {
         "ceiling": 9728,
-        "recorded": 9412
+        "recorded": 9396
       },
       "image.bss": {
         "ceiling": 5184,
@@ -549,23 +549,23 @@
       },
       "image.text": {
         "ceiling": 17984,
-        "recorded": 17436
+        "recorded": 17400
       },
       "stack.forward.measured": {
-        "ceiling": 424,
-        "recorded": 408
+        "ceiling": 480,
+        "recorded": 464
       },
       "stack.forward.static": {
-        "ceiling": 440,
-        "recorded": 424
+        "ceiling": 496,
+        "recorded": 480
       },
       "stack.inverse.measured": {
-        "ceiling": 424,
-        "recorded": 408
+        "ceiling": 480,
+        "recorded": 464
       },
       "stack.inverse.static": {
-        "ceiling": 440,
-        "recorded": 424
+        "ceiling": 496,
+        "recorded": 480
       },
       "stack.make.measured": {
         "ceiling": 560,
@@ -596,8 +596,8 @@
         "recorded": 8
       },
       "unit.text": {
-        "ceiling": 256,
-        "recorded": 208
+        "ceiling": 192,
+        "recorded": 184
       }
     },
     "strip": {
@@ -1015,15 +1015,15 @@
     "fft": {
       "code.forward": {
         "ceiling": 5824,
-        "recorded": 5654
+        "recorded": 5634
       },
       "code.inverse": {
-        "ceiling": 5888,
-        "recorded": 5658
+        "ceiling": 5824,
+        "recorded": 5636
       },
       "code.make": {
         "ceiling": 3520,
-        "recorded": 3372
+        "recorded": 3374
       },
       "core.bss": {
         "ceiling": 0,
@@ -1039,7 +1039,7 @@
       },
       "core.text": {
         "ceiling": 11072,
-        "recorded": 10740
+        "recorded": 10724
       },
       "image.bss": {
         "ceiling": 5184,
@@ -1054,24 +1054,24 @@
         "recorded": 2148
       },
       "image.text": {
-        "ceiling": 20160,
-        "recorded": 19544
+        "ceiling": 20096,
+        "recorded": 19480
       },
       "stack.forward.measured": {
-        "ceiling": 528,
-        "recorded": 512
+        "ceiling": 592,
+        "recorded": 568
       },
       "stack.forward.static": {
-        "ceiling": 528,
-        "recorded": 512
+        "ceiling": 592,
+        "recorded": 568
       },
       "stack.inverse.measured": {
-        "ceiling": 528,
-        "recorded": 512
+        "ceiling": 592,
+        "recorded": 568
       },
       "stack.inverse.static": {
-        "ceiling": 528,
-        "recorded": 512
+        "ceiling": 592,
+        "recorded": 568
       },
       "stack.make.measured": {
         "ceiling": 560,
@@ -1102,8 +1102,8 @@
         "recorded": 8
       },
       "unit.text": {
-        "ceiling": 256,
-        "recorded": 208
+        "ceiling": 192,
+        "recorded": 184
       }
     },
     "strip": {
@@ -1521,15 +1521,15 @@
     "fft": {
       "code.forward": {
         "ceiling": 4032,
-        "recorded": 3894
+        "recorded": 3874
       },
       "code.inverse": {
         "ceiling": 4032,
-        "recorded": 3912
+        "recorded": 3890
       },
       "code.make": {
         "ceiling": 2496,
-        "recorded": 2386
+        "recorded": 2388
       },
       "core.bss": {
         "ceiling": 0,
@@ -1545,7 +1545,7 @@
       },
       "core.text": {
         "ceiling": 9728,
-        "recorded": 9412
+        "recorded": 9396
       },
       "image.bss": {
         "ceiling": 5184,
@@ -1560,24 +1560,24 @@
         "recorded": 2148
       },
       "image.text": {
-        "ceiling": 18112,
-        "recorded": 17560
+        "ceiling": 18048,
+        "recorded": 17496
       },
       "stack.forward.measured": {
-        "ceiling": 424,
-        "recorded": 408
+        "ceiling": 480,
+        "recorded": 464
       },
       "stack.forward.static": {
-        "ceiling": 440,
-        "recorded": 424
+        "ceiling": 496,
+        "recorded": 480
       },
       "stack.inverse.measured": {
-        "ceiling": 424,
-        "recorded": 408
+        "ceiling": 480,
+        "recorded": 464
       },
       "stack.inverse.static": {
-        "ceiling": 440,
-        "recorded": 424
+        "ceiling": 496,
+        "recorded": 480
       },
       "stack.make.measured": {
         "ceiling": 560,
@@ -1608,8 +1608,8 @@
         "recorded": 8
       },
       "unit.text": {
-        "ceiling": 256,
-        "recorded": 208
+        "ceiling": 192,
+        "recorded": 184
       }
     },
     "strip": {
@@ -2026,16 +2026,16 @@
     },
     "fft": {
       "code.forward": {
-        "ceiling": 4096,
-        "recorded": 3918
+        "ceiling": 4032,
+        "recorded": 3898
       },
       "code.inverse": {
-        "ceiling": 4096,
-        "recorded": 3936
+        "ceiling": 4032,
+        "recorded": 3914
       },
       "code.make": {
         "ceiling": 2368,
-        "recorded": 2272
+        "recorded": 2274
       },
       "core.bss": {
         "ceiling": 0,
@@ -2051,7 +2051,7 @@
       },
       "core.text": {
         "ceiling": 9664,
-        "recorded": 9342
+        "recorded": 9326
       },
       "image.bss": {
         "ceiling": 5184,
@@ -2067,23 +2067,23 @@
       },
       "image.text": {
         "ceiling": 17920,
-        "recorded": 17380
+        "recorded": 17344
       },
       "stack.forward.measured": {
-        "ceiling": 424,
-        "recorded": 408
+        "ceiling": 480,
+        "recorded": 464
       },
       "stack.forward.static": {
-        "ceiling": 440,
-        "recorded": 424
+        "ceiling": 496,
+        "recorded": 480
       },
       "stack.inverse.measured": {
-        "ceiling": 424,
-        "recorded": 408
+        "ceiling": 480,
+        "recorded": 464
       },
       "stack.inverse.static": {
-        "ceiling": 440,
-        "recorded": 424
+        "ceiling": 496,
+        "recorded": 480
       },
       "stack.make.measured": {
         "ceiling": 560,
@@ -2115,7 +2115,7 @@
       },
       "unit.text": {
         "ceiling": 256,
-        "recorded": 220
+        "recorded": 196
       }
     },
     "strip": {

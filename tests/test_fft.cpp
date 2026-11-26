@@ -24,8 +24,8 @@
 static_assert(FLT_EVAL_METHOD == 0, "catenae: evaluation in wider precision (x87) moves the FFT's output bits");
 #endif
 
-// The longest length the battery transforms: 2^20 hosted, 4096 on the bare-metal legs, whose RAM
-// holds no 65536-point double frame.
+// The longest length the battery transforms: 2^20 hosted, 65536 under Hexagon's emulator, 4096 on
+// the bare-metal legs, whose RAM holds no 65536-point double frame (tests/CMakeLists.txt).
 #ifndef CATENAE_TEST_MAX_FFT_N
 #define CATENAE_TEST_MAX_FFT_N 1048576
 #endif
@@ -69,18 +69,29 @@ namespace {
         catenae::fft_plan<T> plan;
     };
 
+    /// The constant plan of length n, for the lengths to the battery's longest: an image links
+    /// only the tables it transforms (a bare-metal leg's flash holds no 65536-point table).
+    template <typename T, std::size_t L>
+    bool fixed_plan_of(std::size_t n, catenae::fft_plan<T>& plan) {
+        if constexpr (L <= max_n && L <= catenae::fft_max_table_size) {
+            if (n == L) {
+                plan = catenae::fft_plan<T>(catenae::fft_plan<T>::template of<L>());
+                return true;
+            }
+            return fixed_plan_of<T, 2u * L>(n, plan);
+        }
+        else {
+            static_cast<void>(n);
+            static_cast<void>(plan);
+            return false;
+        }
+    }
+
     template <typename T>
     held_plan<T> plan_of(std::size_t n) {
         held_plan<T> held{{}, catenae::fft_plan<T>(catenae::fft_plan<T>::template of<4>())};
-        switch (n) {
-#define CATENAE_TEST_CASE(len)                                                                                         \
-    case len:                                                                                                          \
-        held.plan = catenae::fft_plan<T>(catenae::fft_plan<T>::template of<len>());                                    \
-        return held;
-            CATENAE_FFT_LENGTHS(CATENAE_TEST_CASE)
-#undef CATENAE_TEST_CASE
-        default:
-            break;
+        if (fixed_plan_of<T, 4u>(n, held.plan)) {
+            return held;
         }
         held.storage.resize(catenae::fft_workspace_size<T>(n));
         const auto made = catenae::fft_plan<T>::make(n, catenae::span<T>(held.storage.data(), held.storage.size()));
@@ -240,6 +251,7 @@ namespace {
         EXPECT_LT(err, 2.25e-7);
     }
 
+#if CATENAE_TEST_MAX_FFT_N > 65536
     /// Bin k of the DFT of real x, in double, as reference_dft computes it: within an ulp or two.
     catenae::complex<double> reference_bin(const std::vector<double>& x, std::size_t k) {
         const std::size_t n       = x.size();
@@ -290,6 +302,7 @@ namespace {
             EXPECT_LT(double_err, 6.7e-16) << n;
         }
     }
+#endif
 
     /// FNV-1a-64 over each value's bits, one 32- or 64-bit word per step.
     template <typename T>
@@ -346,7 +359,7 @@ namespace {
         static_assert(catenae::fft_has_tables(4) && catenae::fft_has_tables(65536), "");
         static_assert(!catenae::fft_has_tables(131072) && !catenae::fft_has_tables(12), "");
         static_assert(catenae::fft_bins(512) == 257u, "");
-        std::vector<float> storage(catenae::fft_workspace_size<float>(65536));
+        std::vector<float> storage(catenae::fft_workspace_size<float>(1024));
         for (const std::size_t n : {0u, 1u, 2u, 3u, 6u, 12u, 100u, 2097152u}) {
             const auto made = catenae::fft_plan<float>::make(n, catenae::span<float>(storage.data(), storage.size()));
             ASSERT_FALSE(made.has_value()) << n;
@@ -360,10 +373,12 @@ namespace {
         const auto big = catenae::fft_plan<float>::make(131072, catenae::span<float>(storage.data(), storage.size()));
         ASSERT_FALSE(big.has_value());
         EXPECT_EQ(big.error(), catenae::status::size_mismatch);
+#if CATENAE_TEST_MAX_FFT_N >= 1048576
         std::vector<float> room(catenae::fft_workspace_size<float>(1048576));
         const auto top = catenae::fft_plan<float>::make(1048576, catenae::span<float>(room.data(), room.size()));
         ASSERT_TRUE(top.has_value());
         EXPECT_EQ(top->size(), 1048576u);
+#endif
     }
 
     // Verifies CAT-FFT-005.

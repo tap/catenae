@@ -140,10 +140,14 @@ catenae_add_gtest_executable(catenae_tests
 if(CATENAE_BARE_METAL)
     target_sources(catenae_tests PRIVATE bare_metal/interrupt.cpp)
 endif()
-# The FFT battery sweeps to 65536 hosted; a bare-metal leg's RAM holds no 65536-point double
-# frame, so it stops at 4096.
+# The FFT battery sweeps to 2^20 hosted. Lengths above 65536 are the hosted legs' only: under
+# Hexagon's emulator it stops at 65536 (and its clang 19 crashes compiling the long-length test),
+# and a bare-metal leg's RAM holds no 65536-point double frame, nor its flash every table, so it
+# stops at 4096.
 if(CATENAE_BARE_METAL)
     target_compile_definitions(catenae_tests PRIVATE CATENAE_TEST_MAX_FFT_N=4096)
+elseif(CMAKE_CROSSCOMPILING)
+    target_compile_definitions(catenae_tests PRIVATE CATENAE_TEST_MAX_FFT_N=65536)
 endif()
 # The battery's support (its check_failed, the generic harness) and the fixture stages.
 target_include_directories(catenae_tests PRIVATE support fixtures ../examples)

@@ -77,8 +77,10 @@
 // Under GCC each compile-time block the kernel's switch reaches is a function of its own. Inlined
 // into the switch, GCC gives the blocks' locals separate stack slots, so the kernel's frame is
 // their sum: 944 bytes on the Cortex-M33 at -O3, beyond the library's 512 (tools/warnings). The
-// kernel is a function of its own for the same reason: inlined into a transform, its list of
-// pending blocks and the fused pass made a 520-byte frame on the soft-float Cortex-M4.
+// kernel and the fused pass are functions of their own for the same reason: inlined into a
+// transform, the kernel's list of pending blocks and the fused pass made a 520-byte frame on the
+// soft-float Cortex-M4, and the fused pass inlined into the kernel 560 bytes for double under the
+// thread sanitizer (Linux arm64, CI run 45771576619).
 #if defined(__GNUC__) && !defined(__clang__)
 #define CATENAE_SRDIF_BLOCK __attribute__((noinline))
 #else
@@ -392,7 +394,8 @@ namespace catenae {
 
                 /// The fused pass over a block of l >= 128 values; the entry of j is j (m/l) steps.
                 template <bool Inverse>
-                static void fused_pass(const T* tables, std::size_t n, cx* a, std::size_t l) noexcept {
+                CATENAE_SRDIF_BLOCK static void fused_pass(const T* tables, std::size_t n, cx* a,
+                                                           std::size_t l) noexcept {
                     const std::size_t e      = l / 8u;
                     const std::size_t h      = e / 2u;
                     const std::size_t stride = 12u * ((n / 2u) / l);

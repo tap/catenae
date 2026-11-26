@@ -184,6 +184,33 @@ Probe `c1`: each cell is the recorded figure / its ceiling, in bytes (start-up f
 | `stack.reset.static` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
 | `code.process` | 3,168 / 3,264 | 1,400 / 1,472 | 1,400 / 1,472 | 1,552 / 1,600 |  |
 | `code.reset` | 302 / 320 | 302 / 320 | 302 / 320 | 302 / 320 |  |
+
+Probe `c2`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
+
+| figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
+|---|--:|--:|--:|--:|--:|
+| `image.bss` | 2,980 / 3,072 | 2,980 / 3,072 | 2,980 / 3,072 | 2,980 / 3,072 | 2,252 / 2,368 |
+| `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
+| `image.rodata` | 108 / 128 | 108 / 128 | 108 / 128 | 108 / 128 | 56 / 64 |
+| `image.text` | 9,304 / 9,600 | 8,088 / 8,384 | 7,976 / 8,256 | 8,020 / 8,320 | 8,628 / 8,896 |
+| `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.text` | 112 / 128 | 112 / 128 | 112 / 128 | 118 / 128 | 136 / 192 |
+| `unit.bss` | 1,964 / 2,048 | 1,964 / 2,048 | 1,964 / 2,048 | 1,964 / 2,048 | 1,964 / 2,048 |
+| `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.rodata` | 20 / 64 | 20 / 64 | 20 / 64 | 20 / 64 | 20 / 64 |
+| `unit.text` | 518 / 576 | 506 / 576 | 506 / 576 | 538 / 576 | 1,336 / 1,408 |
+| `sizeof.state` | 36 / 64 | 36 / 64 | 36 / 64 | 36 / 64 |  |
+| `sizeof.workspace` | 1,928 / 2,048 | 1,928 / 2,048 | 1,928 / 2,048 | 1,928 / 2,048 |  |
+| `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
+| `stack.process.measured` | 80 / 88 | 24 / 32 | 24 / 32 | 24 / 32 |  |
+| `stack.process.static` | 80 / 88 | 24 / 32 | 24 / 32 | 32 / 40 |  |
+| `stack.reset.measured` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |  |
+| `stack.reset.static` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |  |
+| `code.process` | 1,686 / 1,792 | 612 / 640 | 612 / 640 | 650 / 704 |  |
+| `code.reset` | 44 / 64 | 44 / 64 | 44 / 64 | 44 / 64 |  |
 <!-- ceilings:end -->
 
 ## The layout benchmark (informational, never a gate)

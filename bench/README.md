@@ -52,7 +52,7 @@ is rooted at a noinline `catenae_probe::probe_<call>`. The sets:
 | `strip` | The example chain, `examples/strip.h`: its memory, start-up and stack are C1's pinned numbers | `reset`, `process` |
 | `strip_object` | The same strip as a desktop program writes it, one object with its delay line on the heap: the guide's "Where memory lives" measures it against `strip` | `process` |
 | `c1` | Every C1 stage once, in one float path: the link-stage gate's first probe image | `reset`, `process` |
-| `c2` | C2's edges in one path, 24-bit packed stereo in and out with a gain in float between: the compiled wire loops (`src/wire.cpp`) and the gate's image for the family | `reset`, `process` |
+| `c2` | Every C2 stage in one path, 24-bit packed stereo in and out with `sanitize`, `mix` and `dither` in float between: the compiled wire loops (`src/wire.cpp`) and the gate's image for the family | `reset`, `process` |
 
 `scripts/ceilings.py` reads, per key:
 
@@ -357,8 +357,8 @@ chain refuses it when its type is formed, before the program exists.
 ### The edges
 
 `edges` runs C2's path, the `c2` probe's (`bench/probe/c2_probe.cpp`), over 1000 blocks of 64
-frames: 24-bit packed stereo unpacked to `q31`, converted to `float` and halved by a gain, and
-converted back and packed. It folds the first and last bytes of each block into a checksum,
+frames: 24-bit packed stereo unpacked to `q31` and converted to `float`; sanitized, mixed
+through a crossfeed matrix and dithered at 24 bits; and converted back and packed. It folds the first and last bytes of each block into a checksum,
 `176dacc26ecec638` on every key. The compiled loops it calls are two of `src/wire.cpp`'s twenty
 (`core.text` in the `c2` table above). Every key counted C++20 and C++23 equal to C++17.
 

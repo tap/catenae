@@ -13,11 +13,13 @@
 #include "catenae/chain.h"
 #include "catenae/convert.h"
 #include "catenae/delay.h"
+#include "catenae/dither.h"
 #include "catenae/gain.h"
 #include "catenae/handoff.h"
 #include "catenae/interleave.h"
 #include "catenae/junction_traits.h"
 #include "catenae/map.h"
+#include "catenae/mix.h"
 #include "catenae/pack.h"
 #include "catenae/parallel.h"
 #include "catenae/stage_traits.h"
@@ -52,6 +54,8 @@ namespace {
                   "parallel in q31, planar out, aligned by the caller");
     static_assert(contract<catenae::biquad_q31<2>>(), "biquad in q31: its contract");
     static_assert(contract<catenae::biquad_q31<1, 4>>(), "a cascade of four in q31: its contract");
+    static_assert(contract<catenae::dither_q31<2, 24>>(), "dither in q31");
+    static_assert(contract<catenae::mix_q31<2, 1>>(), "mix in q31: its contract, Q1.30 coefficients");
     static_assert(contract<catenae::unpack<catenae::wire::s24le_packed, 2>>(), "unpack to q31");
     static_assert(contract<catenae::pack<catenae::wire::s32be, 2>>(), "pack from q31");
     static_assert(contract<catenae::chain<catenae::unpack<catenae::wire::s24le_in32_msb, 2>, catenae::gain_q31<2>,

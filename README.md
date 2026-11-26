@@ -15,10 +15,11 @@ and pinned by a test.
 on every target, the measurement harness and the contracts are in place, and a chain of
 stages written as a type runs on every target: `map`, a `gain` that ramps, a fixed `delay`,
 the layout converters and `convert` among `float`, `q15`, `q31` and Q4.27; at its edges,
-`unpack` and `pack` move samples between ten wire formats and those. A `biquad` cascade runs
-a design made off the audio path, one of the cookbook's nine responses or a Butterworth of even
-order up to 16, by a `make()` that can fail or from a table in ROM that is checked when it is
-compiled. `steady` makes a
+`unpack` and `pack` move samples between ten wire formats and those, `sanitize` makes a
+host's samples safe, `mix` takes channels through a matrix and `dither` adds TPDF noise
+before a rounding. A `biquad` cascade runs a design made off the audio path, one of the
+cookbook's nine responses or a Butterworth of even order up to 16, by a `make()` that can fail
+or from a table in ROM that is checked when it is compiled. `steady` makes a
 stage that works in blocks frame-synchronous, and `parallel` runs two chains on two groups of
 a port's channels. `handoff` joins two threads of one clock with a fill policy stated as
 numbers, `feeding` and `fed_by` run a chain on either side of it, and a `mailbox` carries a

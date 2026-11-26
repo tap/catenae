@@ -1,10 +1,11 @@
 /// @file edges_main.cpp
-/// @brief C2's edges in the ratchet: 24-bit packed stereo off the wire, a gain in float, and
-/// back to the wire, as the c2 probe's path (bench/probe/c2_probe.cpp).
+/// @brief C2's edges in the ratchet: 24-bit packed stereo off the wire, sanitized, mixed and
+/// dithered in float, and back to the wire, as the c2 probe's path (bench/probe/c2_probe.cpp).
 // Copyright 2026 Timothy Place and the catenae contributors
 //
-//   catenae_icount_edges  1000 blocks of 64 stereo frames through unpack, convert, gain,
-//                         convert and pack; it prints a checksum of the bytes written.
+//   catenae_icount_edges  1000 blocks of 64 stereo frames through unpack, convert, sanitize,
+//                         mix, dither, convert and pack; it prints a checksum of the bytes
+//                         written.
 #include <array>
 #include <cinttypes>
 #include <cstddef>
@@ -16,8 +17,10 @@
 #include "catenae/chain.h"
 #include "catenae/compiler.h"
 #include "catenae/convert.h"
-#include "catenae/gain.h"
+#include "catenae/dither.h"
+#include "catenae/mix.h"
 #include "catenae/pack.h"
+#include "catenae/sanitize.h"
 #include "catenae/unpack.h"
 
 extern "C" std::uint64_t catenae_host_counted() noexcept;
@@ -31,7 +34,8 @@ namespace {
     constexpr std::uint64_t k_fnv_prime = 1099511628211ull;
 
     constexpr auto k_edges = catenae::chain(catenae::unpack<wire::s24le_packed, 2>{})
-                             | catenae::convert<catenae::q31, float, 2>{} | catenae::gain<2>{0.5f, 32}
+                             | catenae::convert<catenae::q31, float, 2>{} | catenae::sanitize<2>{}
+                             | catenae::mix<2, 2>{{0.75f, 0.25f, 0.25f, 0.75f}, 32} | catenae::dither<2, 24>{}
                              | catenae::convert<float, catenae::q31, 2>{} | catenae::pack<wire::s24le_packed, 2>{};
     using edges_t = std::remove_cv_t<decltype(k_edges)>;
 

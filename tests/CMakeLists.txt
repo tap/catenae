@@ -117,6 +117,9 @@ catenae_add_gtest_executable(catenae_tests
         test_expected.cpp
         test_feeding.cpp
         test_fft.cpp
+        test_fir.cpp
+        test_fir_design.cpp
+        test_fir_kernel.cpp
         test_fwd.cpp
         test_fwd_alone.cpp
         test_gain.cpp

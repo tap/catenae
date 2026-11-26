@@ -109,6 +109,7 @@ catenae_add_gtest_executable(catenae_tests
         test_convert.cpp
         test_convert_shift.cpp
         test_delay.cpp
+        test_dither.cpp
         test_expected.cpp
         test_feeding.cpp
         test_fft.cpp
@@ -121,12 +122,14 @@ catenae_add_gtest_executable(catenae_tests
         test_junction_traits.cpp
         test_mailbox.cpp
         test_map.cpp
+        test_mix.cpp
         test_pack.cpp
         test_parallel.cpp
         test_port.cpp
         test_ratio.cpp
         test_sample_format.cpp
         test_sample_traits.cpp
+        test_sanitize.cpp
         test_span.cpp
         test_stage_traits.cpp
         test_steady.cpp

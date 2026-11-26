@@ -184,6 +184,34 @@ Probe `c1`: each cell is the recorded figure / its ceiling, in bytes (start-up f
 | `stack.reset.static` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
 | `code.process` | 3,168 / 3,264 | 1,400 / 1,472 | 1,400 / 1,472 | 1,552 / 1,600 |  |
 | `code.reset` | 302 / 320 | 302 / 320 | 302 / 320 | 302 / 320 |  |
+
+Probe `fft`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
+
+| figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
+|---|--:|--:|--:|--:|--:|
+| `image.bss` | 5,012 / 5,184 | 5,012 / 5,184 | 5,012 / 5,184 | 5,012 / 5,184 | 4,284 / 4,416 |
+| `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
+| `image.rodata` | 2,148 / 2,240 | 2,148 / 2,240 | 2,148 / 2,240 | 2,148 / 2,240 | 2,144 / 2,240 |
+| `image.text` | 19,544 / 20,160 | 17,560 / 18,112 | 17,436 / 17,984 | 17,380 / 17,920 | 20,292 / 20,928 |
+| `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.rodata` | 2,048 / 2,112 | 2,048 / 2,112 | 2,048 / 2,112 | 2,048 / 2,112 | 2,104 / 2,176 |
+| `core.text` | 10,740 / 11,072 | 9,412 / 9,728 | 9,412 / 9,728 | 9,342 / 9,664 | 12,676 / 13,120 |
+| `unit.bss` | 3,996 / 4,160 | 3,996 / 4,160 | 3,996 / 4,160 | 3,996 / 4,160 | 3,996 / 4,160 |
+| `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.rodata` | 8 / 64 | 8 / 64 | 8 / 64 | 8 / 64 | 0 / 0 |
+| `unit.text` | 208 / 256 | 208 / 256 | 208 / 256 | 220 / 256 | 240 / 256 |
+| `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
+| `stack.forward.measured` | 512 / 528 | 408 / 424 | 408 / 424 | 408 / 424 |  |
+| `stack.forward.static` | 512 / 528 | 424 / 440 | 424 / 440 | 424 / 440 |  |
+| `stack.inverse.measured` | 512 / 528 | 408 / 424 | 408 / 424 | 408 / 424 |  |
+| `stack.inverse.static` | 512 / 528 | 424 / 440 | 424 / 440 | 424 / 440 |  |
+| `stack.make.measured` | 540 / 560 | 540 / 560 | 540 / 560 | 540 / 560 |  |
+| `stack.make.static` | 540 / 560 | 540 / 560 | 540 / 560 | 540 / 560 |  |
+| `code.forward` | 5,654 / 5,824 | 3,894 / 4,032 | 3,894 / 4,032 | 3,918 / 4,096 |  |
+| `code.inverse` | 5,658 / 5,888 | 3,912 / 4,032 | 3,912 / 4,032 | 3,936 / 4,096 |  |
+| `code.make` | 3,372 / 3,520 | 2,386 / 2,496 | 2,386 / 2,496 | 2,272 / 2,368 |  |
 <!-- ceilings:end -->
 
 ## The layout benchmark (informational, never a gate)
@@ -277,6 +305,9 @@ ctest --test-dir build-size -L link_gate
 | `ceilings.json`: the probe sets `strip`, `strip_object` and `c1`, and `code.version`, every key but `host`; the layout table above | Bench run [45704804502](https://github.com/tap/catenae/actions/runs/45704804502) at `fed09b6`, 2026-11-25 (`workflow_dispatch` on the C1 branch): each figure as its "Sizes, start-up and stack" step printed it, the ceilings computed by `scripts/ceilings.py`'s rule; every figure recorded before it measured equal, every ratchet count equal to its baseline, the link-stage gate's three tests passing on each Arm key; the same toolchain packages as the first run |
 | `ceilings.json`: 50 figures of the probe sets `strip` and `c1`, every key but `host`; the layout table above | Bench run [45715344934](https://github.com/tap/catenae/actions/runs/45715344934) at `0de8a2b`, 2026-11-25: its `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, each figure that differed from its record copied and its ceiling computed by `scripts/ceilings.py`'s rule. Re-recorded because `gain`'s new loops cost code: the strip's `process` reaches 168 more bytes on the M4F and M33 (320 to 488), 208 on the M55 and 196 on the soft-float M4, and its stack is 8 bytes deeper (24 on the soft-float M4), for the counts in the row above. `c1`'s `reset` figures fell in the same run and are recorded as measured. Every ratchet count in that run equal to its baseline |
 
+| `baselines.json`: `fft_f32_512`, `fft_f32_2048`, `fft_f64_512` and `callmax_fft_f32_512`, every key | Bench run [45762911188](https://github.com/tap/catenae/actions/runs/45762911188) at `1525e89`, 2026-11-26 (`workflow_dispatch` on the C4 FFT branch): its `measured-<key>` artifacts, copied unchanged; every other count in that run equal to its baseline, C++20 and C++23 equal to C++17, and each FFT workload's checksum the same on all six keys. The kernel's recursion became a loop afterwards (`e7bf0d2`, so that the stack bound reads every frame): Bench run [45771572341](https://github.com/tap/catenae/actions/runs/45771572341) counted every FFT workload within 0.75 % of these on every key, inside the gate, and they stand |
+| `ceilings.json`: the probe set `fft`, every key but `host` | Bench run [45771572341](https://github.com/tap/catenae/actions/runs/45771572341) at `e7bf0d2`, 2026-11-26: its `ceilings-measured-<key>.json` artifacts, the ceilings computed by `scripts/ceilings.py`'s rule; every other figure in that run equal to its record, the link-stage gate's four tests passing on each Arm key, and every call's painted stack within its static bound |
+
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
 (Ubuntu's `gcc-arm-none-eabi` 15:13.2.rel1-2) and `qemu-system-arm` 8.2.2 for the Arm keys;
 CodeLinaro clang 19.1.5 and `qemu-hexagon` 8.2.2, built with plugins, for `hexagon`; GCC 13.3.0
@@ -325,3 +356,22 @@ the same, within 6 % either way; on Hexagon and the host the chain is the cheape
 graph gives up is not speed: a node whose channel count differs from the one before it is
 found when it is connected, as the program runs (`graph::connect` returns false), where the
 chain refuses it when its type is formed, before the program exists.
+
+### The floating FFT
+
+`fft_f32_512`, `fft_f32_2048` and `fft_f64_512` run a forward and an inverse transform of each
+frame over 2^20 samples (`bench/icount/fft_main.cpp`, DspTap's `rfft_*` scenarios on catenae's
+plan and frame); `callmax_fft_f32_512` is the worst single transform at 512 in float. Each
+prints the same checksum on every key: the engine's bits do not depend on the target.
+
+| Key | `fft_f32_512` | `fft_f32_2048` | `fft_f64_512` | `callmax_fft_f32_512` |
+|---|--:|--:|--:|--:|
+| `m4-softfp` | 1,827,129,136 | 2,260,341,932 | 2,441,467,727 | 432,961 |
+| `m4f` | 79,985,163 | 97,255,819 | 2,434,049,887 | 17,391 |
+| `m33` | 79,831,625 | 97,044,425 | 2,435,374,978 | 17,368 |
+| `m55` | 83,044,942 | 100,065,742 | 86,936,678 | 18,289 |
+| `hexagon` | 26,884,812 packets | 33,173,708 packets | 58,262,005 packets | 6,000 |
+| `host` | 96,063,525 | 115,896,869 | 94,748,709 | (QEMU keys only) |
+
+The double scenario is software double on the M4, M4F and M33, whose FPUs are single
+precision, and an instruction per operation on the M55 and the host.

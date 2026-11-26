@@ -23,7 +23,11 @@ too: throwaway skeletons of SampleRateTap's three engines and the first C ABI ma
 changes they led to (`ratio_t`, `table_view` and `holds_view`, `outputs_from_rest` and the
 exact largest pull, `fed_by`'s flush). **C2** is under way, in two pull requests: `unpack`
 and `pack` over the ten wire formats of `catenae/wire.h`, their loops the first compiled code
-past the handler (`src/wire.cpp`); then dither, the mix matrix and `sanitize`.
+past the handler (`src/wire.cpp`); then dither, the mix matrix and `sanitize`. **C3** is
+under way, in four pull requests: the recursive filters (the biquad kernel, `biquad` and
+`butterworth`, the cookbook's nine designs and the Butterworth's, `from_table`'s check, the
+host's flush-to-zero stated by `CATENAE_FLUSH_TO_ZERO` and checked at audit); then the FIR
+filters, rate change with `oversample`, and the three dynamics stages.
 
 ## How to work here
 
@@ -94,7 +98,8 @@ whoever writes the code. The guide's reader and its three-step chapter shape are
 
 ```sh
 cmake -S . -B build -DCMAKE_BUILD_TYPE=Release            # -DCATENAE_CXX_STANDARD=20 or 23,
-cmake --build build                                       # -DCATENAE_CHECKS=audit
+cmake --build build                                       # -DCATENAE_CHECKS=audit,
+                                                          # -DCATENAE_FLUSH_TO_ZERO=off
 ctest --test-dir build --output-on-failure                # -L compile_fail, -L '^link$' for those
                                                           # -DCATENAE_BUILD_FIT=ON, -L fit: CF's skeletons
 

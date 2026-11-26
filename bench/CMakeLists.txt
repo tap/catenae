@@ -72,6 +72,15 @@ endif()
 
 # C2's edges: 24-bit packed stereo off the wire and back, the c2 probe's path.
 catenae_add_icount(edges icount/edges_main.cpp)
+catenae_add_icount(recursive icount/recursive_main.cpp)
+target_include_directories(catenae_icount_recursive PRIVATE "${PROJECT_SOURCE_DIR}/examples")
+# What one recursive make() costs, the worst single call (QEMU keys only): its card's numbers.
+catenae_add_icount(callmax_design_cookbook icount/design_main.cpp DEFINITIONS CATENAE_DESIGN_SECTIONS=0)
+foreach(_order IN ITEMS 2 4 8 16)
+    math(EXPR _sections "${_order} / 2")
+    catenae_add_icount(callmax_design_butterworth_${_order} icount/design_main.cpp
+                       DEFINITIONS CATENAE_DESIGN_SECTIONS=${_sections})
+endforeach()
 
 # --- The layout benchmark: interleaved against planar, informational (bench/layout/) --------
 add_subdirectory(layout)
@@ -101,7 +110,9 @@ catenae_add_probe(strip_object probe/strip_object_probe.cpp)
 catenae_add_probe(c1 probe/c1_probe.cpp)
 # C2's: the edges in one path, bytes in and out (the link-stage gate's image for the family).
 catenae_add_probe(c2 probe/c2_probe.cpp)
-foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip)
+catenae_add_probe(recursive probe/recursive_probe.cpp)
+catenae_add_probe(designers probe/designers_probe.cpp)
+foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip catenae_probe_recursive catenae_stack_recursive)
     target_include_directories(${_probe} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 
@@ -133,6 +144,9 @@ int main() { return 0; }" CATENAE_HARDWARE_DOUBLE)
     add_test(NAME link_gate.C2ImageHasNoSoftwareDouble
              COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
                      $<TARGET_FILE:catenae_probe_c2>)
+    add_test(NAME link_gate.RecursiveImageHasNoSoftwareDouble
+             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
+                     $<TARGET_FILE:catenae_probe_recursive>)
     if(CATENAE_HARDWARE_DOUBLE)
         add_test(NAME link_gate.HardwareDoubleIsInvisible
                  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py

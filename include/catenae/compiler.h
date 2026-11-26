@@ -8,6 +8,7 @@
 /// | `CATENAE_RESTRICT`                | no aliasing between a kernel's pointers               | DEV-003   |
 /// | `detail::atomic_*` on a `std::uint32_t` | the words a junction's two sides share (D19)    | DEV-004   |
 /// | `detail::atomic_load_*`, `_store_*` on a `float` | a measured number one side publishes   | DEV-004   |
+/// | `detail::floating_point_control()` | reading the thread's flush-to-zero setting (AOU-008)  | DEV-005   |
 ///
 /// @req{CAT-COMPILER-001} A static declared `CATENAE_CONSTINIT` that would need start-up code
 /// does not compile on GCC and Clang, at C++17, 20 and 23; on MSVC the macro is empty and
@@ -23,18 +24,36 @@
 /// @req{CAT-COMPILER-003} The loads and stores also act on a plain `float`, as one lock-free
 /// 32-bit word with the order its name states, so a number one side measures (a junction's
 /// report) is shared as a `float` with no copy of its bits in the caller.
+/// @req{CAT-COMPILER-004} `detail::subnormals_flushed<S>()` is whether the calling thread
+/// flushes S's subnormal results to zero, read from the control register (MXCSR's FTZ and DAZ
+/// on x86-64, FPCR.FZ on AArch64, FPSCR.FZ on 32-bit Arm) where one governs S's arithmetic,
+/// and `detail::k_subnormal_control<S>` is false where none does (software float, Hexagon).
+/// Nothing in catenae writes the register; the host sets it (carried from DspTap's
+/// `subnormals.h`, NOTICE.md).
 // Copyright 2026 Timothy Place and the catenae contributors
 #ifndef CATENAE_COMPILER_H
 #define CATENAE_COMPILER_H
 
 #include <cstdint>
+#include <type_traits>
 
+#include "catenae/config.h"
 #include "catenae/detail/abi.h"
 
 #if defined(_MSC_VER) && !defined(__clang__)
 #include <cstring>
 
 #include <intrin.h>
+#endif
+
+// The floating-point control register this target has, if any (DEV-005).
+#if defined(__x86_64__) || defined(_M_X64)
+#include <xmmintrin.h>
+#define CATENAE_FP_CONTROL_X86_64 1
+#elif defined(__aarch64__) || defined(_M_ARM64)
+#define CATENAE_FP_CONTROL_AARCH64 1
+#elif defined(__arm__) && defined(__ARM_FP)
+#define CATENAE_FP_CONTROL_AARCH32 1
 #endif
 
 /// Constant initialisation required (DEV-001): GCC's `__constinit`, Clang's attribute; empty
@@ -170,6 +189,79 @@ namespace catenae {
                 __atomic_store(&word, &value, __ATOMIC_RELAXED);
             }
 #endif
+
+            /// Whether a control bit of this target governs the subnormal results of S's
+            /// arithmetic: float and double on x86-64 and AArch64; on 32-bit Arm, float with a
+            /// single-precision FPU and double with a double-precision one (__ARM_FP's bits 2
+            /// and 3); nothing else, with software float, on Hexagon or for a fixed-point S.
+            template <typename S>
+            inline constexpr bool k_subnormal_control =
+#if defined(CATENAE_FP_CONTROL_X86_64) || defined(CATENAE_FP_CONTROL_AARCH64)
+                std::is_same<S, float>::value || std::is_same<S, double>::value;
+#elif defined(CATENAE_FP_CONTROL_AARCH32)
+                (std::is_same<S, float>::value && (__ARM_FP & 4) != 0)
+                || (std::is_same<S, double>::value && (__ARM_FP & 8) != 0);
+#else
+                false;
+#endif
+
+            /// The bits a host sets to flush subnormals: MXCSR's FTZ and DAZ on x86-64, FZ
+            /// (bit 24) of FPCR on AArch64 and of FPSCR on 32-bit Arm; 0 where there are none.
+            inline constexpr std::uint64_t k_flush_to_zero_bits =
+#if defined(CATENAE_FP_CONTROL_X86_64)
+                0x8040u;
+#elif defined(CATENAE_FP_CONTROL_AARCH64) || defined(CATENAE_FP_CONTROL_AARCH32)
+                std::uint64_t{1} << 24u;
+#else
+                0u;
+#endif
+
+            /// The calling thread's floating-point control register (MXCSR, FPCR, FPSCR), read
+            /// without side effects; 0 where the target has none (DEV-005). Never written here.
+            inline std::uint64_t floating_point_control() noexcept {
+#if defined(CATENAE_FP_CONTROL_X86_64)
+                return _mm_getcsr();
+#elif defined(CATENAE_FP_CONTROL_AARCH64)
+#if defined(_MSC_VER) && !defined(__clang__)
+                return static_cast<std::uint64_t>(_ReadStatusReg(ARM64_FPCR));
+#else
+                std::uint64_t value = 0;
+                __asm__ volatile("mrs %0, fpcr" : "=r"(value));
+                return value;
+#endif
+#elif defined(CATENAE_FP_CONTROL_AARCH32)
+                return __builtin_arm_get_fpscr();
+#else
+                return 0;
+#endif
+            }
+
+            /// Whether S's subnormal results are flushed to zero on the calling thread now:
+            /// the control bits, all of them set, where a bit governs S; false for a floating
+            /// S no bit governs, where gradual underflow is all there is.
+            template <typename S>
+            inline bool subnormals_flushed() noexcept {
+                if constexpr (k_subnormal_control<S>) {
+                    return (floating_point_control() & k_flush_to_zero_bits) == k_flush_to_zero_bits;
+                }
+                else {
+                    return false;
+                }
+            }
+
+            /// Whether the calling thread's setting is the one the build states (AOU-008):
+            /// with CATENAE_FLUSH_TO_ZERO on, every bit set; off, none of them. True where no
+            /// bit governs S: there is nothing to differ.
+            template <typename S>
+            inline bool flush_to_zero_as_stated() noexcept {
+                if constexpr (k_subnormal_control<S>) {
+                    const std::uint64_t bits = floating_point_control() & k_flush_to_zero_bits;
+                    return bits == (CATENAE_FLUSH_TO_ZERO != 0 ? k_flush_to_zero_bits : std::uint64_t{0});
+                }
+                else {
+                    return true;
+                }
+            }
 
         } // namespace detail
     } // namespace CATENAE_ABI

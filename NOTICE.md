@@ -39,6 +39,10 @@ own records (DspTap's `platform/README.md` and file headers) give that chain.
 | `fit/bridge/bridge.h` (throwaway) | `include/tap/dsp/fir_kernels.h` | The loop shape of `dot_row` and `dot_row_reversed`, accumulating in `float` (D36) where DspTap accumulates in `double` |
 | `fit/rational/design.h` (throwaway) | `include/tap/dsp/nyquist.h` | Table values only: printed from `design_nyquist` with `kaiser_beta(74)` |
 | `tests/test_sample_traits.cpp` | `tests/test_sample_traits.cpp` | The same battery over the renamed constants, at C++17; `FloatMacAccumulatesInFloat` in place of the test of a `double` accumulator (D36); each test cites its requirement |
+| `include/catenae/detail/biquad_kernel.h` | `include/tap/dsp/iir_kernels.h` | The floating `biquad_cascade` and `biquad_cascade_block` (with `biquad_cascade_group` and the channel grouping): C++17, in catenae's inline namespace, over a `std::array` of rows with the denominator's sign written in the subtraction (the same bits); floating point only, the fixed-point cascade arriving at C6 |
+| `include/catenae/detail/recursive_tail.h` | `include/tap/dsp/butterworth.h` | `scaled_matrix`, `cascade_transition` and `cascade_flush_window`, the last as `decay_frames` with its start and goal made arguments, so one search gives the exact and the practical tail of any cascade |
+| `include/catenae/biquad_design.h`, `src/biquad_design.cpp` (the Butterworth and the group delay) | `include/tap/dsp/butterworth.h`, `include/tap/dsp/iir_design.h` | `design_butterworth_lowpass` and `butterworth_latency_deviation` as compiled functions over spans; `sections_group_delay` and `sections_response` likewise; the cutoff bounds kept as `min_frequency<S>`; rejection by `make()`'s status instead of `raise` |
+| `include/catenae/compiler.h` (the control register) | `include/tap/dsp/subnormals.h` | `k_subnormal_control`, `k_flush_to_zero_bits`, `floating_point_control` and `subnormals_flushed`, with `flush_to_zero_as_stated` beside them for the build's statement (AOU-008); no debug-build assertion, the check being the audit level's |
 
 ## Carried from SampleRateTap at `4496888`
 

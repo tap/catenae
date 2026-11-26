@@ -22,7 +22,13 @@
 
 namespace catenae_probe {
 
-    inline constexpr std::size_t   paint_bytes = 8192;
+#ifndef CATENAE_PROBE_PAINT_BYTES
+#define CATENAE_PROBE_PAINT_BYTES 8192
+#endif
+
+    /// The bytes painted: 8 KiB unless a probe whose calls go deeper says otherwise (the
+    /// designers' probe: make()'s tail search takes 20 KiB at eight sections).
+    inline constexpr std::size_t   paint_bytes = CATENAE_PROBE_PAINT_BYTES;
     inline constexpr std::uint32_t paint_word  = 0x5AA5C33Cu;
 
     [[gnu::always_inline]] inline std::uintptr_t stack_pointer() noexcept {

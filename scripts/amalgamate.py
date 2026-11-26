@@ -52,6 +52,7 @@ def main() -> int:
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--out", required=True, type=pathlib.Path)
     ap.add_argument("--checks", choices=["boundary", "audit"], default="boundary")
+    ap.add_argument("--flush-to-zero", choices=["on", "off"], default="on")
     args = ap.parse_args()
     out = args.out
     out.mkdir(parents=True, exist_ok=True)
@@ -70,6 +71,7 @@ def main() -> int:
     template = (REPO / "tools" / "config" / "config.h.in").read_text()
     config = template.replace("@CATENAE_CONFIG_WRITER@", "scripts/amalgamate.py")
     config = config.replace("@CATENAE_CHECKS_VALUE@", f"CATENAE_CHECKS_{args.checks.upper()}")
+    config = config.replace("@CATENAE_FLUSH_TO_ZERO_VALUE@", "1" if args.flush_to_zero == "on" else "0")
     (out / "include" / "catenae" / "config.h").write_text(config)
     shutil.copyfile(REPO / "src" / "handler" / "trap.cpp", out / "check_failed_trap.cpp")
     print(f"{out / 'catenae.cpp'}: {len(sources)} source(s); {out / 'include'}: the public headers and a "

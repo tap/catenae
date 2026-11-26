@@ -4,6 +4,7 @@
 
     waf configure --std=17 --gtest=/path/to/googletest   # --std 17, 20 or 23
     waf configure --checks=audit ...                      # the check level, boundary by default
+    waf configure --flush-to-zero=off ...                 # the host's flush-to-zero setting, on by default
     waf build                                             # the library, the checks, the battery
     waf build --alltests                                  # and run every test and example again
 
@@ -37,6 +38,8 @@ def options(opt):
                      help="C++ standard: 17, 20 or 23 (D2: the same files at each) [default: 17]")
     group.add_option("--checks", action="store", default="boundary", choices=["boundary", "audit"],
                      help="the check level written into catenae/config.h (D27) [default: boundary]")
+    group.add_option("--flush-to-zero", action="store", default="on", choices=["on", "off"],
+                     help="whether the host flushes subnormals to zero (AOU-008): on (default) or off")
     group.add_option("--no-werror", action="store_true", default=False,
                      help="do not treat warnings as errors")
     group.add_option("--gtest", action="store", default="",
@@ -60,6 +63,7 @@ def configure(conf):
     env = conf.env
     env.CATENAE_STD = std
     env.CATENAE_CHECKS = conf.options.checks
+    env.CATENAE_FLUSH_TO_ZERO = conf.options.flush_to_zero
     if name == "msvc":
         env.CATENAE_WARNINGS = read_flags(conf, "msvc.txt")
         env.CATENAE_WERROR = ["/WX"]
@@ -101,6 +105,7 @@ def configure(conf):
         env.CATENAE_GTEST = root.abspath()
     conf.msg("catenae C++ standard", "C++" + std)
     conf.msg("catenae check level", env.CATENAE_CHECKS)
+    conf.msg("catenae flush-to-zero", env.CATENAE_FLUSH_TO_ZERO)
     conf.msg("catenae battery", env.CATENAE_GTEST or "not built (no --gtest)")
 
 
@@ -114,6 +119,7 @@ def write_config(bld):
     """catenae/config.h for the configured level, from the template CMake fills; its directory."""
     text = bld.path.find_node("tools/config/config.h.in").read()
     text = text.replace("@CATENAE_CHECKS_VALUE@", "CATENAE_CHECKS_" + bld.env.CATENAE_CHECKS.upper())
+    text = text.replace("@CATENAE_FLUSH_TO_ZERO_VALUE@", "1" if bld.env.CATENAE_FLUSH_TO_ZERO == "on" else "0")
     text = text.replace("@CATENAE_CONFIG_WRITER@", "waf")
     node = bld.path.find_or_declare("generated/include/catenae/config.h")
     node.parent.mkdir()
@@ -180,7 +186,8 @@ def build(bld):
         target="catenae_tests",
         features="cxx cxxprogram test",
         source=bld.path.ant_glob("tests/test_*.cpp")
-        + ["tests/support/catenae_test/check_trap.cpp", "examples/difference_battery.cpp"],
+        + ["tests/support/catenae_test/check_trap.cpp", "tests/support/catenae_test/floating_point.cpp",
+           "examples/difference_battery.cpp"],
         includes=includes + ["tests/support", "tests/fixtures", "examples"],
         use=["catenae", "catenae_gtest_main", "catenae_gtest"],
         defines=["CATENAE_TEST_PROJECT_VERSION_MAJOR=" + major, "CATENAE_TEST_PROJECT_VERSION_MINOR=" + minor,
@@ -191,6 +198,7 @@ def build(bld):
     # The examples the guide includes, as examples/CMakeLists.txt builds them: each a program
     # that the test step runs, the strawman graph with its nodes' source beside it.
     examples = {
+        "audio_callback": ["examples/audio_callback.cpp"],
         "bursts_and_buffering": ["examples/bursts_and_buffering.cpp"],
         "edges": ["examples/edges.cpp"],
         "print_version": ["examples/print_version.cpp"],

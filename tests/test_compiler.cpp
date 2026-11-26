@@ -3,6 +3,7 @@
 // Copyright 2026 Timothy Place and the catenae contributors
 #include <cstdint>
 #include <cstring>
+#include <limits>
 #include <type_traits>
 
 #if defined(CATENAE_TEST_THREADS)
@@ -12,6 +13,7 @@
 #include <gtest/gtest.h>
 
 #include "catenae/compiler.h"
+#include "catenae_test/floating_point.h"
 
 namespace {
 
@@ -102,5 +104,34 @@ namespace {
         EXPECT_EQ(wrong, 0u);
     }
 #endif
+
+    /// x times a half, read through memory so the product is computed at run time.
+    float halved(float x) {
+        volatile float v = x;
+        return v * 0.5f;
+    }
+
+    // Verifies CAT-COMPILER-004.
+    TEST(compiler, TheFlushToZeroBitIsReadAndGovernsSubnormals) {
+        const std::uint64_t before = catenae::detail::floating_point_control();
+        EXPECT_TRUE(catenae::detail::flush_to_zero_as_stated<float>()); // the battery set the build's at start-up
+        EXPECT_EQ(catenae::detail::floating_point_control(), before);   // reading writes nothing
+        const float tiny = std::numeric_limits<float>::min();
+        {
+            const catenae_test::flush_to_zero_scope on(true);
+            EXPECT_EQ(catenae::detail::subnormals_flushed<float>(), catenae::detail::k_subnormal_control<float>);
+            if constexpr (catenae::detail::k_subnormal_control<float>) {
+                EXPECT_FALSE(halved(tiny) > 0.0f); // a subnormal result, flushed
+            }
+        }
+        {
+            const catenae_test::flush_to_zero_scope off(false);
+            EXPECT_FALSE(catenae::detail::subnormals_flushed<float>());
+            EXPECT_TRUE(halved(tiny) > 0.0f); // gradual underflow
+        }
+        // The scopes restored the setting (the arithmetic may have raised a sticky status flag).
+        const std::uint64_t bits = catenae::detail::k_flush_to_zero_bits;
+        EXPECT_EQ(catenae::detail::floating_point_control() & bits, before & bits);
+    }
 
 } // namespace

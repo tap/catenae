@@ -2,7 +2,8 @@
  * Copyright 2026 Timothy Place and the catenae contributors
  *
  * Generated from tools/config/config.h.in by @CATENAE_CONFIG_WRITER@. Do not edit: choose the
- * level with the build's CATENAE_CHECKS option (CMake, waf) or scripts/amalgamate.py --checks.
+ * level with the build's CATENAE_CHECKS option (CMake, waf) or scripts/amalgamate.py --checks,
+ * and the host's flush-to-zero setting with CATENAE_FLUSH_TO_ZERO (--flush-to-zero).
  * catenae/detail/abi.h reads it and spells the level into catenae's inline namespace, so a
  * file built at one level cannot link against code built at the other.
  */
@@ -15,5 +16,11 @@
 
 /* This build's level. */
 #define CATENAE_CHECKS @CATENAE_CHECKS_VALUE@
+
+/* Whether the host flushes subnormal results to zero on the threads that run catenae's
+ * recursive stages: 1 (on, the default) or 0 (off). The library never writes the control
+ * register; at the audit level a recursive stage reads it and checks it against this
+ * (AOU-008, check::flush_to_zero). */
+#define CATENAE_FLUSH_TO_ZERO @CATENAE_FLUSH_TO_ZERO_VALUE@
 
 #endif /* CATENAE_CONFIG_H */

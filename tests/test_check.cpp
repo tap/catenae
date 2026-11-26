@@ -60,6 +60,7 @@ namespace {
         EXPECT_EQ(static_cast<int>(check::push_too_large), 4);
         EXPECT_EQ(static_cast<int>(check::pull_too_large), 5);
         EXPECT_EQ(static_cast<int>(check::request_too_large), 6);
+        EXPECT_EQ(static_cast<int>(check::fft_frame_size), 7);
         EXPECT_EQ(static_cast<int>(check::expected_empty), 32);
         EXPECT_EQ(static_cast<int>(check::expected_not_error), 33);
         EXPECT_EQ(static_cast<int>(check::table_rejected), 34);

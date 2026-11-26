@@ -3,9 +3,11 @@
  *
  * Generated from tools/config/config.h.in by @CATENAE_CONFIG_WRITER@. Do not edit: choose the
  * level with the build's CATENAE_CHECKS option (CMake, waf) or scripts/amalgamate.py --checks,
- * and the host's flush-to-zero setting with CATENAE_FLUSH_TO_ZERO (--flush-to-zero).
- * catenae/detail/abi.h reads it and spells the level into catenae's inline namespace, so a
- * file built at one level cannot link against code built at the other.
+ * and the host's flush-to-zero setting with CATENAE_FLUSH_TO_ZERO (--flush-to-zero), and each
+ * sample type's FFT back end with CATENAE_FFT_F32, _F64, _Q15 and _Q31 (or --fft-f32 and the
+ * like). catenae/detail/abi.h reads it and spells the level and the four FFT choices into
+ * catenae's inline namespace, so a file built under one configuration cannot link against code
+ * built under another.
  */
 #ifndef CATENAE_CONFIG_H
 #define CATENAE_CONFIG_H
@@ -22,5 +24,17 @@
  * register; at the audit level a recursive stage reads it and checks it against this
  * (AOU-008, check::flush_to_zero). */
 #define CATENAE_FLUSH_TO_ZERO @CATENAE_FLUSH_TO_ZERO_VALUE@
+
+/* The FFT back ends (D28, PLAN.md section 7.2): none leaves that type's FFT out of the build. */
+#define CATENAE_FFT_NONE 1
+#define CATENAE_FFT_OWN 2
+#define CATENAE_FFT_CMSIS 3
+#define CATENAE_FFT_VDSP 4
+
+/* This build's back end for each sample type. */
+#define CATENAE_FFT_F32 @CATENAE_FFT_F32_VALUE@
+#define CATENAE_FFT_F64 @CATENAE_FFT_F64_VALUE@
+#define CATENAE_FFT_Q15 @CATENAE_FFT_Q15_VALUE@
+#define CATENAE_FFT_Q31 @CATENAE_FFT_Q31_VALUE@
 
 #endif /* CATENAE_CONFIG_H */

@@ -27,6 +27,11 @@ APPNAME = "catenae"
 # to include/catenae/version.h by the battery (CAT-VERSION-001).
 VERSION = "0.0.0"
 
+# Each sample type's FFT back ends (PLAN.md section 7.2), as CMakeLists.txt lists them. CMSIS-DSP
+# and vDSP arrive at C6: until then configure refuses them, since there is no silent fallback.
+FFT_CHOICES = {"f32": ["own", "cmsis", "vdsp", "none"], "f64": ["own", "vdsp", "none"],
+               "q15": ["own", "cmsis", "none"], "q31": ["own", "cmsis", "none"]}
+
 top = "."
 out = "build-waf"
 
@@ -40,6 +45,10 @@ def options(opt):
                      help="the check level written into catenae/config.h (D27) [default: boundary]")
     group.add_option("--flush-to-zero", action="store", default="on", choices=["on", "off"],
                      help="whether the host flushes subnormals to zero (AOU-008): on (default) or off")
+    for name, choices in FFT_CHOICES.items():
+        group.add_option("--fft-" + name, action="store", default="own", choices=choices,
+                         help="the %s FFT back end, one of %s (PLAN.md section 7.2) [default: own]"
+                         % (name, ", ".join(choices)))
     group.add_option("--no-werror", action="store_true", default=False,
                      help="do not treat warnings as errors")
     group.add_option("--gtest", action="store", default="",
@@ -64,6 +73,11 @@ def configure(conf):
     env.CATENAE_STD = std
     env.CATENAE_CHECKS = conf.options.checks
     env.CATENAE_FLUSH_TO_ZERO = conf.options.flush_to_zero
+    for fft in FFT_CHOICES:
+        choice = getattr(conf.options, "fft_" + fft)
+        if choice in ("cmsis", "vdsp"):
+            conf.fatal("--fft-%s=%s: that back end arrives at C6 (PLAN.md section 10)" % (fft, choice))
+        env["CATENAE_FFT_" + fft.upper()] = choice
     if name == "msvc":
         env.CATENAE_WARNINGS = read_flags(conf, "msvc.txt")
         env.CATENAE_WERROR = ["/WX"]
@@ -73,6 +87,7 @@ def configure(conf):
                                       "/EHs-c-", "/GR-", "/nologo", "/O2", "/MD", "/Zc:__cplusplus"])
         env.append_value("DEFINES", ["_HAS_EXCEPTIONS=0"])
         env.CATENAE_CONTRACTION = ["/fp:precise"]
+        env.CATENAE_CONSTEXPR = ["/constexpr:steps2000000000"]
         env.CATENAE_SECTIONS = []
         env.CATENAE_SYSTEM_INCLUDE = ["/external:W0", "/external:I"]
     elif name in ("gcc", "clang"):
@@ -87,6 +102,9 @@ def configure(conf):
         env.CATENAE_WERROR = ["-Werror"]
         env.append_value("CXXFLAGS", ["-std=c++" + std, "-O2", "-fno-exceptions", "-fno-rtti"])
         env.CATENAE_CONTRACTION = ["-ffp-contract=off"]
+        # The core's constant-evaluation limits, raised for the FFT's tables (cmake/catenae_flags.cmake).
+        env.CATENAE_CONSTEXPR = (["-fconstexpr-ops-limit=4294967295", "-fconstexpr-loop-limit=1000000"]
+                                 if name == "gcc" else ["-fconstexpr-steps=2000000000"])
         env.CATENAE_SECTIONS = ["-ffunction-sections", "-fdata-sections"]
         env.CATENAE_SYSTEM_INCLUDE = ["-isystem"]
         if Utils.unversioned_sys_platform() not in ("darwin", "win32"):
@@ -106,6 +124,7 @@ def configure(conf):
     conf.msg("catenae C++ standard", "C++" + std)
     conf.msg("catenae check level", env.CATENAE_CHECKS)
     conf.msg("catenae flush-to-zero", env.CATENAE_FLUSH_TO_ZERO)
+    conf.msg("catenae FFT back ends", ", ".join("%s %s" % (n, env["CATENAE_FFT_" + n.upper()]) for n in FFT_CHOICES))
     conf.msg("catenae battery", env.CATENAE_GTEST or "not built (no --gtest)")
 
 
@@ -121,6 +140,9 @@ def write_config(bld):
     text = text.replace("@CATENAE_CHECKS_VALUE@", "CATENAE_CHECKS_" + bld.env.CATENAE_CHECKS.upper())
     text = text.replace("@CATENAE_FLUSH_TO_ZERO_VALUE@", "1" if bld.env.CATENAE_FLUSH_TO_ZERO == "on" else "0")
     text = text.replace("@CATENAE_CONFIG_WRITER@", "waf")
+    for name in FFT_CHOICES:
+        key = "CATENAE_FFT_" + name.upper()
+        text = text.replace("@%s_VALUE@" % key, "CATENAE_FFT_" + bld.env[key].upper())
     node = bld.path.find_or_declare("generated/include/catenae/config.h")
     node.parent.mkdir()
     if not os.path.exists(node.abspath()) or node.read() != text:
@@ -139,7 +161,8 @@ def build(bld):
         source=bld.path.ant_glob("src/*.cpp"),
         includes=includes,
         export_includes=includes,
-        cxxflags=warnings(env, "library") + list(env.CATENAE_CONTRACTION) + list(env.CATENAE_SECTIONS),
+        cxxflags=warnings(env, "library") + list(env.CATENAE_CONTRACTION) + list(env.CATENAE_SECTIONS)
+        + list(env.CATENAE_CONSTEXPR),
     )
     # The default check_failed, which traps (PLAN.md section 3.4): an object, so that an image
     # that defines its own handler never sees this one.

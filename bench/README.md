@@ -448,7 +448,7 @@ Probe `meters`: each cell is the recorded figure / its ceiling, in bytes (start-
 | `image.bss` | 3,736 / 3,904 | 3,736 / 3,904 | 3,736 / 3,904 | 3,736 / 3,904 | 3,004 / 3,136 |
 | `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
 | `image.rodata` | 88 / 128 | 88 / 128 | 88 / 128 | 88 / 128 | 56 / 64 |
-| `image.text` | 10,712 / 11,072 | 9,432 / 9,728 | 9,256 / 9,536 | 9,328 / 9,664 | 9,236 / 9,536 |
+| `image.text` | 10,648 / 11,008 | 9,368 / 9,664 | 9,188 / 9,472 | 9,248 / 9,536 | 9,204 / 9,536 |
 | `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
@@ -456,7 +456,7 @@ Probe `meters`: each cell is the recorded figure / its ceiling, in bytes (start-
 | `unit.bss` | 2,720 / 2,816 | 2,720 / 2,816 | 2,720 / 2,816 | 2,720 / 2,816 | 2,720 / 2,816 |
 | `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `unit.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 20 / 64 |
-| `unit.text` | 1,820 / 1,920 | 1,752 / 1,856 | 1,752 / 1,856 | 1,822 / 1,920 | 2,124 / 2,240 |
+| `unit.text` | 1,764 / 1,856 | 1,680 / 1,792 | 1,684 / 1,792 | 1,742 / 1,856 | 2,080 / 2,176 |
 | `sizeof.state` | 2,200 / 2,304 | 2,200 / 2,304 | 2,200 / 2,304 | 2,200 / 2,304 |  |
 | `sizeof.workspace` | 520 / 576 | 520 / 576 | 520 / 576 | 520 / 576 |  |
 | `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
@@ -465,7 +465,7 @@ Probe `meters`: each cell is the recorded figure / its ceiling, in bytes (start-
 | `stack.process.static` | 360 / 376 | 312 / 328 | 312 / 328 | 320 / 336 |  |
 | `stack.reset.measured` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
 | `stack.reset.static` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
-| `code.process` | 3,426 / 3,584 | 2,076 / 2,176 | 2,004 / 2,112 | 2,072 / 2,176 |  |
+| `code.process` | 3,370 / 3,520 | 2,004 / 2,112 | 1,936 / 2,048 | 1,992 / 2,112 |  |
 | `code.reset` | 238 / 256 | 238 / 256 | 238 / 256 | 238 / 256 |  |
 <!-- ceilings:end -->
 
@@ -708,7 +708,7 @@ ctest --test-dir build-size -L link_gate
 | `baselines.json`: `compressor_f32`, `expander_f32`, `limiter_f32` and `dynamics`, every key, and the three `callmax_design_` workloads of the family, every key but `host`; `ceilings.json`: the probe set `dynamics`, and the `designers` probe's figures, every key but `host` | Bench run [46001165800](https://github.com/tap/catenae/actions/runs/46001165800) at `617087a`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c3-dynamics`): its `measured-<key>.json` and `ceilings-measured-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The dynamics family's first figures; the `designers` probe gained its three dynamics calls, so its image, core and unit figures rose (on the M33 `core.text` from 5,500 to 6,876 B) and are recorded as measured. The fixes after it, at `87808ee`, change no code the bench builds. Every other count and figure in that run equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.DynamicsImageHasNoSoftwareDouble` among its tests |
 | `baselines.json`: `fft_fir_f32`, `fir_f32_255`, every key, and `callmax_fft_fir_f32` and `callmax_design_fft_fir_f32_255`, every key but `host`; `ceilings.json`: the probe set `fft_fir`, and the `designers` probe's figures, every key but `host`; the FFT FIR layout table above | Bench run [46028066821](https://github.com/tap/catenae/actions/runs/46028066821) at `7c0c5ec`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c4-fft-fir`): its `measured-<key>.json`, `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The FFT FIR's first figures; the `designers` probe gained the spectrum's `make()`, so its image, core and unit figures rose (on the M33 `core.text` from 6,876 to 11,996 B, `unit.bss` from 8,188 to 14,356 B, the spectrum's table and workspace) and are recorded as measured. The run before, [46021806011](https://github.com/tap/catenae/actions/runs/46021806011) at `21b68cb`, printed another checksum for `fft_fir_f32` on the M55 alone: GCC vectorized the product into MVE's fused VCMLA, and the loop is kept scalar under GCC since `7c0c5ec`: no longer vectorized, `fft_fir_f32` rose by 7.4 % on the M55 (22,476,964 to 24,136,464) and 4.3 % on the host (26,811,708 to 27,960,708), by under 0.01 % on the other Arm keys, and its code by 4 B. Every other count and figure in both runs equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.FftFirImageHasNoSoftwareDouble` among its tests |
 | The `planar_section` and split-complex tables above (no record file moved) | Bench run [46037804664](https://github.com/tap/catenae/actions/runs/46037804664) at `b8b01ce`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c4-planar`): its `layout-<key>.json` artifacts, the ratios computed from their counts; every section's output and every split pair's but the M55's product bit-identical to its interleaved form, and every count and figure in that run equal to its record |
-| `baselines.json`: `meters_f32`, `meters_q15` and `meters_q31`, every key, and `callmax_design_ppm`, every key but `host`; `ceilings.json`: the probe set `meters`, and the `designers` probe's figures, every key but `host` | Bench run [46060474080](https://github.com/tap/catenae/actions/runs/46060474080) at `9831428`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c5-meters`): its `measured-<key>.json` and `ceilings-measured-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The analyzers' first figures; the `designers` probe gained the programme meter's `make()`, so its image, core and unit figures rose (on the M33 `core.text` from 11,996 to 13,428 B) and are recorded as measured. Every other count and figure in that run equal to its record. The `tap` after it gained its own `reset`, the analyzer's or zero, where the run's tap was reset by the traits' zero; Bench run [46065764387](https://github.com/tap/catenae/actions/runs/46065764387) at `aaf4259`, with it, is green against these records, the link-stage gate passing on each Arm key, `link_gate.MetersImageHasNoSoftwareDouble` among its tests |
+| `baselines.json`: `meters_f32`, `meters_q15` and `meters_q31`, every key, and `callmax_design_ppm`, every key but `host`; `ceilings.json`: the probe set `meters`, and the `designers` probe's figures, every key but `host` | Bench run [46060474080](https://github.com/tap/catenae/actions/runs/46060474080) at `9831428`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c5-meters`): its `measured-<key>.json` and `ceilings-measured-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The analyzers' first figures; the `designers` probe gained the programme meter's `make()`, so its image, core and unit figures rose (on the M33 `core.text` from 11,996 to 13,428 B) and are recorded as measured. Every other count and figure in that run equal to its record. The `tap` after it gained its own `reset`, the analyzer's or zero, where the run's tap was reset by the traits' zero; Bench run [46065764387](https://github.com/tap/catenae/actions/runs/46065764387) at `aaf4259`, with it, is green against these records, the link-stage gate passing on each Arm key, `link_gate.MetersImageHasNoSoftwareDouble` among its tests. `meters_f32`, every key, and the probe set `meters` are recorded again from Bench run [46072902024](https://github.com/tap/catenae/actions/runs/46072902024) at `17765b9`: the peak meter compares its magnitudes by their bits since (Hexagon's maximum dropped a NaN), 3.9 to 6.2 % fewer instructions for the bus and 32 to 80 B less code in its image, every checksum the same |
 | `ceilings.json`: the probe set `fft`, every key but `host` | Bench run [45821938097](https://github.com/tap/catenae/actions/runs/45821938097) at `4989d0e`, 2026-11-26: its `ceilings-measured-<key>.json` artifacts, the ceilings computed by `scripts/ceilings.py`'s rule. Plans made at run time to 2^20 (Q1) widened the kernel's 29 pending entries from 16 to 32 bits, so `forward` and `inverse` reach 56 B more stack on each Arm key (480 B static on the M33, M4F and M55, 568 B on the soft-float M4), and the code figures moved by under 70 B, inside their ceilings, recorded too; every other figure in that run equal to its record (C2's `c2` probe among them), and the link-stage gate's tests passing on each Arm key. The run before, [45771572341](https://github.com/tap/catenae/actions/runs/45771572341) at `e7bf0d2`, recorded the 16-bit list. Run [45834933446](https://github.com/tap/catenae/actions/runs/45834933446) at `a23f18f`, after the merge of `main`, measured every figure of every probe set equal to its record, `c2` among them: the two `scripts/ceilings.py` fixes leave C2's bounds where they were recorded |
 
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
@@ -981,16 +981,18 @@ the same cross-correlation in Q15 and Q31. Each runs 1000 callbacks of 64 stereo
 the right channel half the left, and folds every result into a checksum as it completes
 (`bench/icount/meters_main.cpp`). `callmax_design_ppm` is the worst of the programme meter's
 `make()` at 44.1, 48 and 96 kHz (`bench/icount/ppm_design_main.cpp`, QEMU keys only). From Bench
-run [46060474080](https://github.com/tap/catenae/actions/runs/46060474080):
+run [46060474080](https://github.com/tap/catenae/actions/runs/46060474080), and `meters_f32` from
+[46072902024](https://github.com/tap/catenae/actions/runs/46072902024), after the peak meter came to
+compare its magnitudes by their bits:
 
 | Key | `meters_f32` | `meters_q15` | `meters_q31` | `callmax_design_ppm` |
 |---|--:|--:|--:|--:|
-| `m4-softfp` | 254,630,857 | 17,548,182 | 42,331,027 | 81,511,185 |
-| `m4f` | 20,065,977 | 17,546,339 | 45,404,771 | 81,511,156 |
-| `m33` | 23,071,423 | 17,547,036 | 43,302,954 | 81,511,157 |
-| `m55` | 22,795,933 | 21,653,088 | 46,833,233 | 4,533,124 |
-| `hexagon` | 9,075,867 packets | 8,372,829 packets | 8,654,063 packets | 4,571,430 packets |
-| `host` | 15,427,321 | 11,778,985 | 21,644,983 | (QEMU keys only) |
+| `m4-softfp` | 245,607,427 | 17,548,182 | 42,331,027 | 81,511,185 |
+| `m4f` | 18,939,536 | 17,546,339 | 45,404,771 | 81,511,156 |
+| `m33` | 22,081,307 | 17,547,036 | 43,302,954 | 81,511,157 |
+| `m55` | 21,802,094 | 21,653,088 | 46,833,233 | 4,533,124 |
+| `hexagon` | 8,810,899 packets | 8,372,829 packets | 8,654,063 packets | 4,571,430 packets |
+| `host` | 14,474,118 | 11,778,985 | 21,644,983 | (QEMU keys only) |
 
 The fixed-point workloads print one checksum on all six keys, `f91f6eff21c5dcf3` in Q15 and
 `79b7e749d7997564` in Q31: their sums are integers. The float bus prints `048fcf26e30a857c` where
@@ -999,7 +1001,7 @@ another on the M55 and another on Hexagon: the meters are header templates, comp
 the workload's flags, and their cards pin the bits at contraction off only. The design's `make()`
 prints `5c72d1223fe4f81d` on every QEMU key.
 
-A run reads 128,000 samples, so on the M33 the bus costs 180 instructions a sample, the four
+A run reads 128,000 samples, so on the M33 the bus costs 173 instructions a sample, the four
 meters together, of which the 33 lags of the cross-correlation are most; in Q15 peak, RMS and the
 correlation cost 137 and in Q31 338, whose products are 64 bits rounded to the window's shift. On
 the M33 the bus's state is 2,200 bytes and its workspace 520 (`sizeof.state`, `sizeof.workspace`

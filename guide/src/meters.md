@@ -46,7 +46,7 @@ result every 480 frames over a window of 4,800. The workloads are in
 
 | Workload on the Cortex-M33 | Instructions | A sample |
 |---|--:|--:|
-| `meters_f32`: the bus, all four meters | 23,071,423 | 180 |
+| `meters_f32`: the bus, all four meters | 22,081,307 | 173 |
 | `meters_q15`: peak, RMS and the same correlation in Q15 | 17,547,036 | 137 |
 | `meters_q31`: the same in Q31 | 43,302,954 | 338 |
 
@@ -54,7 +54,8 @@ The 33 lags of the correlation are most of the bus's cost. The fixed-point workl
 print one checksum on all six keys the bench runs, because their sums are integers.
 
 The numbers are from
-[bench run 46060474080](https://github.com/tap/catenae/actions/runs/46060474080), and are
+[bench run 46060474080](https://github.com/tap/catenae/actions/runs/46060474080), the bus's
+from [46072902024](https://github.com/tap/catenae/actions/runs/46072902024), and are
 recorded in `bench/README.md`, which says how the plugin is built. These reproduce the
 M33's counts; [Measuring](measuring.md) explains the script.
 

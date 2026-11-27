@@ -409,7 +409,7 @@
       },
       "image.text": {
         "ceiling": 9536,
-        "recorded": 9236
+        "recorded": 9204
       },
       "startup.functions": {
         "ceiling": 0,
@@ -428,8 +428,8 @@
         "recorded": 20
       },
       "unit.text": {
-        "ceiling": 2240,
-        "recorded": 2124
+        "ceiling": 2176,
+        "recorded": 2080
       }
     },
     "overdrive": {
@@ -1464,8 +1464,8 @@
     },
     "meters": {
       "code.process": {
-        "ceiling": 2112,
-        "recorded": 2004
+        "ceiling": 2048,
+        "recorded": 1936
       },
       "code.reset": {
         "ceiling": 256,
@@ -1500,8 +1500,8 @@
         "recorded": 88
       },
       "image.text": {
-        "ceiling": 9536,
-        "recorded": 9256
+        "ceiling": 9472,
+        "recorded": 9188
       },
       "sizeof.state": {
         "ceiling": 2304,
@@ -1548,8 +1548,8 @@
         "recorded": 0
       },
       "unit.text": {
-        "ceiling": 1856,
-        "recorded": 1752
+        "ceiling": 1792,
+        "recorded": 1684
       }
     },
     "overdrive": {
@@ -2724,8 +2724,8 @@
     },
     "meters": {
       "code.process": {
-        "ceiling": 3584,
-        "recorded": 3426
+        "ceiling": 3520,
+        "recorded": 3370
       },
       "code.reset": {
         "ceiling": 256,
@@ -2760,8 +2760,8 @@
         "recorded": 88
       },
       "image.text": {
-        "ceiling": 11072,
-        "recorded": 10712
+        "ceiling": 11008,
+        "recorded": 10648
       },
       "sizeof.state": {
         "ceiling": 2304,
@@ -2808,8 +2808,8 @@
         "recorded": 0
       },
       "unit.text": {
-        "ceiling": 1920,
-        "recorded": 1820
+        "ceiling": 1856,
+        "recorded": 1764
       }
     },
     "overdrive": {
@@ -3984,8 +3984,8 @@
     },
     "meters": {
       "code.process": {
-        "ceiling": 2176,
-        "recorded": 2076
+        "ceiling": 2112,
+        "recorded": 2004
       },
       "code.reset": {
         "ceiling": 256,
@@ -4020,8 +4020,8 @@
         "recorded": 88
       },
       "image.text": {
-        "ceiling": 9728,
-        "recorded": 9432
+        "ceiling": 9664,
+        "recorded": 9368
       },
       "sizeof.state": {
         "ceiling": 2304,
@@ -4068,8 +4068,8 @@
         "recorded": 0
       },
       "unit.text": {
-        "ceiling": 1856,
-        "recorded": 1752
+        "ceiling": 1792,
+        "recorded": 1680
       }
     },
     "overdrive": {
@@ -5244,8 +5244,8 @@
     },
     "meters": {
       "code.process": {
-        "ceiling": 2176,
-        "recorded": 2072
+        "ceiling": 2112,
+        "recorded": 1992
       },
       "code.reset": {
         "ceiling": 256,
@@ -5280,8 +5280,8 @@
         "recorded": 88
       },
       "image.text": {
-        "ceiling": 9664,
-        "recorded": 9328
+        "ceiling": 9536,
+        "recorded": 9248
       },
       "sizeof.state": {
         "ceiling": 2304,
@@ -5328,8 +5328,8 @@
         "recorded": 0
       },
       "unit.text": {
-        "ceiling": 1920,
-        "recorded": 1822
+        "ceiling": 1856,
+        "recorded": 1742
       }
     },
     "overdrive": {

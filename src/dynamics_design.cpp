@@ -22,19 +22,19 @@ namespace catenae {
             namespace {
 
                 /// dB to nepers: ln 10 / 20.
-                constexpr double k_db_to_neper = 0.11512925464970228420089957273422;
+                constexpr double k_dynamics_db_to_neper = 0.11512925464970228420089957273422;
 
                 /// The largest threshold, gain, knee or range a design is made for, in dB.
                 constexpr double k_dynamics_max_db = 200.0;
 
-                bool finite(double x) noexcept {
+                bool dynamics_finite_double(double x) noexcept {
                     return x <= std::numeric_limits<double>::max() && x >= -std::numeric_limits<double>::max();
                 }
 
                 /// A level in dB that is finite and, within the card's bound, in range: the status
                 /// if not.
-                bool level_ok(double db, status& why) noexcept {
-                    if (!finite(db)) {
+                bool dynamics_level_ok(double db, status& why) noexcept {
+                    if (!dynamics_finite_double(db)) {
                         why = status::invalid_argument;
                         return false;
                     }
@@ -46,18 +46,18 @@ namespace catenae {
                 }
 
                 /// A time constant that is finite and not negative.
-                bool time_ok(double frames) noexcept {
-                    return finite(frames) && frames >= 0.0;
+                bool dynamics_time_ok(double frames) noexcept {
+                    return dynamics_finite_double(frames) && frames >= 0.0;
                 }
 
                 /// A ratio from 1 to infinity (false for a NaN).
-                bool ratio_ok(double r) noexcept {
+                bool dynamics_ratio_ok(double r) noexcept {
                     return r >= 1.0;
                 }
 
                 /// A knee's width: finite, not negative, within the bound; the status if not.
-                bool knee_ok(double db, status& why) noexcept {
-                    if (!finite(db) || db < 0.0) {
+                bool dynamics_knee_ok(double db, status& why) noexcept {
+                    if (!dynamics_finite_double(db) || db < 0.0) {
                         why = status::invalid_argument;
                         return false;
                     }
@@ -70,7 +70,7 @@ namespace catenae {
 
                 /// A one-pole of time constant `frames`: exp(-1 / tau) and its complement
                 /// -expm1(-1 / tau), each to double's precision; tau = 0 is instant.
-                void one_pole(double frames, double& alpha, double& complement) noexcept {
+                void dynamics_one_pole(double frames, double& alpha, double& complement) noexcept {
                     if (frames > 0.0) {
                         alpha      = std::exp(-1.0 / frames);
                         complement = -std::expm1(-1.0 / frames);
@@ -85,60 +85,63 @@ namespace catenae {
 
             expected<compressor_numbers<double>, status> compressor_numbers_of(const compressor_spec& spec) noexcept {
                 status why = status::invalid_argument;
-                if (!ratio_ok(spec.ratio) || !time_ok(spec.attack_frames) || !time_ok(spec.release_frames)) {
+                if (!dynamics_ratio_ok(spec.ratio) || !dynamics_time_ok(spec.attack_frames)
+                    || !dynamics_time_ok(spec.release_frames)) {
                     return unexpected(status::invalid_argument);
                 }
-                if (!level_ok(spec.threshold_db, why) || !level_ok(spec.makeup_db, why)
-                    || !knee_ok(spec.knee_db, why)) {
+                if (!dynamics_level_ok(spec.threshold_db, why) || !dynamics_level_ok(spec.makeup_db, why)
+                    || !dynamics_knee_ok(spec.knee_db, why)) {
                     return unexpected(why);
                 }
                 compressor_numbers<double> n{};
-                const double               knee = spec.knee_db * k_db_to_neper;
-                n.threshold                     = spec.threshold_db * k_db_to_neper;
+                const double               knee = spec.knee_db * k_dynamics_db_to_neper;
+                n.threshold                     = spec.threshold_db * k_dynamics_db_to_neper;
                 n.half_knee                     = 0.5 * knee;
                 n.above                         = 1.0 - 1.0 / spec.ratio; // 1 at a ratio of infinity
                 n.knee_scale                    = knee > 0.0 ? n.above / (2.0 * knee) : 0.0;
-                n.makeup                        = spec.makeup_db * k_db_to_neper;
-                one_pole(spec.attack_frames, n.attack, n.attack_complement);
-                one_pole(spec.release_frames, n.release, n.release_complement);
+                n.makeup                        = spec.makeup_db * k_dynamics_db_to_neper;
+                dynamics_one_pole(spec.attack_frames, n.attack, n.attack_complement);
+                dynamics_one_pole(spec.release_frames, n.release, n.release_complement);
                 return n;
             }
 
             expected<limiter_numbers<double>, status> limiter_numbers_of(const limiter_spec& spec) noexcept {
                 status why = status::invalid_argument;
-                if (!time_ok(spec.release_frames)) {
+                if (!dynamics_time_ok(spec.release_frames)) {
                     return unexpected(status::invalid_argument);
                 }
-                if (!level_ok(spec.threshold_db, why)) {
+                if (!dynamics_level_ok(spec.threshold_db, why)) {
                     return unexpected(why);
                 }
                 limiter_numbers<double> n{};
-                n.threshold = spec.threshold_db * k_db_to_neper;
+                n.threshold = spec.threshold_db * k_dynamics_db_to_neper;
                 n.ceiling   = std::exp(n.threshold);
-                one_pole(spec.release_frames, n.release, n.release_complement);
+                dynamics_one_pole(spec.release_frames, n.release, n.release_complement);
                 return n;
             }
 
             expected<expander_numbers<double>, status> expander_numbers_of(const expander_spec& spec) noexcept {
                 status why = status::invalid_argument;
-                if (!ratio_ok(spec.ratio) || !time_ok(spec.attack_frames) || !time_ok(spec.release_frames)) {
+                if (!dynamics_ratio_ok(spec.ratio) || !dynamics_time_ok(spec.attack_frames)
+                    || !dynamics_time_ok(spec.release_frames)) {
                     return unexpected(status::invalid_argument);
                 }
-                if (!level_ok(spec.threshold_db, why) || !knee_ok(spec.knee_db, why) || !level_ok(spec.range_db, why)) {
+                if (!dynamics_level_ok(spec.threshold_db, why) || !dynamics_knee_ok(spec.knee_db, why)
+                    || !dynamics_level_ok(spec.range_db, why)) {
                     return unexpected(why);
                 }
                 if (!(spec.range_db > 0.0)) {
                     return unexpected(status::invalid_argument);
                 }
                 expander_numbers<double> n{};
-                const double             knee = spec.knee_db * k_db_to_neper;
-                n.threshold                   = spec.threshold_db * k_db_to_neper;
+                const double             knee = spec.knee_db * k_dynamics_db_to_neper;
+                n.threshold                   = spec.threshold_db * k_dynamics_db_to_neper;
                 n.half_knee                   = 0.5 * knee;
                 n.below                       = spec.ratio - 1.0; // infinity for a gate
                 n.knee_scale                  = knee > 0.0 ? n.below / (2.0 * knee) : 0.0;
-                n.range                       = spec.range_db * k_db_to_neper;
-                one_pole(spec.attack_frames, n.attack, n.attack_complement);
-                one_pole(spec.release_frames, n.release, n.release_complement);
+                n.range                       = spec.range_db * k_dynamics_db_to_neper;
+                dynamics_one_pole(spec.attack_frames, n.attack, n.attack_complement);
+                dynamics_one_pole(spec.release_frames, n.release, n.release_complement);
                 n.hold = spec.hold_frames;
                 return n;
             }

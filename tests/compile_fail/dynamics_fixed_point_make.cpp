@@ -12,8 +12,8 @@ namespace cf {
     using design = catenae::compressor_design<catenae::q31>;
 #endif
 
-    bool designed() noexcept;
-    bool designed() noexcept {
+    bool dynamics_designed() noexcept;
+    bool dynamics_designed() noexcept {
         return design::make({-20.0, 4.0, 6.0, 10.0, 1000.0, 0.0}).has_value();
     }
 } // namespace cf

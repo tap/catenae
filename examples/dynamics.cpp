@@ -94,7 +94,7 @@ namespace {
     void balance(double& linked, double& unlinked) {
         const std::vector<float>     in = tone(48000, 1.0, 0.25); // left 0 dBFS, right -12 dBFS
         const catenae::compressor<2> both(example::bus_design);
-        const unlinked_t each(catenae::compressor<1>(example::bus_design), catenae::compressor<1>(example::bus_design));
+        const unlinked_t each{catenae::compressor<1>{example::bus_design}, catenae::compressor<1>{example::bus_design}};
         const auto       a = run(both, in);
         const auto       b = run(each, in);
         linked             = db(peak(a, 0, 24000) / peak(a, 1, 24000));

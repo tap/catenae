@@ -203,6 +203,15 @@ namespace {
         return out;
     }
 
+    /// A double signal rounded to float, sample by sample.
+    std::vector<float> narrowed(const std::vector<double>& d) {
+        std::vector<float> f(d.size());
+        for (std::size_t i = 0; i < d.size(); ++i) {
+            f[i] = static_cast<float>(d[i]);
+        }
+        return f;
+    }
+
     /// The largest relative difference between a float output and the double one, over the
     /// samples the double one does not make tiny: the gains' difference, for a gain stage.
     double worst_relative(const std::vector<float>& f, const std::vector<double>& d) {
@@ -388,7 +397,7 @@ namespace {
     // Verifies CAT-COMPRESSOR-005.
     TEST(compressor, FloatFollowsTheDoubleCompressor) {
         const std::vector<double> ind = bursts<double>(20000, 1500, 21);
-        std::vector<float>        inf(ind.begin(), ind.end());
+        const std::vector<float>  inf = narrowed(ind);
         std::vector<double>       back(inf.begin(), inf.end()); // the same samples in both
         const auto                od =
             run_once(catenae::compressor_f64<2>(compressor_of<double>(-24.0, 4.0, 6.0, 5.0, 400.0, 6.0)), back);
@@ -514,7 +523,7 @@ namespace {
     // Verifies CAT-EXPANDER-005.
     TEST(expander, FloatFollowsTheDoubleExpander) {
         const std::vector<double> ind = bursts<double>(20000, 1500, 23, 0.5, 0.002);
-        std::vector<float>        inf(ind.begin(), ind.end());
+        const std::vector<float>  inf = narrowed(ind);
         std::vector<double>       back(inf.begin(), inf.end());
         const auto                od =
             run_once(catenae::expander_f64<2>(expander_of<double>(-40.0, 3.0, 6.0, 50.0, 3.0, 50, 300.0)), back);
@@ -653,7 +662,7 @@ namespace {
     // Verifies CAT-LIMITER-005.
     TEST(limiter, FloatFollowsTheDoubleLimiter) {
         const std::vector<double> ind = bursts<double>(20000, 1500, 29, 4.0, 0.2);
-        std::vector<float>        inf(ind.begin(), ind.end());
+        const std::vector<float>  inf = narrowed(ind);
         std::vector<double>       back(inf.begin(), inf.end());
         const auto                od    = run_once(catenae::limiter_f64<2, 48>(limiter_of<double>(-3.0, 300.0)), back);
         const auto                of    = run_once(catenae::limiter<2, 48>(limiter_of<float>(-3.0, 300.0)), inf);

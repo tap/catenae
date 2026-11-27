@@ -29,7 +29,11 @@ number of frames, so a dry path lines up with it by type. `compressor`, `limiter
 `expander` follow a level taken across the channels: a soft-knee compressor, a look-ahead
 limiter whose output never exceeds its ceiling, and a downward expander, a gate at a ratio of
 infinity. `fft_fir` runs a long FIR by fast convolution a block at a time, its output's bits the
-same on every target, from a spectrum made in double or held in ROM. `steady` makes a
+same on every target, from a spectrum made in double or held in ROM. `tap` puts an analyzer
+in a chain and passes the audio through: `peak_meter` and `rms_meter` read each channel over a
+window of whole hops in every format, `ppm_meter` follows the EBU's peak programme meter, and
+`autocorrelation` and `cross_correlation` sum lagged products, their readings in decibels or
+normalized off the audio path. `steady` makes a
 stage that works in blocks frame-synchronous, and `parallel` runs two chains on two groups of
 a port's channels. `handoff` joins two threads of one clock with a fill policy stated as
 numbers, `feeding` and `fed_by` run a chain on either side of it, and a `mailbox` carries a

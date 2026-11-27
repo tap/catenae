@@ -20,7 +20,8 @@
 /// | Limits     | Zolzer's detector meets EBU Tech 3205-E's burst table (its Table 2) at 100,  |
 /// |            | 10 and 5 ms, and reads low for shorter bursts: at 48 kHz a 1.5 ms burst      |
 /// |            | reads -11.1 dB (the table: -9 +- 1) and 0.5 ms -19.3 (-17 +- 2); a test pins |
-/// |            | the five rows. A NaN holds its channel's y until reset                       |
+/// |            | the five rows. A steady sine reads below its peak by the ripple between its  |
+/// |            | peaks: 0.21 dB for 1 kHz at 48 kHz. A NaN holds its channel's y until reset  |
 /// | Contraction| pinned at contraction off; a header template, it compiles under the caller's |
 /// |            | flags, and a fused multiply-add there can move y by an ULP                   |
 /// | Rationale  | D11, D12, D24, D47, D49                                                      |
@@ -28,8 +29,9 @@
 /// @req{CAT-PPM-001} From reset each channel's y follows the card's detector frame by frame,
 /// bit for bit, and after every `Hop` frames the result is each channel's y.
 /// @req{CAT-PPM-002} With `ebu_ppm` at 48 kHz, isolated 5 kHz bursts of 100, 10, 5, 1.5 and
-/// 0.5 ms read the card's numbers below the steady reading, within 0.05 dB, and a steady tone
-/// removed falls 24 dB in 2.8 s; a y below the smallest normal value is 0; a NaN holds.
+/// 0.5 ms read the card's numbers below the steady reading, within 0.05 dB, a steady 1 kHz sine
+/// reads 0.21 dB below its peak, and a steady tone removed falls 24 dB in 2.8 s; a y below the
+/// smallest normal value is 0; a NaN holds.
 /// @req{CAT-PPM-003} In q31 the contract is instantiated; `analyze` does not compile until its
 /// profile arrives at C6 (D47).
 // Copyright 2026 Timothy Place and the catenae contributors

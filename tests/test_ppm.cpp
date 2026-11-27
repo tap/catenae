@@ -17,6 +17,7 @@
 #include "catenae/ppm_design.h"
 #include "catenae/ppm_meter.h"
 #include "catenae_test/check_trap.h"
+#include "meters.h"
 
 namespace {
 
@@ -96,6 +97,15 @@ namespace {
             EXPECT_NEAR(reads, r.reads, 0.05) << r.ms << " ms";
             EXPECT_EQ(std::fabs(reads - r.table) <= r.tolerance, r.ms >= 5.0) << r.ms << " ms";
         }
+        // A steady 1 kHz sine reads 0.21 dB below its peak: the detector's ripple between peaks.
+        const double sine_1k = [&] {
+            std::vector<T> one(24000);
+            for (std::size_t i = 0; i < one.size(); ++i) {
+                one[i] = static_cast<T>(0.5 * std::sin(6.283185307179586 * 1000.0 * double(i) / rate));
+            }
+            return largest_db(design, one) - 20.0 * std::log10(0.5);
+        }();
+        EXPECT_NEAR(sine_1k, -0.21, 0.01);
         // A steady tone removed: the reading falls 24 dB in 2.8 s, at a constant rate.
         std::vector<T> tone    = burst<T>(rate, 500.0, 500.0 + 2800.0);
         const auto     got     = analyzer_test::results_of(catenae::basic_ppm_meter<T, 1, 1>{design}, tone, 1, 1);
@@ -194,6 +204,17 @@ namespace {
         EXPECT_TRUE(d::make({48000.0, 1000.0, 24.0, 2800.0}).has_value());
         EXPECT_TRUE(d::make({48000.0, 5000.0 / 48000.0, 24.0, 2800.0}).has_value());
         EXPECT_TRUE(d::make({22050.0, 10.0, 24.0, 2800.0}).has_value());
+    }
+
+    // Verifies CAT-PPM-DESIGN-001.
+    TEST(ppm_design, ExampleTableIsTheEbuDesign) {
+        // examples/meters.h holds make(ebu_ppm(48000.0))'s numbers as printed on the hosted Linux
+        // leg; another libm may round the double design to the next float.
+        const auto made  = *catenae::ppm_design<float>::make(catenae::ebu_ppm(48000.0));
+        const auto table = example::ebu_ppm_48k.numbers();
+        const auto ulp   = [](float x) { return std::nextafter(x, 2.0f) - x; };
+        EXPECT_LE(std::fabs(made.numbers().attack - table.attack), ulp(table.attack));
+        EXPECT_LE(std::fabs(made.numbers().release - table.release), ulp(table.release));
     }
 
     // Verifies CAT-PPM-DESIGN-003.

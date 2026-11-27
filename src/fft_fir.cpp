@@ -8,6 +8,17 @@
 
 #include "catenae/detail/fft_fir_kernel.h"
 
+// Under GCC the loop is kept scalar. At -O2 and above GCC 13 vectorizes it for the Cortex-M55
+// into MVE's VCMUL and VCMLA, whose accumulation is fused, though the core is built with
+// contraction off: the product then rounds once where every other target rounds twice, and the
+// FFT FIR's float output differed on that key alone (Bench run 46021806011). Clang does not
+// vectorize it so on the targets CI builds; it is left to its own choices.
+#if defined(__GNUC__) && !defined(__clang__)
+#define CATENAE_FFT_FIR_SCALAR __attribute__((optimize("no-tree-vectorize")))
+#else
+#define CATENAE_FFT_FIR_SCALAR
+#endif
+
 namespace catenae {
     inline namespace CATENAE_ABI {
         namespace detail {
@@ -15,7 +26,8 @@ namespace catenae {
 
                 /// (a + ib)(c + id), bin by bin, in place.
                 template <typename T>
-                void fft_fir_times(complex<T>* frame, const complex<T>* h, std::size_t bins) noexcept {
+                CATENAE_FFT_FIR_SCALAR void fft_fir_times(complex<T>* frame, const complex<T>* h,
+                                                          std::size_t bins) noexcept {
                     for (std::size_t k = 0; k < bins; ++k) {
                         const T a = frame[k].re;
                         const T b = frame[k].im;

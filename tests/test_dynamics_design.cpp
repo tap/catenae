@@ -5,12 +5,14 @@
 #include <cstdint>
 #include <cstring>
 #include <limits>
+#include <utility>
 
 #include <gtest/gtest.h>
 
 #include "catenae/check.h"
 #include "catenae/dynamics_design.h"
 #include "catenae_test/check_trap.h"
+#include "dynamics_tables.h"
 
 namespace {
 
@@ -89,6 +91,50 @@ namespace {
         const auto lf = catenae::limiter_design<float>::make({-0.3, 100.0});
         ASSERT_TRUE(ld.has_value() && lf.has_value());
         EXPECT_EQ(lf->numbers().ceiling, static_cast<float>(ld->numbers().ceiling));
+    }
+
+    /// Whether b is within a float ulp of a.
+    bool within_an_ulp(float a, float b) {
+        return b >= std::nextafter(a, -std::numeric_limits<float>::infinity())
+               && b <= std::nextafter(a, std::numeric_limits<float>::infinity());
+    }
+
+    // Verifies CAT-DYNAMICS-DESIGN-003.
+    TEST(dynamics_design, ATableDesignIsWhatMakeGives) {
+        // examples/dynamics_tables.h, constants: from make() on the hosted Linux leg, bit for bit;
+        // within a float ulp of make() wherever another libm rounds the double design otherwise.
+        const auto e = catenae::expander_design<float>::make({-50.0, 4.0, 6.0, 40.0, 48.0, 2400, 4800.0});
+        const auto c = catenae::compressor_design<float>::make({-18.0, 4.0, 6.0, 240.0, 4800.0, 6.0});
+        const auto l = catenae::limiter_design<float>::make({-1.0, 2400.0});
+        ASSERT_TRUE(e && c && l);
+        const auto& et = example::gate_design.numbers();
+        const auto& ct = example::bus_design.numbers();
+        const auto& lt = example::ceiling_design.numbers();
+        for (const auto& [table, made] : {std::pair<float, float>{et.threshold, e->numbers().threshold},
+                                          {et.half_knee, e->numbers().half_knee},
+                                          {et.below, e->numbers().below},
+                                          {et.knee_scale, e->numbers().knee_scale},
+                                          {et.range, e->numbers().range},
+                                          {et.attack, e->numbers().attack},
+                                          {et.attack_complement, e->numbers().attack_complement},
+                                          {et.release, e->numbers().release},
+                                          {et.release_complement, e->numbers().release_complement},
+                                          {ct.threshold, c->numbers().threshold},
+                                          {ct.half_knee, c->numbers().half_knee},
+                                          {ct.above, c->numbers().above},
+                                          {ct.knee_scale, c->numbers().knee_scale},
+                                          {ct.makeup, c->numbers().makeup},
+                                          {ct.attack, c->numbers().attack},
+                                          {ct.attack_complement, c->numbers().attack_complement},
+                                          {ct.release, c->numbers().release},
+                                          {ct.release_complement, c->numbers().release_complement},
+                                          {lt.threshold, l->numbers().threshold},
+                                          {lt.ceiling, l->numbers().ceiling},
+                                          {lt.release, l->numbers().release},
+                                          {lt.release_complement, l->numbers().release_complement}}) {
+            EXPECT_TRUE(within_an_ulp(made, table)) << made << " and the table's " << table;
+        }
+        EXPECT_EQ(et.hold, e->numbers().hold);
     }
 
     // Verifies CAT-DYNAMICS-DESIGN-002.

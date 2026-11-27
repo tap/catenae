@@ -16,6 +16,7 @@
 
 #include "call_marker.h"
 #include "catenae/biquad_design.h"
+#include "catenae/dynamics_design.h"
 #include "catenae/fir_design.h"
 
 #if CATENAE_PROBE_STACK
@@ -35,6 +36,9 @@ namespace catenae_probe {
     CATENAE_PROBE_NOINLINE bool probe_fir_63() noexcept;
     CATENAE_PROBE_NOINLINE bool probe_fir_q15_255() noexcept;
     CATENAE_PROBE_NOINLINE bool probe_fir_1023() noexcept;
+    CATENAE_PROBE_NOINLINE bool probe_compressor() noexcept;
+    CATENAE_PROBE_NOINLINE bool probe_limiter() noexcept;
+    CATENAE_PROBE_NOINLINE bool probe_expander() noexcept;
 
     namespace {
         using long_fir = catenae::fir_design<float, 1023>;
@@ -68,6 +72,15 @@ namespace catenae_probe {
                               catenae::span<double, long_fir::workspace_size>(s_fir_workspace))
             .has_value();
     }
+    CATENAE_PROBE_NOINLINE bool probe_compressor() noexcept {
+        return catenae::compressor_design<float>::make({-18.0, 4.0, 6.0, 240.0, 4800.0, 6.0}).has_value();
+    }
+    CATENAE_PROBE_NOINLINE bool probe_limiter() noexcept {
+        return catenae::limiter_design<float>::make({-1.0, 2400.0}).has_value();
+    }
+    CATENAE_PROBE_NOINLINE bool probe_expander() noexcept {
+        return catenae::expander_design<float>::make({-50.0, 4.0, 6.0, 40.0, 48.0, 2400, 4800.0}).has_value();
+    }
 
 } // namespace catenae_probe
 
@@ -91,14 +104,21 @@ int main() {
     std::printf("CATENAE_STACK fir_63 %lu\n", static_cast<unsigned long>(f63));
     std::printf("CATENAE_STACK fir_q15_255 %lu\n", static_cast<unsigned long>(f255));
     std::printf("CATENAE_STACK fir_1023 %lu\n", static_cast<unsigned long>(f1023));
+    const std::size_t comp = catenae_probe::high_water([&made] { made = catenae_probe::probe_compressor() && made; });
+    const std::size_t lim  = catenae_probe::high_water([&made] { made = catenae_probe::probe_limiter() && made; });
+    const std::size_t expd = catenae_probe::high_water([&made] { made = catenae_probe::probe_expander() && made; });
+    std::printf("CATENAE_STACK compressor %lu\n", static_cast<unsigned long>(comp));
+    std::printf("CATENAE_STACK limiter %lu\n", static_cast<unsigned long>(lim));
+    std::printf("CATENAE_STACK expander %lu\n", static_cast<unsigned long>(expd));
     const bool ok = made && b16 < catenae_probe::paint_bytes && f255 < catenae_probe::paint_bytes;
     std::printf("CATENAE_PROBE_DONE ok=%d\n", ok ? 1 : 0);
     return ok ? 0 : 1;
 #else
-    const bool made = catenae_probe::probe_cookbook() && catenae_probe::probe_butterworth_2()
-                      && catenae_probe::probe_butterworth_4() && catenae_probe::probe_butterworth_8()
-                      && catenae_probe::probe_butterworth_16() && catenae_probe::probe_fir_63()
-                      && catenae_probe::probe_fir_q15_255() && catenae_probe::probe_fir_1023();
+    const bool made =
+        catenae_probe::probe_cookbook() && catenae_probe::probe_butterworth_2() && catenae_probe::probe_butterworth_4()
+        && catenae_probe::probe_butterworth_8() && catenae_probe::probe_butterworth_16()
+        && catenae_probe::probe_fir_63() && catenae_probe::probe_fir_q15_255() && catenae_probe::probe_fir_1023()
+        && catenae_probe::probe_compressor() && catenae_probe::probe_limiter() && catenae_probe::probe_expander();
     return made ? 0 : 1;
 #endif
 }

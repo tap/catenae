@@ -26,8 +26,10 @@ and `pack` over the ten wire formats of `catenae/wire.h`, their loops the first 
 past the handler (`src/wire.cpp`); then `dither` (TPDF), the `mix` matrix and `sanitize`.
 **C3** is under way, in four pull requests: the recursive filters (the biquad kernel, `biquad`
 and `butterworth`, the cookbook's nine designs and the Butterworth's, `from_table`'s check, the
-host's flush-to-zero stated by `CATENAE_FLUSH_TO_ZERO` and checked at audit); then the FIR
-filters, rate change with `oversample`, and the three dynamics stages.
+host's flush-to-zero stated by `CATENAE_FLUSH_TO_ZERO` and checked at audit); the FIR
+filters (the kernel's four partial sums, `fir` of exact latency and `fir_any`, the four
+Kaiser-windowed designs, the fixed formats' row-sum-preserving taps, `from_table`'s symmetry
+check); then rate change with `oversample`, and the three dynamics stages.
 
 ## How to work here
 

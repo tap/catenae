@@ -89,6 +89,23 @@ foreach(_order IN ITEMS 2 4 8 16)
                        DEFINITIONS CATENAE_DESIGN_SECTIONS=${_sections})
 endforeach()
 
+# The FIR family (C3): the 63-tap low-pass of examples/fir_tables.h in float, double, Q15 and
+# Q31 (the guide's "What arithmetic costs"); and what one FIR make() costs, the worst single
+# call (QEMU keys only): its card's numbers.
+foreach(_format IN ITEMS f32:0 f64:1 q15:2 q31:3)
+    string(REPLACE ":" ";" _parts "${_format}")
+    list(GET _parts 0 _fname)
+    list(GET _parts 1 _fid)
+    catenae_add_icount(fir_${_fname} icount/fir_main.cpp DEFINITIONS CATENAE_FIR_FORMAT=${_fid})
+    target_include_directories(catenae_icount_fir_${_fname} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
+endforeach()
+foreach(_design IN ITEMS f32_63:0 q15_255:1 f32_1023:2)
+    string(REPLACE ":" ";" _parts "${_design}")
+    list(GET _parts 0 _dname)
+    list(GET _parts 1 _did)
+    catenae_add_icount(callmax_design_fir_${_dname} icount/fir_design_main.cpp DEFINITIONS CATENAE_FIR_DESIGN=${_did})
+endforeach()
+
 # --- The layout benchmark: interleaved against planar, informational (bench/layout/) --------
 add_subdirectory(layout)
 
@@ -121,8 +138,10 @@ catenae_add_probe(c2 probe/c2_probe.cpp)
 # time; the FFT family's image for the link-stage gate.
 catenae_add_probe(fft probe/fft_probe.cpp)
 catenae_add_probe(recursive probe/recursive_probe.cpp)
+catenae_add_probe(fir probe/fir_probe.cpp)
 catenae_add_probe(designers probe/designers_probe.cpp)
-foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip catenae_probe_recursive catenae_stack_recursive)
+foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip catenae_probe_recursive catenae_stack_recursive
+                        catenae_probe_fir catenae_stack_fir)
     target_include_directories(${_probe} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 
@@ -160,6 +179,9 @@ int main() { return 0; }" CATENAE_HARDWARE_DOUBLE)
     add_test(NAME link_gate.RecursiveImageHasNoSoftwareDouble
              COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
                      $<TARGET_FILE:catenae_probe_recursive>)
+    add_test(NAME link_gate.FirImageHasNoSoftwareDouble
+             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
+                     $<TARGET_FILE:catenae_probe_fir>)
     if(CATENAE_HARDWARE_DOUBLE)
         add_test(NAME link_gate.HardwareDoubleIsInvisible
                  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py

@@ -14,6 +14,7 @@
 #include "catenae/convert.h"
 #include "catenae/delay.h"
 #include "catenae/dither.h"
+#include "catenae/fir.h"
 #include "catenae/gain.h"
 #include "catenae/handoff.h"
 #include "catenae/interleave.h"
@@ -55,6 +56,11 @@ namespace {
     static_assert(contract<catenae::biquad_q31<2>>(), "biquad in q31: its contract");
     static_assert(contract<catenae::biquad_q31<1, 4>>(), "a cascade of four in q31: its contract");
     static_assert(contract<catenae::dither_q31<2, 24>>(), "dither in q31");
+    static_assert(contract<catenae::fir_q31<2, 63>>(), "fir in q31, its taps by value");
+    static_assert(contract<catenae::fir_q31<1, 255>>(), "fir in q31, its taps viewed");
+    static_assert(contract<catenae::fir_any_q31<2, 16>>(), "any FIR in q31");
+    static_assert(contract<catenae::fir_q4_27<2, 63>>(), "fir in Q4.27");
+    static_assert(contract<catenae::chain<catenae::fir_q31<2, 31>, catenae::delay_q31<2, 4>>>(), "fir in a q31 chain");
     static_assert(contract<catenae::mix_q31<2, 1>>(), "mix in q31: its contract, Q1.30 coefficients");
     static_assert(contract<catenae::unpack<catenae::wire::s24le_packed, 2>>(), "unpack to q31");
     static_assert(contract<catenae::pack<catenae::wire::s32be, 2>>(), "pack from q31");

@@ -268,22 +268,49 @@ Probe `recursive`: each cell is the recorded figure / its ceiling, in bytes (sta
 | `code.process` | 2,118 / 2,240 | 674 / 704 | 674 / 704 | 694 / 768 |  |
 | `code.reset` | 210 / 256 | 210 / 256 | 210 / 256 | 210 / 256 |  |
 
+Probe `fir`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
+
+| figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
+|---|--:|--:|--:|--:|--:|
+| `image.bss` | 2,568 / 2,688 | 2,568 / 2,688 | 2,568 / 2,688 | 2,568 / 2,688 | 1,836 / 1,920 |
+| `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
+| `image.rodata` | 348 / 384 | 348 / 384 | 348 / 384 | 348 / 384 | 296 / 320 |
+| `image.text` | 9,368 / 9,664 | 8,088 / 8,384 | 7,992 / 8,256 | 8,012 / 8,256 | 8,372 / 8,640 |
+| `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.text` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.bss` | 1,552 / 1,600 | 1,552 / 1,600 | 1,552 / 1,600 | 1,552 / 1,600 | 1,552 / 1,600 |
+| `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.rodata` | 260 / 320 | 260 / 320 | 260 / 320 | 260 / 320 | 260 / 320 |
+| `unit.text` | 700 / 768 | 630 / 704 | 634 / 704 | 652 / 704 | 1,236 / 1,280 |
+| `sizeof.state` | 1,036 / 1,088 | 1,036 / 1,088 | 1,036 / 1,088 | 1,036 / 1,088 |  |
+| `sizeof.workspace` | 516 / 576 | 516 / 576 | 516 / 576 | 516 / 576 |  |
+| `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
+| `stack.process.measured` | 104 / 112 | 64 / 72 | 64 / 72 | 64 / 72 |  |
+| `stack.process.static` | 104 / 112 | 64 / 72 | 64 / 72 | 64 / 72 |  |
+| `stack.reset.measured` | 20 / 24 | 20 / 24 | 24 / 32 | 24 / 32 |  |
+| `stack.reset.static` | 20 / 24 | 20 / 24 | 24 / 32 | 24 / 32 |  |
+| `code.process` | 2,076 / 2,176 | 592 / 640 | 596 / 640 | 612 / 640 |  |
+| `code.reset` | 222 / 256 | 222 / 256 | 222 / 256 | 222 / 256 |  |
+
 Probe `designers`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
 
 | figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
 |---|--:|--:|--:|--:|--:|
-| `image.bss` | 1,016 / 1,088 | 1,016 / 1,088 | 1,016 / 1,088 | 1,016 / 1,088 | 284 / 320 |
+| `image.bss` | 9,204 / 9,536 | 9,204 / 9,536 | 9,204 / 9,536 | 9,204 / 9,536 | 8,476 / 8,768 |
 | `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
-| `image.rodata` | 616 / 640 | 616 / 640 | 616 / 640 | 9,116 / 9,408 | 11,344 / 11,712 |
-| `image.text` | 35,672 / 36,800 | 35,864 / 36,992 | 35,728 / 36,800 | 23,936 / 24,704 | 47,812 / 49,280 |
+| `image.rodata` | 648 / 704 | 648 / 704 | 648 / 704 | 9,148 / 9,472 | 11,344 / 11,712 |
+| `image.text` | 38,744 / 39,936 | 39,000 / 40,192 | 38,852 / 40,064 | 26,308 / 27,136 | 51,588 / 53,184 |
 | `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 36 / 64 |
-| `core.text` | 3,678 / 3,840 | 3,968 / 4,096 | 3,968 / 4,096 | 2,576 / 2,688 | 5,276 / 5,440 |
-| `unit.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.text` | 5,146 / 5,312 | 5,508 / 5,696 | 5,500 / 5,696 | 3,568 / 3,712 | 7,468 / 7,744 |
+| `unit.bss` | 8,188 / 8,448 | 8,188 / 8,448 | 8,188 / 8,448 | 8,188 / 8,448 | 8,188 / 8,448 |
 | `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
-| `unit.rodata` | 32 / 64 | 32 / 64 | 32 / 64 | 32 / 64 | 0 / 0 |
-| `unit.text` | 6,668 / 6,912 | 6,576 / 6,784 | 6,576 / 6,784 | 5,678 / 5,888 | 8,820 / 9,088 |
+| `unit.rodata` | 64 / 128 | 64 / 128 | 64 / 128 | 64 / 128 | 0 / 0 |
+| `unit.text` | 8,066 / 8,320 | 7,990 / 8,256 | 7,990 / 8,256 | 6,936 / 7,168 | 10,408 / 10,752 |
 | `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
 | `stack.butterworth_16.measured` | 22,000 / 22,664 | 22,000 / 22,664 | 22,000 / 22,664 | 21,800 / 22,456 |  |
@@ -296,11 +323,20 @@ Probe `designers`: each cell is the recorded figure / its ceiling, in bytes (sta
 | `stack.butterworth_8.static` | 6,120 / 6,304 | 6,120 / 6,304 | 6,120 / 6,304 | 5,928 / 6,112 |  |
 | `stack.cookbook.measured` | 1,056 / 1,088 | 1,056 / 1,088 | 1,056 / 1,088 | 864 / 896 |  |
 | `stack.cookbook.static` | 1,364 / 1,408 | 1,380 / 1,424 | 1,380 / 1,424 | 1,288 / 1,328 |  |
+| `stack.fir_1023.measured` | 392 / 408 | 392 / 408 | 392 / 408 | 288 / 304 |  |
+| `stack.fir_1023.static` | 1,084 / 1,120 | 1,076 / 1,112 | 1,076 / 1,112 | 984 / 1,016 |  |
+| `stack.fir_63.measured` | 1,400 / 1,448 | 1,400 / 1,448 | 1,400 / 1,448 | 1,296 / 1,336 |  |
+| `stack.fir_63.static` | 2,092 / 2,160 | 2,084 / 2,152 | 2,084 / 2,152 | 1,992 / 2,056 |  |
+| `stack.fir_q15_255.measured` | 3,024 / 3,120 | 3,024 / 3,120 | 3,024 / 3,120 | 2,904 / 2,992 |  |
+| `stack.fir_q15_255.static` | 3,716 / 3,832 | 3,708 / 3,824 | 3,708 / 3,824 | 3,600 / 3,712 |  |
 | `code.butterworth_16` | 17,612 / 18,176 | 17,322 / 17,856 | 17,322 / 17,856 | 9,416 / 9,728 |  |
 | `code.butterworth_2` | 17,386 / 17,920 | 17,088 / 17,664 | 17,160 / 17,728 | 9,072 / 9,408 |  |
 | `code.butterworth_4` | 17,440 / 17,984 | 17,122 / 17,664 | 17,122 / 17,664 | 9,224 / 9,536 |  |
 | `code.butterworth_8` | 17,576 / 18,112 | 17,248 / 17,792 | 17,248 / 17,792 | 9,338 / 9,664 |  |
 | `code.cookbook` | 22,144 / 22,848 | 22,134 / 22,848 | 22,154 / 22,848 | 11,398 / 11,776 |  |
+| `code.fir_1023` | 13,064 / 13,504 | 13,588 / 14,016 | 13,552 / 14,016 | 6,186 / 6,400 |  |
+| `code.fir_63` | 13,606 / 14,016 | 14,130 / 14,592 | 14,022 / 14,464 | 6,648 / 6,848 |  |
+| `code.fir_q15_255` | 14,352 / 14,784 | 14,892 / 15,360 | 14,784 / 15,232 | 7,354 / 7,616 |  |
 <!-- ceilings:end -->
 
 ## The layout benchmark (informational, never a gate)
@@ -373,6 +409,23 @@ Unlike the stages above, the recursion costs nearly the same in either layout on
 and the host (within 3 %): its block kernel already runs one channel's history at a time in
 registers, interleaved or not. Hexagon pays 28 % more for the mono configurations.
 
+The direct-form FIR, `fir` of 63 taps, the low-pass at 0.1 from its table (kind `fir`), planar
+over interleaved from Bench run [45866666441](https://github.com/tap/catenae/actions/runs/45866666441)
+at `7e711bf`, 2026-11-26, every pair bit-identical on every key:
+
+| key | `fir` 2 | `fir` 6 | `fir` 12 |
+|---|---:|---:|---:|
+| `m4-softfp` | 0.996 | 1.000 | 1.002 |
+| `m4f` | 0.996 | 0.990 | 0.990 |
+| `m33` | 0.993 | 0.986 | 0.986 |
+| `m55` | 1.000 | 0.989 | 0.990 |
+| `hexagon` | 0.989 | 0.791 | 0.800 |
+| host (x86-64) | 0.990 | 0.981 | 0.994 |
+
+The FIR runs each channel's history through the whole block before the next channel's, so it
+too costs the same in either layout on the Cortex-M and the host (within 2 %); on Hexagon the
+mono configurations are about a fifth cheaper at 6 and 12 channels.
+
 ```sh
 cmake -S . -B build-17 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m33-mps2.cmake \
       -DCATENAE_BUILD_TESTS=OFF -DCATENAE_BUILD_EXAMPLES=OFF -DCATENAE_BUILD_BENCH=ON
@@ -387,7 +440,9 @@ scripts/icount.py --key m33 --build-dir build-17 --plugin /tmp/libinsncount.so -
 `catenae_probe_c1`, every C1 stage in one float path (`link_gate.C1ImageHasNoSoftwareDouble`);
 then C2's edges (`catenae_probe_c2`, `link_gate.C2ImageHasNoSoftwareDouble`) and the recursive
 family, a biquad cascade whose design is a table in ROM with a gain after it
-(`catenae_probe_recursive`, `link_gate.RecursiveImageHasNoSoftwareDouble`). The `designers`
+(`catenae_probe_recursive`, `link_gate.RecursiveImageHasNoSoftwareDouble`), and the FIR
+family, a 63-tap low-pass from its table with a gain after it (`catenae_probe_fir`,
+`link_gate.FirImageHasNoSoftwareDouble`). The `designers`
 probe links `make()` and so its software double on purpose, and the gate does not read it.
 It also proves itself on two fixtures on every Arm key (`bench/link_gate/`, CTest label
 `link_gate`). On the M55, GCC's default FPU has double precision, so a double product is an
@@ -417,6 +472,7 @@ ctest --test-dir build-size -L link_gate
 | `baselines.json`: `edges`, every key; `ceilings.json`: the probe set `c2`, every key but `host` | Bench run [45754937497](https://github.com/tap/catenae/actions/runs/45754937497) at `a1ac08b`, 2026-11-26 (`workflow_dispatch` on the C2 branch `claude/catenae-c2-pack`): its `measured-<key>.json` and `ceilings-measured-<key>.json` artifacts, the counts copied unchanged and the ceilings computed by `scripts/ceilings.py`'s rule. Every other count and figure in that run equal to its record, C++20 and C++23 equal to C++17 on every key, and the link-stage gate's four tests passing on each Arm key, `C2ImageHasNoSoftwareDouble` among them |
 | `baselines.json`: `edges`, every key; `ceilings.json`: the probe set `c2`, every key but `host` | Bench run [45759547555](https://github.com/tap/catenae/actions/runs/45759547555) at `316cbfd`, 2026-11-26 (`workflow_dispatch` on `claude/catenae-c2-edges`): its artifacts, copied and computed as in the row above. Re-recorded because C2's second part puts `sanitize`, `mix` and `dither` in the path where the gain was: `edges` costs 41 % more on the M33 (9,195,445 to 12,963,516) and the checksum is now `e4697eabbeb92f5c`. Every other count and figure in that run equal to its record, C++20 and C++23 equal to C++17 on every key, and the link-stage gate passing on each Arm key |
 | `baselines.json`: `recursive`, every key, and the five `callmax_design_` workloads, every key but `host`; `ceilings.json`: the probe sets `recursive` and `designers`, every key but `host`; the biquad layout table below | Bench run [45837885047](https://github.com/tap/catenae/actions/runs/45837885047) at `79b6ad7`, 2026-11-26 (`workflow_dispatch` on `claude/catenae-c3-recursive`): its `measured-<key>.json`, `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The recursive filters' first figures. Every other count and figure in that run equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.RecursiveImageHasNoSoftwareDouble` among its tests |
+| `baselines.json`: `fir_f32`, `fir_f64`, `fir_q15` and `fir_q31`, every key, and the three `callmax_design_fir_` workloads, every key but `host`; `ceilings.json`: the probe set `fir`, and the `designers` probe's figures, every key but `host`; the FIR layout table above | Bench run [45866666441](https://github.com/tap/catenae/actions/runs/45866666441) at `7e711bf`, 2026-11-26 (`workflow_dispatch` on `claude/catenae-c3-fir`): its `measured-<key>.json`, `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The FIR's first figures; the `designers` probe gained its three FIR calls, so its image, core and unit figures rose (on the M33 `core.text` from 3,968 to 5,500 B, and `unit.bss` from 0 to 8,188 B, the 1,023-tap table and its workspace) and are recorded as measured. Every other count and figure in that run equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.FirImageHasNoSoftwareDouble` among its tests |
 
 | `baselines.json`: `fft_f32_512`, `fft_f32_2048`, `fft_f64_512` and `callmax_fft_f32_512`, every key | Bench run [45834933446](https://github.com/tap/catenae/actions/runs/45834933446) at `a23f18f`, 2026-11-26 (`workflow_dispatch` on the C4 FFT branch, the merge of `main` at `10b6fd9`): its `measured-<key>` artifacts, copied unchanged; each FFT workload's checksum the same on all six keys, C++20 and C++23 equal to C++17, and every other count in that run equal to its baseline (C2's `edges` among them). The counts recorded first, from run [45762911188](https://github.com/tap/catenae/actions/runs/45762911188) at `1525e89`, came before the kernel's recursion became a loop (`e7bf0d2`) and before the run-time plans to 2^20 and the static-extent frames (`4989d0e`); this run counted them from 1.33 % below to 2.88 % above those (the M55's `fft_f64_512`), inside the gate, and replaces them |
 | `ceilings.json`: the probe set `fft`, every key but `host` | Bench run [45821938097](https://github.com/tap/catenae/actions/runs/45821938097) at `4989d0e`, 2026-11-26: its `ceilings-measured-<key>.json` artifacts, the ceilings computed by `scripts/ceilings.py`'s rule. Plans made at run time to 2^20 (Q1) widened the kernel's 29 pending entries from 16 to 32 bits, so `forward` and `inverse` reach 56 B more stack on each Arm key (480 B static on the M33, M4F and M55, 568 B on the soft-float M4), and the code figures moved by under 70 B, inside their ceilings, recorded too; every other figure in that run equal to its record (C2's `c2` probe among them), and the link-stage gate's tests passing on each Arm key. The run before, [45771572341](https://github.com/tap/catenae/actions/runs/45771572341) at `e7bf0d2`, recorded the 16-bit list. Run [45834933446](https://github.com/tap/catenae/actions/runs/45834933446) at `a23f18f`, after the merge of `main`, measured every figure of every probe set equal to its record, `c2` among them: the two `scripts/ceilings.py` fixes leave C2's bounds where they were recorded |
@@ -523,6 +579,50 @@ software double, as the soft-float M4 does; the M55 has it in hardware.
 | Butterworth, order 4 | 16,627,420 | 16,661,667 | 16,757,532 | 481,214 | 2,080,746 packets | 2,008 / 2,000 |
 | Butterworth, order 8 | 32,722,345 | 32,782,041 | 32,954,144 | 900,043 | 3,329,290 packets | 6,120 / 6,112 |
 | Butterworth, order 16 | 74,346,227 | 74,436,657 | 74,826,914 | 2,249,441 | 6,743,188 packets | 22,008 / 22,000 |
+
+### The FIR filters
+
+`fir_f32`, `fir_f64`, `fir_q15` and `fir_q31` run one filter in four formats
+(`bench/icount/fir_main.cpp`): the 63-tap low-pass at 0.1 of `examples/fir_tables.h`, stereo, over
+1000 blocks of 64 frames of the same input scaled to the format, every design a constant. Each
+folds the first and last samples of each block into a checksum. The fixed formats and `double`
+print the same checksum on every key (`2c794b223684365e`, `315dd35e45c86e20`,
+`8c3f64e99e63dea1`); `float` prints `a26c8c32d8c562c8` where the compiler fuses no multiply-add
+(the soft-float M4, x86-64) and `92f3bc45c548056d` where it does, the header kernel compiled
+under the workload's flags as the stage's card says. From Bench run
+[45866666441](https://github.com/tap/catenae/actions/runs/45866666441); every key counted C++20
+and C++23 equal to C++17.
+
+| Key | `fir_f32` | `fir_f64` | `fir_q15` | `fir_q31` |
+|---|--:|--:|--:|--:|
+| `m4-softfp` | 705,440,641 | 1,011,192,415 | 45,501,874 | 85,963,195 |
+| `m4f` | 35,779,214 | 997,753,627 | 45,501,885 | 85,963,206 |
+| `m33` | 35,779,220 | 997,625,632 | 45,373,890 | 85,963,211 |
+| `m55` | 33,861,216 | 33,991,851 | 37,824,889 | 69,450,210 |
+| `hexagon` | 9,741,896 packets | 34,898,696 packets | 10,750,683 packets | 10,961,895 packets |
+| `host` | 11,711,178 | 36,540,301 | 76,985,103 | 77,115,167 |
+
+A run writes 128,000 outputs, so on the M33 the float filter costs 280 instructions an output,
+4.4 a tap, and the double one 7,794, software double on an FPU of single precision. The scalar
+Q15 kernel is dearer than float there (354 an output): one 16 by 16 multiply-accumulate into 64
+bits per tap, with the paired SMLALD and Helium kernels waiting for C6. Q31 pre-shifts each 64-bit
+product, 672 an output.
+
+### What an FIR design's make() costs
+
+Each `callmax_design_fir_` workload brackets every `make()` and counts the worst single call
+(`bench/icount/fir_design_main.cpp`, QEMU keys only): a low-pass at 0.05, 0.1, 0.2 and 0.4, 80 dB
+down, of 63 float taps and 255 Q15 taps by value, and of 1,023 float taps into a table through a
+workspace. The stack is the `designers` probe's: the static worst path, then the painted
+high-water, in bytes. From Bench run
+[45866666441](https://github.com/tap/catenae/actions/runs/45866666441); the checksums of what
+`make()` returned are the same on every key.
+
+| `make()` | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` | stack, `m33` |
+|---|--:|--:|--:|--:|--:|--:|
+| 63 float taps | 795,614 | 796,085 | 795,684 | 19,018 | 94,804 packets | 2,084 / 1,400 |
+| 255 Q15 taps | 3,293,769 | 3,297,314 | 3,294,376 | 88,170 | 394,638 packets | 3,708 / 3,024 |
+| 1,023 float taps, a table | 12,706,746 | 12,715,386 | 12,708,776 | 294,524 | 1,538,792 packets | 1,076 / 392 |
 
 ### The floating FFT
 

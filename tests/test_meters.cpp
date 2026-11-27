@@ -63,9 +63,14 @@ namespace {
 
     /// Each hop's expected energies, summed as the card says: each hop in frame order from 0,
     /// then the window's hops oldest first from 0, hops before reset being 0.
+    /// What a meter's squares sum in, as the test writes them.
+    template <typename S>
+    using sum_of = decltype(analyzer_test::product<S>({}, {}, 0));
+
     template <typename S, std::size_t Window>
-    auto expected_energies(const std::vector<catenae::storage_t<S>>& in, int shift) {
-        using sum                               = decltype(analyzer_test::product<S>({}, {}, 0));
+    std::vector<std::array<sum_of<S>, k_ch>> expected_energies(const std::vector<catenae::storage_t<S>>& in,
+                                                               int                                       shift) {
+        using sum                               = sum_of<S>;
         constexpr std::size_t              hops = Window / k_hop;
         std::vector<std::array<sum, k_ch>> per_hop;
         for (std::size_t end = k_hop; end * k_ch <= in.size(); end += k_hop) {

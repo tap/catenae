@@ -8,6 +8,7 @@
 #include <cmath>
 #include <cstddef>
 #include <cstdint>
+#include <cstring>
 #include <limits>
 #include <type_traits>
 
@@ -121,14 +122,21 @@ namespace catenae {
             }
 
             /// The larger of two magnitudes, a NaN winning and then staying: a meter shows a NaN in
-            /// its window rather than reading past it.
+            /// its window rather than reading past it. A floating magnitude is +0 or above, or a NaN
+            /// with its sign clear, and for those the bits order as the values do with every NaN above
+            /// infinity: so the bits are compared as integers. A compare and select of the values
+            /// would say the same, but a compiler may fold it into the target's floating-point
+            /// maximum, which on Hexagon drops a NaN.
             template <typename V>
             inline V meter_larger(V held, V next) noexcept {
                 if constexpr (std::is_floating_point<V>::value) {
-                    if (std::isnan(held)) {
-                        return held;
-                    }
-                    return next > held || std::isnan(next) ? next : held;
+                    using bits_type = std::conditional_t<sizeof(V) == 4, std::uint32_t, std::uint64_t>;
+                    static_assert(sizeof(bits_type) == sizeof(V), "catenae: a float of 32 bits, a double of 64");
+                    bits_type a = 0;
+                    bits_type b = 0;
+                    std::memcpy(&a, &held, sizeof a);
+                    std::memcpy(&b, &next, sizeof b);
+                    return b > a ? next : held;
                 }
                 else {
                     return next > held ? next : held;

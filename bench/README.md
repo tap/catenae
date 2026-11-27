@@ -56,6 +56,7 @@ is rooted at a noinline `catenae_probe::probe_<call>`. The sets:
 | `dynamics` | The dynamics strip, `examples/dynamics_tables.h`: an expander, a compressor and a limiter 48 frames ahead, from tables in ROM; the dynamics family's image for the link-stage gate | `reset`, `process` (one callback of 64 stereo frames) |
 | `fft` | A float transform of 512 both ways from the constant tables, and a plan of 512 made at run time (`include/catenae/fft.h`): the FFT family's image for the link-stage gate | `forward`, `inverse`, `make` |
 | `fft_fir` | The long filter of `examples/long_filter.h`: the 255-tap low-pass by `fft_fir` in blocks of 256, in `steady<>`, stereo, from its spectrum in ROM; the FFT FIR's image for the link-stage gate | `reset`, `process` (the deepest of four callbacks of 64 stereo frames, the fourth completing a block) |
+| `meters` | The stereo bus's meters, `examples/meters.h`: peak and RMS over 100 ms every 10 ms, the EBU's peak programme meter from its table in ROM, and the cross-correlation of the two channels at up to 16 frames either way, four taps in one chain; the analyzers' image for the link-stage gate | `reset`, `process` (one callback of 64 stereo frames) |
 | `overdrive` | PLAN.md 9.4's chain, `examples/overdrive.h`: a tanh soft clip at four times the rate between `up2` and `down2`, two voices of state and one workspace they share; the rate family's image for the link-stage gate | `reset` (both voices), `process` (one callback of 64 stereo frames) |
 
 `scripts/ceilings.py` reads, per key:
@@ -584,7 +585,9 @@ rate, whose half-bands are generated constants and whose soft clip is `tanhf`
 family, whose per-frame `log` and `exp` are float's `logf` and `expf`
 (`catenae_probe_dynamics`, `link_gate.DynamicsImageHasNoSoftwareDouble`), and the FFT FIR, whose
 spectrum is a table in ROM and whose transforms and product are the core's float ones
-(`catenae_probe_fft_fir`, `link_gate.FftFirImageHasNoSoftwareDouble`). The `designers`
+(`catenae_probe_fft_fir`, `link_gate.FftFirImageHasNoSoftwareDouble`), and the analyzers, the
+bus's four meters with the programme meter's design a table in ROM and no reading converted to
+decibels on the audio path (`catenae_probe_meters`, `link_gate.MetersImageHasNoSoftwareDouble`). The `designers`
 probe links `make()` and so its software double on purpose, and the gate does not read it.
 It also proves itself on two fixtures on every Arm key (`bench/link_gate/`, CTest label
 `link_gate`). On the M55, GCC's default FPU has double precision, so a double product is an

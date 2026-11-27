@@ -24,7 +24,7 @@ changes they led to (`ratio_t`, `table_view` and `holds_view`, `outputs_from_res
 exact largest pull, `fed_by`'s flush). **C2** is done too, in two pull requests: `unpack`
 and `pack` over the ten wire formats of `catenae/wire.h`, their loops the first compiled code
 past the handler (`src/wire.cpp`); then `dither` (TPDF), the `mix` matrix and `sanitize`.
-**C3** is under way, in four pull requests: the recursive filters (the biquad kernel, `biquad`
+**C3** is done too, in four pull requests: the recursive filters (the biquad kernel, `biquad`
 and `butterworth`, the cookbook's nine designs and the Butterworth's, `from_table`'s check, the
 host's flush-to-zero stated by `CATENAE_FLUSH_TO_ZERO` and checked at audit); the FIR
 filters (the kernel's four partial sums, `fir` of exact latency and `fir_any`, the four

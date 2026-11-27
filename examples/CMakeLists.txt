@@ -23,6 +23,8 @@ target_include_directories(catenae_example_audio_callback PRIVATE "${CMAKE_CURRE
 catenae_add_example(arithmetic_costs)
 catenae_add_example(overdrive)
 target_include_directories(catenae_example_overdrive PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+catenae_add_example(dynamics)
+target_include_directories(catenae_example_dynamics PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(catenae_example_arithmetic_costs PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Its figure (guide/src/figures/steady.svg) is drawn from its output: on a host with Python, the

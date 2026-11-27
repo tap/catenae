@@ -11,14 +11,17 @@
 
 #include "catenae/biquad.h"
 #include "catenae/chain.h"
+#include "catenae/compressor.h"
 #include "catenae/convert.h"
 #include "catenae/delay.h"
 #include "catenae/dither.h"
+#include "catenae/expander.h"
 #include "catenae/fir.h"
 #include "catenae/gain.h"
 #include "catenae/handoff.h"
 #include "catenae/interleave.h"
 #include "catenae/junction_traits.h"
+#include "catenae/limiter.h"
 #include "catenae/map.h"
 #include "catenae/mix.h"
 #include "catenae/pack.h"
@@ -67,6 +70,11 @@ namespace {
     static_assert(contract<catenae::chain<catenae::up2_q31<2>, catenae::down2_q31<2>>>(), "a q31 round trip");
     static_assert(contract<catenae::chain<catenae::fir_q31<2, 31>, catenae::delay_q31<2, 4>>>(), "fir in a q31 chain");
     static_assert(contract<catenae::mix_q31<2, 1>>(), "mix in q31: its contract, Q1.30 coefficients");
+    static_assert(contract<catenae::compressor_q31<2>>(), "compressor in q31: its contract");
+    static_assert(contract<catenae::expander_q31<2>>(), "expander in q31: its contract");
+    static_assert(contract<catenae::limiter_q31<2, 32>>(), "limiter in q31: its contract");
+    static_assert(contract<catenae::chain<catenae::compressor_q31<2>, catenae::limiter_q31<2, 8>>>(),
+                  "dynamics in a q31 chain");
     static_assert(contract<catenae::unpack<catenae::wire::s24le_packed, 2>>(), "unpack to q31");
     static_assert(contract<catenae::pack<catenae::wire::s32be, 2>>(), "pack from q31");
     static_assert(contract<catenae::chain<catenae::unpack<catenae::wire::s24le_in32_msb, 2>, catenae::gain_q31<2>,

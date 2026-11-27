@@ -116,6 +116,23 @@ foreach(_kind IN ITEMS overdrive:0 up2_f32:1 down2_f32:2 up2_q15:3 down2_q15:4 u
     target_include_directories(catenae_icount_${_kname} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 
+# The dynamics family (C3): each stage of examples/dynamics_tables.h alone and the strip, in
+# float; and what one dynamics make() costs, the worst single call (QEMU keys only).
+foreach(_kind IN ITEMS compressor_f32:0 expander_f32:1 limiter_f32:2 dynamics:3)
+    string(REPLACE ":" ";" _parts "${_kind}")
+    list(GET _parts 0 _kname)
+    list(GET _parts 1 _kid)
+    catenae_add_icount(${_kname} icount/dynamics_main.cpp DEFINITIONS CATENAE_DYNAMICS_KIND=${_kid})
+    target_include_directories(catenae_icount_${_kname} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
+endforeach()
+foreach(_design IN ITEMS compressor:0 limiter:1 expander:2)
+    string(REPLACE ":" ";" _parts "${_design}")
+    list(GET _parts 0 _dname)
+    list(GET _parts 1 _did)
+    catenae_add_icount(callmax_design_${_dname} icount/dynamics_design_main.cpp
+                       DEFINITIONS CATENAE_DYNAMICS_DESIGN=${_did})
+endforeach()
+
 # --- The layout benchmark: interleaved against planar, informational (bench/layout/) --------
 add_subdirectory(layout)
 
@@ -150,9 +167,11 @@ catenae_add_probe(fft probe/fft_probe.cpp)
 catenae_add_probe(recursive probe/recursive_probe.cpp)
 catenae_add_probe(fir probe/fir_probe.cpp)
 catenae_add_probe(overdrive probe/overdrive_probe.cpp)
+catenae_add_probe(dynamics probe/dynamics_probe.cpp)
 catenae_add_probe(designers probe/designers_probe.cpp)
 foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip catenae_probe_recursive catenae_stack_recursive
-                        catenae_probe_fir catenae_stack_fir catenae_probe_overdrive catenae_stack_overdrive)
+                        catenae_probe_fir catenae_stack_fir catenae_probe_overdrive catenae_stack_overdrive
+                        catenae_probe_dynamics catenae_stack_dynamics)
     target_include_directories(${_probe} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 
@@ -196,6 +215,9 @@ int main() { return 0; }" CATENAE_HARDWARE_DOUBLE)
     add_test(NAME link_gate.OverdriveImageHasNoSoftwareDouble
              COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
                      $<TARGET_FILE:catenae_probe_overdrive>)
+    add_test(NAME link_gate.DynamicsImageHasNoSoftwareDouble
+             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
+                     $<TARGET_FILE:catenae_probe_dynamics>)
     if(CATENAE_HARDWARE_DOUBLE)
         add_test(NAME link_gate.HardwareDoubleIsInvisible
                  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py

@@ -114,8 +114,10 @@ namespace catenae {
                             }
                             else {
                                 y *= release;
-                                y = y < std::numeric_limits<level_type>::min() ? level_type{} : y;
                             }
+                            // Either branch can leave a subnormal where nothing flushes it (a
+                            // software double, or a host without flush-to-zero): it reads as 0.
+                            y = y < std::numeric_limits<level_type>::min() ? level_type{} : y;
                         }
                         st.level[c] = y;
                     }

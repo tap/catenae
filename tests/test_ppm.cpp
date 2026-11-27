@@ -26,15 +26,27 @@ namespace {
     using floating = ::testing::Types<float, double>;
     TYPED_TEST_SUITE(ppm, floating);
 
-    /// A burst of 5 kHz at full scale from phase 0, `ms` long, then silence to `total_ms`.
-    template <typename T>
-    std::vector<T> burst(double rate, double ms, double total_ms) {
-        std::vector<T>    v(static_cast<std::size_t>(std::lround(total_ms * rate / 1000.0)));
-        const std::size_t n = static_cast<std::size_t>(std::lround(ms * rate / 1000.0));
-        for (std::size_t i = 0; i < n && i < v.size(); ++i) {
-            v[i] = static_cast<T>(std::sin(6.283185307179586 * 5000.0 * double(i) / rate));
+    /// One channel's readings, frame by frame, over `frames` frames that `signal(i)` gives: `at(i,
+    /// y)` sees each. Nothing is stored, so a run of seconds fits a Cortex-M's memory.
+    template <typename T, typename Signal, typename At>
+    void stream(const catenae::ppm_design<T>& design, std::size_t frames, Signal signal, At at) {
+        using meter_t = catenae::basic_ppm_meter<T, 1, 1>;
+        const meter_t           meter{design};
+        typename meter_t::state st{};
+        for (std::size_t i = 0; i < frames; ++i) {
+            const T x = signal(i);
+            meter.analyze(st, catenae::span<const T>(&x, 1));
+            at(i, meter.result(st)[0]);
         }
-        return v;
+    }
+
+    /// A burst of 5 kHz at full scale from phase 0, `ms` long, then silence.
+    template <typename T>
+    auto burst(double rate, double ms) {
+        const auto n = static_cast<std::size_t>(std::lround(ms * rate / 1000.0));
+        return [rate, n](std::size_t i) {
+            return i < n ? static_cast<T>(std::sin(6.283185307179586 * 5000.0 * double(i) / rate)) : T{0};
+        };
     }
 
     /// The tolerance of a reading that follows from a design's rounding to T.
@@ -43,14 +55,12 @@ namespace {
         return std::is_same<T, float>::value ? 0.2 : 1e-6;
     }
 
-    /// The largest reading over a run, a result every frame.
-    template <typename T>
-    double largest_db(const catenae::ppm_design<T>& design, const std::vector<T>& in) {
-        const auto results = analyzer_test::results_of(catenae::basic_ppm_meter<T, 1, 1>{design}, in, 1, 1);
-        double     top     = 0.0;
-        for (const auto& r : results) {
-            top = static_cast<double>(r[0]) > top ? static_cast<double>(r[0]) : top;
-        }
+    /// The largest reading over `ms` of a signal, in dB.
+    template <typename T, typename Signal>
+    double largest_db(const catenae::ppm_design<T>& design, double rate, double ms, Signal signal) {
+        double top = 0.0;
+        stream(design, static_cast<std::size_t>(std::lround(ms * rate / 1000.0)), signal,
+               [&top](std::size_t, T y) { top = static_cast<double>(y) > top ? static_cast<double>(y) : top; });
         return 20.0 * std::log10(top);
     }
 
@@ -61,8 +71,8 @@ namespace {
             const auto design = catenae::ppm_design<T>::make(catenae::ebu_ppm(rate));
             ASSERT_TRUE(design.has_value()) << rate;
             // The 10 ms burst reads 2 dB below the steady reading (the steady: 0.5 s of tone).
-            const double steady = largest_db(*design, burst<T>(rate, 500.0, 500.0));
-            const double ten    = largest_db(*design, burst<T>(rate, 10.0, 60.0));
+            const double steady = largest_db(*design, rate, 500.0, burst<T>(rate, 500.0));
+            const double ten    = largest_db(*design, rate, 60.0, burst<T>(rate, 10.0));
             EXPECT_NEAR(ten - steady, -2.0, 0.01) << rate;
             // The release falls 24 dB in 2.8 s, within rounding to T.
             const double fall =
@@ -80,7 +90,7 @@ namespace {
         using T             = TypeParam;
         const double rate   = 48000.0;
         const auto   design = *catenae::ppm_design<T>::make(catenae::ebu_ppm(rate));
-        const double steady = largest_db(design, burst<T>(rate, 500.0, 500.0));
+        const double steady = largest_db(design, rate, 500.0, burst<T>(rate, 500.0));
         // EBU Tech 3205-E Table 2, in dB below the steady reading, beside what this detector
         // reads: the first three within the table's tolerance, the last two below it (the card's
         // honest limit).
@@ -93,24 +103,29 @@ namespace {
                                        {1.5, -9.0, 1.0, -11.13},
                                        {0.5, -17.0, 2.0, -19.31}}};
         for (const row& r : rows) {
-            const double reads = largest_db(design, burst<T>(rate, r.ms, r.ms + 50.0)) - steady;
+            const double reads = largest_db(design, rate, r.ms + 50.0, burst<T>(rate, r.ms)) - steady;
             EXPECT_NEAR(reads, r.reads, 0.05) << r.ms << " ms";
             EXPECT_EQ(std::fabs(reads - r.table) <= r.tolerance, r.ms >= 5.0) << r.ms << " ms";
         }
         // A steady 1 kHz sine reads 0.21 dB below its peak: the detector's ripple between peaks.
-        const double sine_1k = [&] {
-            std::vector<T> one(24000);
-            for (std::size_t i = 0; i < one.size(); ++i) {
-                one[i] = static_cast<T>(0.5 * std::sin(6.283185307179586 * 1000.0 * double(i) / rate));
-            }
-            return largest_db(design, one) - 20.0 * std::log10(0.5);
-        }();
+        const double sine_1k =
+            largest_db(design, rate, 500.0,
+                       [rate](std::size_t i) {
+                           return static_cast<T>(0.5 * std::sin(6.283185307179586 * 1000.0 * double(i) / rate));
+                       })
+            - 20.0 * std::log10(0.5);
         EXPECT_NEAR(sine_1k, -0.21, 0.01);
         // A steady tone removed: the reading falls 24 dB in 2.8 s, at a constant rate.
-        std::vector<T> tone    = burst<T>(rate, 500.0, 500.0 + 2800.0);
-        const auto     got     = analyzer_test::results_of(catenae::basic_ppm_meter<T, 1, 1>{design}, tone, 1, 1);
-        const double   at_stop = 20.0 * std::log10(static_cast<double>(got[24000 - 1][0]));
-        const double   later   = 20.0 * std::log10(static_cast<double>(got[24000 - 1 + 134400][0]));
+        double at_stop = 0.0;
+        double later   = 0.0;
+        stream(design, 24000 + 134400, burst<T>(rate, 500.0), [&](std::size_t i, T y) {
+            if (i == 24000 - 1) {
+                at_stop = 20.0 * std::log10(static_cast<double>(y));
+            }
+            if (i == 24000 - 1 + 134400) {
+                later = 20.0 * std::log10(static_cast<double>(y));
+            }
+        });
         EXPECT_NEAR(later - at_stop, -24.0, rounding_db<T>());
     }
 
@@ -136,8 +151,8 @@ namespace {
                 }
                 else {
                     y[c] *= release;
-                    y[c] = y[c] < std::numeric_limits<T>::min() ? T{0} : y[c];
                 }
+                y[c] = y[c] < std::numeric_limits<T>::min() ? T{0} : y[c];
             }
             if ((f + 1) % hop == 0) {
                 expected.push_back(y);
@@ -154,16 +169,17 @@ namespace {
     TYPED_TEST(ppm, SilenceHoldsNoSubnormalAndNaNHolds) {
         using T           = TypeParam;
         const auto design = *catenae::ppm_design<T>::make(catenae::ebu_ppm(48000.0));
-        // A tiny level decays to exactly 0, never through a subnormal.
-        std::vector<T> in(200000, T{0});
-        in[0]                   = std::numeric_limits<T>::min() * T{4};
-        const auto got          = analyzer_test::results_of(catenae::basic_ppm_meter<T, 1, 1>{design}, in, 1, 1);
-        bool       reached_zero = false;
-        for (const auto& r : got) {
-            const bool zero = !(r[0] > T{0});
-            EXPECT_TRUE(zero || r[0] >= std::numeric_limits<T>::min());
-            reached_zero = reached_zero || zero;
-        }
+        // A tiny level, its attack and then its release, reaches exactly 0, never a subnormal.
+        bool reached_zero = false;
+        bool subnormal    = false;
+        stream(
+            design, 200000, [](std::size_t i) { return i == 0 ? std::numeric_limits<T>::min() * T{1000} : T{0}; },
+            [&](std::size_t, T y) {
+                const bool zero = !(y > T{0});
+                subnormal       = subnormal || (!zero && y < std::numeric_limits<T>::min());
+                reached_zero    = reached_zero || zero;
+            });
+        EXPECT_FALSE(subnormal);
         EXPECT_TRUE(reached_zero);
         // A NaN holds its channel until reset.
         std::vector<T> poisoned(64, T{0.5});

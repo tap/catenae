@@ -8,8 +8,8 @@
 /// |            | `Ch` channels                                                               |
 /// | Ratio      | 1:1, in place, input group 1 (frame-synchronous: no trail, no lead)          |
 /// | Configured | the analyzer, a trivially copyable constant; `analyzer()` reaches it         |
-/// | State      | the analyzer's, reached in a chain by `stage_state<I>(state)`; it rests as   |
-/// |            | the analyzer does                                                            |
+/// | State      | the analyzer's, reached in a chain by `stage_state<I>(state)`; `reset` is    |
+/// |            | the analyzer's, or zero where the analyzer rests at zero                     |
 /// | Workspace  | none                                                                         |
 /// | Latency    | exactly 0                                                                    |
 /// | Tail       | 0 frames                                                                     |
@@ -23,8 +23,8 @@
 /// @req{CAT-TAP-001} A tap's output is its input, bit for bit, in place or not, for any
 /// chunking; it is 1:1 with no latency and no tail.
 /// @req{CAT-TAP-002} A tap's results are its analyzer's over the same input, whatever the
-/// chunking: `result` and `results_ready` read the analyzer's from the tap's state, which rests
-/// as the analyzer's does.
+/// chunking: `result` and `results_ready` read the analyzer's from the tap's state, which its
+/// reset brings to the analyzer's rest.
 /// @req{CAT-TAP-003} A tap whose channel count is not its analyzer's port's, or over a type that
 /// is not an analyzer, does not compile.
 // Copyright 2026 Timothy Place and the catenae contributors
@@ -47,37 +47,9 @@
 namespace catenae {
     inline namespace CATENAE_ABI {
 
-        namespace detail {
-            /// A tap's analyzer and its way to rest: the analyzer's own reset, or zero.
-            template <typename Analyzer, bool RestsAtZero = analyzer_traits<Analyzer>::rests_at_zero>
-            class tap_base {
-              public:
-                using state = typename analyzer_traits<Analyzer>::state; ///< the analyzer's
-
-                /// The analyzer's reset.
-                void reset(state& st) const noexcept { m_analyzer.reset(st); }
-
-              protected:
-                explicit constexpr tap_base(const Analyzer& analyzer) noexcept
-                    : m_analyzer(analyzer) {}
-                Analyzer m_analyzer; ///< what reads the input
-            };
-            template <typename Analyzer>
-            class tap_base<Analyzer, true> {
-              public:
-                using state                         = typename analyzer_traits<Analyzer>::state; ///< the analyzer's
-                static constexpr bool rests_at_zero = true; ///< as the analyzer does
-
-              protected:
-                explicit constexpr tap_base(const Analyzer& analyzer) noexcept
-                    : m_analyzer(analyzer) {}
-                Analyzer m_analyzer; ///< what reads the input
-            };
-        } // namespace detail
-
         /// @brief An analyzer over a `Ch`-channel port in a chain: the input passes through.
         template <std::size_t Ch, typename Analyzer>
-        class tap : public detail::tap_base<Analyzer> {
+        class tap {
             using traits = analyzer_traits<Analyzer>;
             static_assert(traits::opted_in, "catenae: a tap holds an analyzer: one that specialises is_analyzer");
             using port_type = typename traits::input_port;
@@ -86,14 +58,13 @@ namespace catenae {
                 std::is_same<typename port_type::input_view, span<const typename port_type::value_type>>::value,
                 "catenae: a tap passes one span through: interleaved audio or a spectrum");
             using value_type = typename port_type::value_type;
-            using base       = detail::tap_base<Analyzer>;
 
           public:
             using input_port    = port_type;                    ///< the analyzer's
             using output_port   = port_type;                    ///< the same
             using analyzer_type = Analyzer;                     ///< what it holds
             using result_type   = typename traits::result_type; ///< the analyzer's
-            using state         = typename base::state;         ///< the analyzer's
+            using state         = typename traits::state;       ///< the analyzer's
             using workspace     = no_workspace;                 ///< nothing
 
             static constexpr ratio       rate_ratio{1, 1};      ///< 1:1
@@ -107,19 +78,29 @@ namespace catenae {
 
             /// A tap over `analyzer`.
             explicit constexpr tap(const Analyzer& analyzer) noexcept
-                : base(analyzer) {}
+                : m_analyzer(analyzer) {}
             /// A tap over a default analyzer, for one with nothing to configure.
             constexpr tap() noexcept
-                : base(Analyzer{}) {}
+                : m_analyzer(Analyzer{}) {}
 
             /// The analyzer.
-            constexpr const Analyzer& analyzer() const noexcept { return this->m_analyzer; }
+            constexpr const Analyzer& analyzer() const noexcept { return m_analyzer; }
             /// The analyzer, to change between calls.
-            constexpr Analyzer& analyzer() noexcept { return this->m_analyzer; }
+            constexpr Analyzer& analyzer() noexcept { return m_analyzer; }
+
+            /// At rest as the analyzer is: its own reset, or zero where it rests at zero.
+            void reset(state& st) const noexcept {
+                if constexpr (traits::rests_at_zero) {
+                    st = state{};
+                }
+                else {
+                    m_analyzer.reset(st);
+                }
+            }
 
             /// The input analyzed, then passed through.
             std::size_t run(state& st, workspace&, span<const value_type> in, span<value_type> out) const noexcept {
-                this->m_analyzer.analyze(st, in);
+                m_analyzer.analyze(st, in);
                 if (in.data() != out.data() && !in.empty()) {
                     std::memcpy(out.data(), in.data(), in.size() * sizeof(value_type));
                 }
@@ -127,9 +108,9 @@ namespace catenae {
             }
 
             /// The analyzer's latest result.
-            decltype(auto) result(const state& st) const noexcept { return this->m_analyzer.result(st); }
+            decltype(auto) result(const state& st) const noexcept { return m_analyzer.result(st); }
             /// The analyzer's results since reset, a count that wraps.
-            std::uint32_t results_ready(const state& st) const noexcept { return this->m_analyzer.results_ready(st); }
+            std::uint32_t results_ready(const state& st) const noexcept { return m_analyzer.results_ready(st); }
 
             /// n frames in, n out.
             static constexpr std::size_t outputs_for(const state&, std::size_t n) noexcept { return n; }
@@ -145,6 +126,9 @@ namespace catenae {
             std::size_t practical_tail_frames() const noexcept { return 0; }
             /// None.
             float flush_residue() const noexcept { return 0.0f; }
+
+          private:
+            Analyzer m_analyzer;
         };
 
         template <std::size_t Ch, typename Analyzer>

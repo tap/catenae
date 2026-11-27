@@ -114,11 +114,11 @@ namespace catenae {
 
             /// The mean square over full scale squared of a window's energy.
             static reading_type mean_square(sum_type energy) noexcept {
-                using R = reading_type;
                 // 2^(s - 2F) / Window, a constant: the units of a sum over the window's frames.
-                constexpr R per_unit =
-                    detail::power_of_two<R>(k_shift - 2 * format_traits<S>::fraction_bits) / static_cast<R>(Window);
-                return static_cast<R>(energy) * per_unit;
+                constexpr reading_type per_unit =
+                    detail::power_of_two<reading_type>(k_shift - 2 * format_traits<S>::fraction_bits)
+                    / static_cast<reading_type>(Window);
+                return static_cast<reading_type>(energy) * per_unit;
             }
             /// 10 log10 of the mean square over full scale squared. Off the audio path.
             static reading_type dbfs(sum_type energy) noexcept { return detail::power_db(mean_square(energy)); }

@@ -68,7 +68,7 @@ namespace {
         using traits = catenae::stage_traits<rms_tap>;
         static_assert(traits::opted_in && traits::is_frame_synchronous && traits::is_in_place, "1:1, in place");
         static_assert(traits::has_exact_latency && traits::exact_latency == (catenae::ratio{0, 1}), "no latency");
-        static_assert(traits::rests_at_zero, "as the meter does");
+        static_assert(!traits::rests_at_zero, "it resets, as its analyzer rests");
         const rms_tap t{};
         EXPECT_TRUE(catenae_test::reset_ignores_storage(t));
         EXPECT_TRUE(catenae_test::counts_are_exact(t));
@@ -125,6 +125,12 @@ namespace {
         // An analyzer that rests by its own reset: the tap does too.
         using count_tap = catenae::tap<1, counter>;
         static_assert(!catenae::stage_traits<count_tap>::rests_at_zero, "the analyzer's reset");
+        // The meter rests at zero, and so does its tap's state after reset, whatever it held.
+        auto zeroed = std::make_unique<rms_tap::state>();
+        std::memset(zeroed.get(), 0x5A, sizeof(rms_tap::state));
+        rms_tap{}.reset(*zeroed);
+        const rms_tap::state rest{};
+        EXPECT_EQ(std::memcmp(zeroed.get(), &rest, sizeof(rms_tap::state)), 0);
         const count_tap       c{};
         count_tap::state      st{};
         catenae::no_workspace ws{};

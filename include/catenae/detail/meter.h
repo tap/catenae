@@ -53,13 +53,13 @@ namespace catenae {
             /// integer for a fixed-point one, so Q4.27 reads above 1 in its headroom.
             template <typename S, typename V>
             inline reading_t<S> over_full_scale(V value) noexcept {
-                using R = reading_t<S>;
+                using reading = reading_t<S>;
                 if constexpr (format_traits<S>::is_fixed_point) {
-                    constexpr R scale = power_of_two<R>(-format_traits<S>::fraction_bits);
-                    return static_cast<R>(value) * scale;
+                    constexpr reading scale = power_of_two<reading>(-format_traits<S>::fraction_bits);
+                    return static_cast<reading>(value) * scale;
                 }
                 else {
-                    return static_cast<R>(value);
+                    return static_cast<reading>(value);
                 }
             }
 

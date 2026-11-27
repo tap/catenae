@@ -26,7 +26,10 @@
 /// |             | that fails does not initialise a constant, and at run time reaches          |
 /// |             | `check::table_rejected`                                                     |
 /// | Cost        | `make()` runs outside the audio path, in double: about ten simulations of   |
-/// |             | 25 bursts; a target that cannot afford it takes numbers made on a host       |
+/// |             | 25 bursts. Worst of 44.1, 48 and 96 kHz (Bench run 46060474080): 81.5 M      |
+/// |             | instructions on the Cortex-M33, whose double is software, and 4.5 M on the   |
+/// |             | M55; 1,108 B of stack static on the M33, 424 painted. A target that cannot   |
+/// |             | afford it takes numbers made on a host, as `examples/meters.h` does          |
 /// | Formats     | float and double; q31 declares its contract, its numbers held in float until |
 /// |             | its profile arrives at C6 (D47)                                              |
 /// | Rationale   | D12, D24, D37, D47                                                          |

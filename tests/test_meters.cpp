@@ -21,32 +21,39 @@ namespace {
 
     template <typename S>
     class meters : public ::testing::Test {};
-    TYPED_TEST_SUITE(meters, formats);
+    TYPED_TEST_SUITE(meters, formats, );
 
     constexpr std::size_t k_ch     = 2;
     constexpr std::size_t k_hop    = 48;
     constexpr std::size_t k_window = 192; // four hops
     constexpr std::size_t k_frames = 48 * 23 + 17;
 
+    /// |x| as the card says: a fixed-point magnitude saturates.
+    template <typename V>
+    V magnitude(V x) {
+        if constexpr (std::is_floating_point<V>::value) {
+            return std::fabs(x);
+        }
+        else {
+            if (x >= 0) {
+                return x;
+            }
+            return x == std::numeric_limits<V>::min() ? std::numeric_limits<V>::max() : static_cast<V>(-x);
+        }
+    }
+
     /// Each hop's expected peaks: the largest magnitude of each channel's last k_window frames,
     /// frames before reset counting as zero.
     template <typename S>
     std::vector<std::array<catenae::storage_t<S>, k_ch>> expected_peaks(const std::vector<catenae::storage_t<S>>& in) {
-        using V = catenae::storage_t<S>;
-        std::vector<std::array<V, k_ch>> out;
+        using value = catenae::storage_t<S>;
+        std::vector<std::array<value, k_ch>> out;
         for (std::size_t end = k_hop; end * k_ch <= in.size(); end += k_hop) {
-            std::array<V, k_ch> peaks{};
+            std::array<value, k_ch> peaks{};
             for (std::size_t f = end > k_window ? end - k_window : 0; f < end; ++f) {
                 for (std::size_t c = 0; c < k_ch; ++c) {
-                    const V x = in[f * k_ch + c];
-                    V       m{};
-                    if constexpr (std::is_floating_point<V>::value) {
-                        m = std::fabs(x);
-                    }
-                    else {
-                        m = x >= 0 ? x : (x == std::numeric_limits<V>::min() ? std::numeric_limits<V>::max() : V(-x));
-                    }
-                    peaks[c] = m > peaks[c] ? m : peaks[c];
+                    const value m = magnitude(in[f * k_ch + c]);
+                    peaks[c]      = m > peaks[c] ? m : peaks[c];
                 }
             }
             out.push_back(peaks);
@@ -92,12 +99,12 @@ namespace {
 
     // Verifies CAT-PEAK-METER-001.
     TYPED_TEST(meters, PeakIsTheWindowsLargestMagnitude) {
-        using S       = TypeParam;
-        using meter_t = catenae::basic_peak_meter<S, k_ch, k_hop, k_window>;
+        using format  = TypeParam;
+        using meter_t = catenae::basic_peak_meter<format, k_ch, k_hop, k_window>;
         static_assert(catenae::analyzer_traits<meter_t>::opted_in && meter_t::rests_at_zero,
                       "an analyzer at rest at zero");
-        const auto    in       = analyzer_test::noise<S>(k_frames * k_ch, 3);
-        const auto    expected = expected_peaks<S>(in);
+        const auto    in       = analyzer_test::noise<format>(k_frames * k_ch, 3);
+        const auto    expected = expected_peaks<format>(in);
         const meter_t meter{};
         for (const std::size_t largest : {std::size_t{1}, std::size_t{7}, k_hop}) {
             const auto got = analyzer_test::results_of(meter, in, largest, 11);
@@ -115,10 +122,10 @@ namespace {
 
     // Verifies CAT-RMS-METER-001.
     TYPED_TEST(meters, EnergyIsTheWindowsSumOfSquares) {
-        using S                = TypeParam;
-        using meter_t          = catenae::basic_rms_meter<S, k_ch, k_hop, k_window>;
-        const auto    in       = analyzer_test::noise<S>(k_frames * k_ch, 5);
-        const auto    expected = expected_energies<S, k_window>(in, meter_t::shift);
+        using format           = TypeParam;
+        using meter_t          = catenae::basic_rms_meter<format, k_ch, k_hop, k_window>;
+        const auto    in       = analyzer_test::noise<format>(k_frames * k_ch, 5);
+        const auto    expected = expected_energies<format, k_window>(in, meter_t::shift);
         const meter_t meter{};
         for (const std::size_t largest : {std::size_t{1}, std::size_t{13}, k_hop}) {
             const auto got = analyzer_test::results_of(meter, in, largest, 17);
@@ -129,8 +136,8 @@ namespace {
             }
         }
         // A window of one hop: each result is its hop's own.
-        using one_t        = catenae::basic_rms_meter<S, k_ch, k_hop>;
-        const auto one_hop = expected_energies<S, k_hop>(in, one_t::shift);
+        using one_t        = catenae::basic_rms_meter<format, k_ch, k_hop>;
+        const auto one_hop = expected_energies<format, k_hop>(in, one_t::shift);
         const auto got_one = analyzer_test::results_of(one_t{}, in, 5, 23);
         ASSERT_EQ(got_one.size(), one_hop.size());
         for (std::size_t i = 0; i < got_one.size(); ++i) {
@@ -140,38 +147,40 @@ namespace {
 
     // Verifies CAT-RMS-METER-003, CAT-PEAK-METER-003.
     TYPED_TEST(meters, ReadingsAreDecibelsOfFullScale) {
-        using S   = TypeParam;
-        using V   = catenae::storage_t<S>;
-        using rms = catenae::basic_rms_meter<S, 1, 480, 4800>;
-        using pk  = catenae::basic_peak_meter<S, 1, 480>;
+        using format = TypeParam;
+        using value  = catenae::storage_t<format>;
+        using rms    = catenae::basic_rms_meter<format, 1, 480, 4800>;
+        using pk     = catenae::basic_peak_meter<format, 1, 480>;
         // A full-scale sine, at a whole number of periods in the window: -3.01 dBFS.
-        constexpr double full = catenae::format_traits<S>::is_fixed_point
-                                    ? double(std::int64_t{1} << catenae::format_traits<S>::fraction_bits)
+        constexpr double full = catenae::format_traits<format>::is_fixed_point
+                                    ? double(std::int64_t{1} << catenae::format_traits<format>::fraction_bits)
                                     : 1.0;
-        const double     top = catenae::format_traits<S>::is_fixed_point && catenae::format_traits<S>::integer_bits == 0
-                                   ? full - 1.0
-                                   : full;
-        std::vector<V>   sine(4800);
+        const double     top =
+            catenae::format_traits<format>::is_fixed_point && catenae::format_traits<format>::integer_bits == 0
+                    ? full - 1.0
+                    : full;
+        std::vector<value> sine(4800);
         for (std::size_t i = 0; i < sine.size(); ++i) {
             const double v = top * std::sin(6.283185307179586 * double(i) / 48.0);
-            if constexpr (std::is_floating_point<V>::value) {
-                sine[i] = static_cast<V>(v);
+            if constexpr (std::is_floating_point<value>::value) {
+                sine[i] = static_cast<value>(v);
             }
             else {
-                sine[i] = static_cast<V>(std::lround(v));
+                sine[i] = static_cast<value>(std::lround(v));
             }
         }
         const auto energy = analyzer_test::results_of(rms{}, sine, 0, 0);
         ASSERT_EQ(energy.size(), 1u);
         EXPECT_NEAR(static_cast<double>(rms::dbfs(energy[0][0])), -3.0103, 0.01);
         // Half of full scale peaks at -6.02 dBFS; Q4.27 reads its headroom above 0 dBFS.
-        EXPECT_NEAR(static_cast<double>(pk::dbfs(static_cast<V>(full / 2))), -6.0206, 1e-4);
-        if constexpr (catenae::format_traits<S>::is_fixed_point && catenae::format_traits<S>::integer_bits > 0) {
-            EXPECT_NEAR(static_cast<double>(pk::dbfs(static_cast<V>(full * 4))), 12.0412, 1e-4);
+        EXPECT_NEAR(static_cast<double>(pk::dbfs(static_cast<value>(full / 2))), -6.0206, 1e-4);
+        if constexpr (catenae::format_traits<format>::is_fixed_point
+                      && catenae::format_traits<format>::integer_bits > 0) {
+            EXPECT_NEAR(static_cast<double>(pk::dbfs(static_cast<value>(full * 4))), 12.0412, 1e-4);
         }
         // Silence reads minus infinity.
         EXPECT_TRUE(std::isinf(rms::dbfs(0)) && rms::dbfs(0) < 0);
-        EXPECT_TRUE(std::isinf(pk::dbfs(V{})) && pk::dbfs(V{}) < 0);
+        EXPECT_TRUE(std::isinf(pk::dbfs(value{})) && pk::dbfs(value{}) < 0);
     }
 
     // Verifies CAT-PEAK-METER-002, CAT-RMS-METER-002.

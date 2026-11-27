@@ -449,8 +449,9 @@ baselines, no tolerance, no failure.
   frames, set to 0.75 once after reset), `delay` (32 frames), `map` (a halving) or `strip`
   (the three as one chain); C = 1, 2, 6, 12; `i` = one configuration of C channels over
   interleaved frames, `p` = C mono configurations, each with its own state, each over its own
-  contiguous channel buffer. One channel builds `_i` only. 16,384 frames per channel in calls
-  of 128, float.
+  contiguous channel buffer, `s` = the mono configuration in `planar_section` over the
+  interleaved frames, so `p` with the copies out and back in. One channel builds `_i` only.
+  16,384 frames per channel in calls of 128, float.
 - **What a count is:** the sum over the 128 steps (one call interleaved, C calls planar), each
   inside `catenae_host_counted()` between the call markers: under QEMU the plugin's sum over
   the brackets, on the host callgrind's count inside that function. The input, the checksum
@@ -562,6 +563,59 @@ cheaper by 3 to 8 % on the M4F and M33, 2 to 4 % on the host, 11 to 14 % on Hexa
 2 % on the soft-float M4 and the M55, where the mono configurations are 0.4 % the cheaper for
 stereo. DspTap's spike measured 1.04 to 1.16 for its FFT FIR (PLAN.md section 5.1).
 
+`planar_section` over interleaved (above 1, the section is the dearer), the mono configuration
+of each kind over C channels with its copies out and back in, from Bench run
+[46037804664](https://github.com/tap/catenae/actions/runs/46037804664) at `b8b01ce`,
+2026-11-27, its `layout-<key>.json` artifacts; each cell is C = 2 / 6 / 12, and every section's
+output is bit-identical to the interleaved one's on every key:
+
+| kind | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` | host (x86-64) |
+|---|---:|---:|---:|---:|---:|---:|
+| `gain` | 1.30 / 1.32 / 1.32 | 3.59 / 3.62 / 3.69 | 3.59 / 3.62 / 3.69 | 4.01 / 5.88 / 6.44 | 2.69 / 2.82 / 2.86 | 3.82 / 5.76 / 6.28 |
+| `delay` | 2.36 / 3.13 / 3.54 | 2.37 / 2.58 / 2.87 | 2.24 / 2.58 / 2.87 | 1.78 / 3.71 / 8.36 | 3.07 / 3.03 / 2.92 | 2.47 / 5.09 / 8.45 |
+| `map` | 1.34 / 1.35 / 1.35 | 2.81 / 3.06 / 3.07 | 2.81 / 3.06 / 3.07 | 5.70 / 7.17 / 7.26 | 2.65 / 3.64 / 3.68 | 3.49 / 4.42 / 4.47 |
+| `strip` | 1.15 / 1.22 / 1.24 | 1.53 / 1.87 / 1.96 | 1.50 / 1.87 / 1.96 | 1.75 / 3.01 / 4.70 | 1.84 / 1.94 / 1.92 | 2.05 / 3.45 / 4.34 |
+| `biquad` | 1.01 / 1.02 / 1.02 | 1.46 / 1.42 / 1.42 | 1.44 / 1.40 / 1.40 | 1.27 / 1.32 / 1.32 | 1.66 / 1.64 / 1.63 | 1.12 / 1.12 / 1.12 |
+| `fir` | 1.00 / 1.00 / 1.00 | 1.03 / 1.09 / 1.02 | 1.03 / 1.02 / 1.02 | 1.01 / 1.01 / 1.01 | 1.03 / 1.03 / 1.03 | 1.08 / 1.04 / 1.06 |
+| `overdrive` | 1.01 / 1.02 / 1.02 | 1.05 / 1.17 / 1.20 | 1.05 / 1.16 / 1.21 | 1.02 / 1.13 / 1.16 | 1.05 / 1.01 / 1.02 | 1.02 / 1.24 / 1.25 |
+| `fft_fir` | 1.00 / 1.01 / 1.01 | 1.09 / 1.12 / 1.13 | 1.08 / 1.11 / 1.12 | 1.03 / 1.04 / 1.05 | 1.09 / 1.11 / 1.12 | 1.05 / 1.06 / 1.07 |
+
+Where a stage's own work is small, the copies are most of what the section does: a gain, a
+delay or a map costs 1.3 to 8.5 times its interleaved form, and the strip of the three 1.1 to
+4.7 times. Where it is large they are a few per cent: the FIR 1.00 to 1.09, the FFT FIR 1.00 to
+1.13, the overdrive 1.01 to 1.25; the biquad sits between, 1.01 to 1.66. So `planar_section`
+is for stages written for one channel; a stage written for C channels is the cheaper on every
+key, or within 0.4 % (the FIR for stereo on the soft-float M4).
+
+### The split-complex measurement (D25)
+
+`bench/layout/spectrum_main.cpp` counts two loops over a frame of bins: `product`, each bin
+times a filter's, (a + ib)(c + id), as the FFT FIR's product writes it; and `gain`, each bin
+times a real gain from its power, as a spectral gate's. Each runs over D25's frame, real and
+imaginary parts adjacent (`_i`), and over split arrays, each channel's real parts then its
+imaginary parts, vDSP's form (`_p`), 128 frames, plain loops compiled under the workload's
+flags. Split over D25 (below 1, split is the cheaper), from Bench run
+[46037804664](https://github.com/tap/catenae/actions/runs/46037804664), its `layout-<key>.json`
+artifacts; `*` marks a pair whose outputs differ:
+
+| loop | bins | channels | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` | host (x86-64) |
+|---|--:|--:|---:|---:|---:|---:|---:|---:|
+| product | 257 | 1 | 0.996 | 0.801 | 0.801 | 1.086 * | 1.036 | 0.403 |
+| product | 257 | 2 | 0.985 | 0.801 | 0.801 | 1.084 * | 1.036 | 0.424 |
+| product | 1025 | 1 | 0.996 | 0.800 | 0.800 | 1.084 * | 1.001 | 0.397 |
+| product | 1025 | 2 | 0.985 | 0.800 | 0.800 | 1.084 * | 1.000 | 0.418 |
+| gain | 257 | 1 | 0.989 | 0.963 | 0.963 | 0.963 | 1.065 | 1.033 |
+| gain | 257 | 2 | 0.989 | 0.965 | 0.965 | 0.965 | 0.953 | 1.032 |
+| gain | 1025 | 1 | 0.989 | 0.965 | 0.965 | 0.965 | 1.165 | 1.031 |
+| gain | 1025 | 2 | 0.989 | 0.965 | 0.965 | 0.965 | 0.999 | 1.031 |
+
+The product is 20 % cheaper split on the M4F and M33 (15.0 instructions a bin against 12.0) and
+2.4 times on the host, within 4 % either way on the soft-float M4 and Hexagon, and 8 % dearer split
+on the M55, where GCC compiles D25's form into MVE's complex multiply-accumulate (VCMLA, fused,
+hence the differing outputs) and the split form into separate vector operations. The gain
+loop is within 4 % on every Cortex-M and the host, and from 5 % cheaper to 17 % dearer split on
+Hexagon. PLAN.md 5.2 freezes D25 at C4 on this measurement; the decision is the maintainer's.
+
 ```sh
 cmake -S . -B build-17 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m33-mps2.cmake \
       -DCATENAE_BUILD_TESTS=OFF -DCATENAE_BUILD_EXAMPLES=OFF -DCATENAE_BUILD_BENCH=ON
@@ -620,6 +674,7 @@ ctest --test-dir build-size -L link_gate
 | `baselines.json`: `overdrive`, `up2_f32`, `down2_f32`, `up2_q15`, `down2_q15`, `up2_q31` and `down2_q31`, every key; `ceilings.json`: the probe set `overdrive`, every key but `host`; the overdrive layout table above | Bench run [45922339828](https://github.com/tap/catenae/actions/runs/45922339828) at `3d5df56`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c3-rate`): its `measured-<key>.json`, `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The rate family's first figures, measured with the stack bound's pretend-argument area counted (the overdrive's `process` 352 bytes static and painted on the M33). Every other count and figure in that run equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.OverdriveImageHasNoSoftwareDouble` among its tests |
 | `baselines.json`: `compressor_f32`, `expander_f32`, `limiter_f32` and `dynamics`, every key, and the three `callmax_design_` workloads of the family, every key but `host`; `ceilings.json`: the probe set `dynamics`, and the `designers` probe's figures, every key but `host` | Bench run [46001165800](https://github.com/tap/catenae/actions/runs/46001165800) at `617087a`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c3-dynamics`): its `measured-<key>.json` and `ceilings-measured-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The dynamics family's first figures; the `designers` probe gained its three dynamics calls, so its image, core and unit figures rose (on the M33 `core.text` from 5,500 to 6,876 B) and are recorded as measured. The fixes after it, at `87808ee`, change no code the bench builds. Every other count and figure in that run equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.DynamicsImageHasNoSoftwareDouble` among its tests |
 | `baselines.json`: `fft_fir_f32`, `fir_f32_255`, every key, and `callmax_fft_fir_f32` and `callmax_design_fft_fir_f32_255`, every key but `host`; `ceilings.json`: the probe set `fft_fir`, and the `designers` probe's figures, every key but `host`; the FFT FIR layout table above | Bench run [46028066821](https://github.com/tap/catenae/actions/runs/46028066821) at `7c0c5ec`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c4-fft-fir`): its `measured-<key>.json`, `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The FFT FIR's first figures; the `designers` probe gained the spectrum's `make()`, so its image, core and unit figures rose (on the M33 `core.text` from 6,876 to 11,996 B, `unit.bss` from 8,188 to 14,356 B, the spectrum's table and workspace) and are recorded as measured. The run before, [46021806011](https://github.com/tap/catenae/actions/runs/46021806011) at `21b68cb`, printed another checksum for `fft_fir_f32` on the M55 alone: GCC vectorized the product into MVE's fused VCMLA, and the loop is kept scalar under GCC since `7c0c5ec`: no longer vectorized, `fft_fir_f32` rose by 7.4 % on the M55 (22,476,964 to 24,136,464) and 4.3 % on the host (26,811,708 to 27,960,708), by under 0.01 % on the other Arm keys, and its code by 4 B. Every other count and figure in both runs equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.FftFirImageHasNoSoftwareDouble` among its tests |
+| The `planar_section` and split-complex tables above (no record file moved) | Bench run [46037804664](https://github.com/tap/catenae/actions/runs/46037804664) at `b8b01ce`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c4-planar`): its `layout-<key>.json` artifacts, the ratios computed from their counts; every section's output and every split pair's but the M55's product bit-identical to its interleaved form, and every count and figure in that run equal to its record |
 | `ceilings.json`: the probe set `fft`, every key but `host` | Bench run [45821938097](https://github.com/tap/catenae/actions/runs/45821938097) at `4989d0e`, 2026-11-26: its `ceilings-measured-<key>.json` artifacts, the ceilings computed by `scripts/ceilings.py`'s rule. Plans made at run time to 2^20 (Q1) widened the kernel's 29 pending entries from 16 to 32 bits, so `forward` and `inverse` reach 56 B more stack on each Arm key (480 B static on the M33, M4F and M55, 568 B on the soft-float M4), and the code figures moved by under 70 B, inside their ceilings, recorded too; every other figure in that run equal to its record (C2's `c2` probe among them), and the link-stage gate's tests passing on each Arm key. The run before, [45771572341](https://github.com/tap/catenae/actions/runs/45771572341) at `e7bf0d2`, recorded the 16-bit list. Run [45834933446](https://github.com/tap/catenae/actions/runs/45834933446) at `a23f18f`, after the merge of `main`, measured every figure of every probe set equal to its record, `c2` among them: the two `scripts/ceilings.py` fixes leave C2's bounds where they were recorded |
 
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1

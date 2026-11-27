@@ -133,6 +133,19 @@ foreach(_design IN ITEMS compressor:0 limiter:1 expander:2)
                        DEFINITIONS CATENAE_DYNAMICS_DESIGN=${_did})
 endforeach()
 
+# The FFT FIR (C4): the 255-tap low-pass of examples/long_filter.h by fast convolution in a
+# callback, the same taps frame by frame, the worst single callback, and what the spectrum's
+# make() costs (QEMU keys only for the last two).
+foreach(_kind IN ITEMS fft_fir_f32:0:0 fir_f32_255:1:0 callmax_fft_fir_f32:0:1 callmax_design_fft_fir_f32_255:2:0)
+    string(REPLACE ":" ";" _parts "${_kind}")
+    list(GET _parts 0 _kname)
+    list(GET _parts 1 _kid)
+    list(GET _parts 2 _bracket)
+    catenae_add_icount(${_kname} icount/fft_fir_main.cpp
+                       DEFINITIONS CATENAE_FFT_FIR_KIND=${_kid} CATENAE_ICOUNT_BRACKET=${_bracket})
+    target_include_directories(catenae_icount_${_kname} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
+endforeach()
+
 # --- The layout benchmark: interleaved against planar, informational (bench/layout/) --------
 add_subdirectory(layout)
 
@@ -168,10 +181,12 @@ catenae_add_probe(recursive probe/recursive_probe.cpp)
 catenae_add_probe(fir probe/fir_probe.cpp)
 catenae_add_probe(overdrive probe/overdrive_probe.cpp)
 catenae_add_probe(dynamics probe/dynamics_probe.cpp)
+catenae_add_probe(fft_fir probe/fft_fir_probe.cpp)
 catenae_add_probe(designers probe/designers_probe.cpp)
 foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip catenae_probe_recursive catenae_stack_recursive
                         catenae_probe_fir catenae_stack_fir catenae_probe_overdrive catenae_stack_overdrive
-                        catenae_probe_dynamics catenae_stack_dynamics)
+                        catenae_probe_dynamics catenae_stack_dynamics catenae_probe_fft_fir catenae_stack_fft_fir
+                        catenae_probe_designers catenae_stack_designers)
     target_include_directories(${_probe} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 
@@ -218,6 +233,9 @@ int main() { return 0; }" CATENAE_HARDWARE_DOUBLE)
     add_test(NAME link_gate.DynamicsImageHasNoSoftwareDouble
              COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
                      $<TARGET_FILE:catenae_probe_dynamics>)
+    add_test(NAME link_gate.FftFirImageHasNoSoftwareDouble
+             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
+                     $<TARGET_FILE:catenae_probe_fft_fir>)
     if(CATENAE_HARDWARE_DOUBLE)
         add_test(NAME link_gate.HardwareDoubleIsInvisible
                  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py

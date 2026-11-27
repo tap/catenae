@@ -18,6 +18,9 @@
 //                            (examples/fir_tables.h): the direct-form FIR's row
 //                          6 overdrive: examples/overdrive.h's soft clip at four times the rate
 //                            in catenae::oversample: the rate family's row
+//                          7 fft_fir: catenae::fft_fir of 255 taps in blocks of 256 in
+//                            catenae::steady, the low-pass at 0.1 from its spectrum
+//                            (examples/fft_fir_tables.h): the FFT FIR's row
 //   CATENAE_LAYOUT_CH      channels: 1, 2, 6 (5.1) or 12 (7.1.4)
 //   CATENAE_LAYOUT_PLANAR  0: one configuration of Ch channels over interleaved frames
 //                          1: Ch mono configurations, each with its own state, each over its
@@ -61,6 +64,11 @@
 #if CATENAE_LAYOUT_KIND == 6
 #include "catenae/oversample.h"
 #include "overdrive.h"
+#endif
+#if CATENAE_LAYOUT_KIND == 7
+#include "catenae/fft_fir.h"
+#include "catenae/steady.h"
+#include "fft_fir_tables.h"
 #endif
 
 #ifndef CATENAE_LAYOUT_KIND
@@ -108,8 +116,11 @@ namespace {
 #elif CATENAE_LAYOUT_KIND == 6
         return catenae::chain(catenae::oversample<4, catenae::map<Ch, example::soft_clip>>{
             catenae::map<Ch, example::soft_clip>{example::soft_clip{4.0f}}});
+#elif CATENAE_LAYOUT_KIND == 7
+        return catenae::chain(
+            catenae::steady<catenae::fft_fir<Ch, 255>>{catenae::fft_fir<Ch, 255>{example::long_lowpass_fft}});
 #else
-#error "CATENAE_LAYOUT_KIND: 0 gain, 1 delay, 2 map, 3 strip, 4 biquad, 5 fir or 6 overdrive"
+#error "CATENAE_LAYOUT_KIND: 0 gain, 1 delay, 2 map, 3 strip, 4 biquad, 5 fir, 6 overdrive or 7 fft_fir"
 #endif
     }
 

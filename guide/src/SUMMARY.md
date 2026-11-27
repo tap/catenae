@@ -11,5 +11,6 @@
 - [Threads and clocks](threads_and_clocks.md)
 - [The edges](edges.md)
 - [Dynamics](dynamics.md)
+- [Long filters](long_filters.md)
 - [Measuring](measuring.md)
 - [Writing a stage](writing_a_stage.md)

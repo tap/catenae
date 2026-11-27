@@ -225,6 +225,7 @@ def build(bld):
         "audio_callback": ["examples/audio_callback.cpp"],
         "bursts_and_buffering": ["examples/bursts_and_buffering.cpp"],
         "edges": ["examples/edges.cpp"],
+        "long_filter": ["examples/long_filter.cpp"],
         "overdrive": ["examples/overdrive.cpp"],
         "dynamics": ["examples/dynamics.cpp"],
         "print_version": ["examples/print_version.cpp"],

@@ -12,6 +12,7 @@ record is where its origin lives.
 |---|---|---|
 | DspTap (`tap/DspTap`) | `b26a7db24137ba4c61896a39a831509a275f5bd4` (origin/main, 2026-11-23) | MIT, below |
 | SampleRateTap (`tap/SampleRateTap`) | `4496888e187dfe094e3e02537bc4a8dcb5ecb028` (origin/main, 2026-11-24) | MIT, below |
+| DspTap's spike branch (`tap/DspTap`, `ccr-ef01ff18-nxz8n4`) | `ec9b248072b5381aec2d724533186de6b50e7d2f` (2026-11-21), `include/tap/dsp/fft_fir.h` alone (PLAN.md section 12) | MIT, below |
 
 Some of DspTap's files came to it from MuTap and SampleRateTap under the same license; their
 own records (DspTap's `platform/README.md` and file headers) give that chain.
@@ -53,6 +54,12 @@ own records (DspTap's `platform/README.md` and file headers) give that chain.
 | `src/fft_trig.h` | `include/tap/dsp/fft/srdif.h` (`detail::srdif_trig`) | constexpr at C++17: a leading-zero count of its own, and an exact power-of-two scaling in place of `std::bit_cast`, so a table is a constant of the compiled core |
 | `tests/test_fft.cpp` (the fingerprints), `tests/support/fft_fingerprints.h` | `tests/test_fft_srdif_fingerprint.cpp`, `tests/support/srdif_fingerprints.h` | The method kept (FNV-1a-64 over a forward then an inverse of a fixed 24-bit input, one row for every leg at contraction off); new pins over D25's frame, since DspTap's are of its exp(+i) packing (PLAN.md section 12) |
 | `bench/icount/fft_main.cpp` | `bench/bench_fft.cpp` (the `rfft_*` scenarios) | The scenario (a forward and an inverse over 2^20 samples at N = 512 and 2048) on catenae's plan and frame, with catenae's markers and checksum |
+
+## Carried from DspTap's spike branch at `ec9b248`
+
+| Here | There | What changed |
+|---|---|---|
+| `include/catenae/fft_fir.h`, `include/catenae/fft_fir_design.h`, `src/fft_fir.cpp` | `include/tap/dsp/fft_fir.h` | Overlap-save kept: per channel the window of the block before and this one, 2 Block samples, through the forward, times the taps' spectrum, through the inverse, its last Block samples kept; the spectrum of the taps zero-padded to 2 Block computed in double, the inverse's 2/N folded in; the product (ac - bd) + i(ad + bc); the default block, the smallest power of two at least max(L - 1, 16). Now a stage that works in blocks (input group Block, a block written whole when its last frame arrives), where DspTap's is frame-synchronous with the block's delay built in; the spectrum a design made by `make()` into the caller's table or a checked table in ROM, viewed (D54); D25's frame; the product in the compiled core |
 
 ## Carried from SampleRateTap at `4496888`
 

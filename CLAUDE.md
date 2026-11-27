@@ -34,7 +34,11 @@ check); rate change (`resample` at a compile-time L/M over a Nyquist design that
 half-bands, `oversample` with the delay that makes its latency whole, the overdrive example);
 and dynamics (`compressor`, the look-ahead `limiter` and `expander`, in the log domain from
 Giannoulis, Massberg and Reiss and from Reiss and McPherson, their channels linked, the dynamics
-strip example).
+strip example). **C4** is under way, in two pull requests: the overlap-save FFT FIR (`fft_fir`,
+a stage that works in blocks, its transforms and product in the compiled core so its bits are
+the same on every target, its spectrum a design made in double or a table in ROM that
+`tools/tablegen` writes, the long-filter example); then `planar_section` and the split-complex
+measurement after which the maintainer freezes D25.
 
 ## How to work here
 
@@ -191,8 +195,9 @@ what only the Cortex-M legs build (a timer interrupt as the mailbox's poster and
 junction's producer); `fit/` CF's skeletons, which nothing under `include/` or `src/`
 includes and C7 and C8 replace; `bench/` the harness's workloads
 and records; `cmake/` and `platform/` the targets; `tools/warnings/` the warning sets, read by
-both builds; `tools/tablegen/` the table generator, whose output
-`include/catenae/nyquist_tables.h` is and CTest checks (`tablegen.TablesAreTheGeneratorsOutput`);
+both builds; `tools/tablegen/` the table generators, whose outputs
+`include/catenae/nyquist_tables.h` and `examples/fft_fir_tables.h` are and CTest checks
+(`tablegen.TablesAreTheGeneratorsOutput`, `tablegen.FftFirTablesAreTheGeneratorsOutput`);
 `scripts/` the checks and the harness; `guide/` the mdBook source and
 `docs/Doxyfile` the reference's, over the headers and `docs/contracts/` (the stage, chain,
 junction, mailbox and analyzer contract pages, the glossary, the card and `@req` conventions),

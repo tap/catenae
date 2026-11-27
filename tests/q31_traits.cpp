@@ -16,6 +16,7 @@
 #include "catenae/delay.h"
 #include "catenae/dither.h"
 #include "catenae/expander.h"
+#include "catenae/fft_fir.h"
 #include "catenae/fir.h"
 #include "catenae/gain.h"
 #include "catenae/handoff.h"
@@ -73,6 +74,8 @@ namespace {
     static_assert(contract<catenae::compressor_q31<2>>(), "compressor in q31: its contract");
     static_assert(contract<catenae::expander_q31<2>>(), "expander in q31: its contract");
     static_assert(contract<catenae::limiter_q31<2, 32>>(), "limiter in q31: its contract");
+    static_assert(contract<catenae::fft_fir_q31<2, 255>>(), "the FFT FIR in q31: its contract");
+    static_assert(contract<catenae::steady<catenae::fft_fir_q31<1, 31>>>(), "the FFT FIR in q31, steady");
     static_assert(contract<catenae::chain<catenae::compressor_q31<2>, catenae::limiter_q31<2, 8>>>(),
                   "dynamics in a q31 chain");
     static_assert(contract<catenae::unpack<catenae::wire::s24le_packed, 2>>(), "unpack to q31");

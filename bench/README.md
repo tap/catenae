@@ -614,7 +614,7 @@ The product is 20 % cheaper split on the M4F and M33 (15.0 instructions a bin ag
 on the M55, where GCC compiles D25's form into MVE's complex multiply-accumulate (VCMLA, fused,
 hence the differing outputs) and the split form into separate vector operations. The gain
 loop is within 4 % on every Cortex-M and the host, and from 5 % cheaper to 17 % dearer split on
-Hexagon. PLAN.md 5.2 freezes D25 at C4 on this measurement; the decision is the maintainer's.
+Hexagon. On this measurement the maintainer froze D25 at C4 as it stands (PLAN.md 5.2).
 
 ```sh
 cmake -S . -B build-17 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m33-mps2.cmake \

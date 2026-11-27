@@ -44,10 +44,14 @@ namespace catenae {
         /// economy's half-band at design divisor 1 (SampleRateTap's pin, m = 10): 39 taps.
         template <>
         struct nyquist_design<2, 10, 70> {
-            static constexpr std::size_t band            = 2;
+            /// The band B: the centre tap is exactly 1 and every B-th tap from it exactly 0.
+            static constexpr std::size_t band = 2;
+            /// m, the taps of each of the B branches: N = 2 m B - 1.
             static constexpr std::size_t taps_per_branch = 10;
-            static constexpr std::size_t taps            = 39;
-            static constexpr unsigned    attenuation_db  = 70;
+            /// N, the prototype's length.
+            static constexpr std::size_t taps = 39;
+            /// The stopband attenuation the design was made for, in dB.
+            static constexpr unsigned attenuation_db = 70;
             /// h[0] to h[38], in double.
             static constexpr std::array<double, 39> prototype = {{
                 -0x1.5b888bad0d5c6p-13, // h[0]
@@ -95,10 +99,14 @@ namespace catenae {
         /// economy's half-band at design divisor 2, relaxed (SampleRateTap's pin, m = 5): 19 taps.
         template <>
         struct nyquist_design<2, 5, 70> {
-            static constexpr std::size_t band            = 2;
+            /// The band B: the centre tap is exactly 1 and every B-th tap from it exactly 0.
+            static constexpr std::size_t band = 2;
+            /// m, the taps of each of the B branches: N = 2 m B - 1.
             static constexpr std::size_t taps_per_branch = 5;
-            static constexpr std::size_t taps            = 19;
-            static constexpr unsigned    attenuation_db  = 70;
+            /// N, the prototype's length.
+            static constexpr std::size_t taps = 19;
+            /// The stopband attenuation the design was made for, in dB.
+            static constexpr unsigned attenuation_db = 70;
             /// h[0] to h[18], in double.
             static constexpr std::array<double, 19> prototype = {{
                 0x1.6ef1efd3074d5p-12, // h[0]

@@ -146,14 +146,18 @@ namespace {
         std::snprintf(line, sizeof line, "        struct nyquist_design<%zu, %zu, %u> {\n", k.band, k.taps_per_branch,
                       k.attenuation_db);
         s += line;
-        std::snprintf(line, sizeof line, "            static constexpr std::size_t band            = %zu;\n", k.band);
+        s += "            /// The band B: the centre tap is exactly 1 and every B-th tap from it exactly 0.\n";
+        std::snprintf(line, sizeof line, "            static constexpr std::size_t band = %zu;\n", k.band);
         s += line;
+        s += "            /// m, the taps of each of the B branches: N = 2 m B - 1.\n";
         std::snprintf(line, sizeof line, "            static constexpr std::size_t taps_per_branch = %zu;\n",
                       k.taps_per_branch);
         s += line;
-        std::snprintf(line, sizeof line, "            static constexpr std::size_t taps            = %zu;\n", h.size());
+        s += "            /// N, the prototype's length.\n";
+        std::snprintf(line, sizeof line, "            static constexpr std::size_t taps = %zu;\n", h.size());
         s += line;
-        std::snprintf(line, sizeof line, "            static constexpr unsigned    attenuation_db  = %u;\n",
+        s += "            /// The stopband attenuation the design was made for, in dB.\n";
+        std::snprintf(line, sizeof line, "            static constexpr unsigned attenuation_db = %u;\n",
                       k.attenuation_db);
         s += line;
         std::snprintf(line, sizeof line, "            /// h[0] to h[%zu], in double.\n", h.size() - 1);

@@ -16,10 +16,14 @@ namespace catenae {
         /// a short half-band: 7 taps.
         template <>
         struct nyquist_design<2, 2, 70> {
-            static constexpr std::size_t band            = 2;
+            /// The band B: the centre tap is exactly 1 and every B-th tap from it exactly 0.
+            static constexpr std::size_t band = 2;
+            /// m, the taps of each of the B branches: N = 2 m B - 1.
             static constexpr std::size_t taps_per_branch = 2;
-            static constexpr std::size_t taps            = 7;
-            static constexpr unsigned    attenuation_db  = 70;
+            /// N, the prototype's length.
+            static constexpr std::size_t taps = 7;
+            /// The stopband attenuation the design was made for, in dB.
+            static constexpr unsigned attenuation_db = 70;
             /// h[0] to h[6], in double.
             static constexpr std::array<double, 7> prototype = {{
                 -0x1.3d0729fffe7ffp-10, // h[0]
@@ -35,10 +39,14 @@ namespace catenae {
         /// a short third-band: 11 taps.
         template <>
         struct nyquist_design<3, 2, 70> {
-            static constexpr std::size_t band            = 3;
+            /// The band B: the centre tap is exactly 1 and every B-th tap from it exactly 0.
+            static constexpr std::size_t band = 3;
+            /// m, the taps of each of the B branches: N = 2 m B - 1.
             static constexpr std::size_t taps_per_branch = 2;
-            static constexpr std::size_t taps            = 11;
-            static constexpr unsigned    attenuation_db  = 70;
+            /// N, the prototype's length.
+            static constexpr std::size_t taps = 11;
+            /// The stopband attenuation the design was made for, in dB.
+            static constexpr unsigned attenuation_db = 70;
             /// h[0] to h[10], in double.
             static constexpr std::array<double, 11> prototype = {{
                 -0x1.c65a7941c2a9ep-11, // h[0]
@@ -58,10 +66,14 @@ namespace catenae {
         /// a short fourth-band: 15 taps.
         template <>
         struct nyquist_design<4, 2, 70> {
-            static constexpr std::size_t band            = 4;
+            /// The band B: the centre tap is exactly 1 and every B-th tap from it exactly 0.
+            static constexpr std::size_t band = 4;
+            /// m, the taps of each of the B branches: N = 2 m B - 1.
             static constexpr std::size_t taps_per_branch = 2;
-            static constexpr std::size_t taps            = 15;
-            static constexpr unsigned    attenuation_db  = 70;
+            /// N, the prototype's length.
+            static constexpr std::size_t taps = 15;
+            /// The stopband attenuation the design was made for, in dB.
+            static constexpr unsigned attenuation_db = 70;
             /// h[0] to h[14], in double.
             static constexpr std::array<double, 15> prototype = {{
                 -0x1.56bf6d2b9cf69p-11, // h[0]
@@ -85,10 +97,14 @@ namespace catenae {
         /// a short sixth-band: 23 taps.
         template <>
         struct nyquist_design<6, 2, 70> {
-            static constexpr std::size_t band            = 6;
+            /// The band B: the centre tap is exactly 1 and every B-th tap from it exactly 0.
+            static constexpr std::size_t band = 6;
+            /// m, the taps of each of the B branches: N = 2 m B - 1.
             static constexpr std::size_t taps_per_branch = 2;
-            static constexpr std::size_t taps            = 23;
-            static constexpr unsigned    attenuation_db  = 70;
+            /// N, the prototype's length.
+            static constexpr std::size_t taps = 23;
+            /// The stopband attenuation the design was made for, in dB.
+            static constexpr unsigned attenuation_db = 70;
             /// h[0] to h[22], in double.
             static constexpr std::array<double, 23> prototype = {{
                 -0x1.c6740145ffb69p-12, // h[0]
@@ -120,10 +136,14 @@ namespace catenae {
         /// a short eighth-band: 31 taps.
         template <>
         struct nyquist_design<8, 2, 70> {
-            static constexpr std::size_t band            = 8;
+            /// The band B: the centre tap is exactly 1 and every B-th tap from it exactly 0.
+            static constexpr std::size_t band = 8;
+            /// m, the taps of each of the B branches: N = 2 m B - 1.
             static constexpr std::size_t taps_per_branch = 2;
-            static constexpr std::size_t taps            = 31;
-            static constexpr unsigned    attenuation_db  = 70;
+            /// N, the prototype's length.
+            static constexpr std::size_t taps = 31;
+            /// The stopband attenuation the design was made for, in dB.
+            static constexpr unsigned attenuation_db = 70;
             /// h[0] to h[30], in double.
             static constexpr std::array<double, 31> prototype = {{
                 -0x1.526f54bb32c99p-12, // h[0]

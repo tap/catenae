@@ -247,5 +247,35 @@ class SteadyFigure(unittest.TestCase):
             self.assertEqual(run("figure_steady.py", str(trace)).stdout, run("figure_steady.py", str(trace)).stdout)
 
 
+class PretendArgs(unittest.TestCase):
+    """GCC's static frame on Arm leaves out the area a prologue reserves before its register
+    save; the stack bound adds it back from the disassembly."""
+    DISASSEMBLY = textwrap.dedent("""
+        10000000 <split_span>:
+        10000000:	sub	sp, #8
+        10000002:	stmdb	sp!, {r4, r5, r6, lr}
+        10000006:	sub	sp, #20
+        10000100 <variadic>:
+        10000100:	push	{r1, r2, r3}
+        10000102:	push	{r4, lr}
+        10000200 <plain>:
+        10000200:	push	{r4, lr}
+        10000202:	sub	sp, #16
+        10000300 <leaf>:
+        10000300:	sub	sp, #8
+        10000302:	add	sp, #8
+        10000304:	bx	lr
+    """)
+
+    def test_the_area_before_the_save_is_counted_and_nothing_else(self):
+        sys.path.insert(0, str(SCRIPTS))
+        import ceilings
+        from unittest import mock
+        done = subprocess.CompletedProcess([], 0, stdout=self.DISASSEMBLY, stderr="")
+        with mock.patch.object(ceilings.subprocess, "run", return_value=done):
+            area = ceilings.pretend_args("image")
+        self.assertEqual(area, {"split_span": 8, "variadic": 12})
+
+
 if __name__ == "__main__":
     unittest.main()

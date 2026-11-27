@@ -62,7 +62,7 @@ REPO = pathlib.Path(__file__).resolve().parent.parent
 # probe prints CATENAE_STACK <call> <bytes> and roots each call at catenae_probe::probe_<call>.
 PROBES = {"version": ["version"], "strip": ["reset", "process"], "strip_object": ["process"],
           "c1": ["reset", "process"], "c2": ["reset", "process"], "fft": ["forward", "inverse", "make"],
-          "recursive": ["reset", "process"], "fir": ["reset", "process"],
+          "recursive": ["reset", "process"], "fir": ["reset", "process"], "overdrive": ["reset", "process"],
           "designers": ["cookbook", "butterworth_2", "butterworth_4", "butterworth_8", "butterworth_16", "fir_63",
                         "fir_q15_255", "fir_1023"]}
 # A call's root, catenae_probe::probe_<call>, as a mangled name or a call graph's title: anchored,
@@ -236,6 +236,42 @@ def count_regs(reglist: str) -> tuple[int, int]:
         else:
             core += n
     return core, int(math.ceil(vfp))
+
+
+def pretend_args(binary: str) -> dict[str, int]:
+    """The bytes each function of a linked Arm image reserves before its register save, by
+    symbol: the pretend-argument area, where an argument split between r3 and the stack (a span
+    by value) or a variadic function's register arguments are spilled. GCC's static frame on Arm
+    is measured from below that area (arm_expand_prologue: outgoing_args - saved_args), so the
+    bound adds it back. It is a `sub sp, #N` before the first push, or, variadic, a push of
+    argument registers alone before another."""
+    dis = subprocess.run(["arm-none-eabi-objdump", "-d", "--no-show-raw-insn", binary], check=True,
+                         capture_output=True, text=True).stdout
+    area, cur, state = {}, None, None
+    for line in dis.splitlines():
+        head = re.match(r"^[0-9a-f]+ <([^>]+)>:$", line)
+        if head:
+            cur, state = head.group(1), "start"
+            continue
+        ins = re.match(r"^\s*[0-9a-f]+:\s+(\S+)\s*(.*)$", line)
+        if cur is None or not ins or state == "done":
+            continue
+        mnem, ops = ins.group(1), ins.group(2).split(";")[0].split("@")[0].strip()
+        regs = re.search(r"\{([^}]*)\}", ops)
+        is_push = mnem.startswith("push") or (mnem.startswith("stmdb") and ops.startswith("sp!"))
+        if state == "start" and re.match(r"^sub(\.w)?$", mnem) and (m := re.match(r"^sp, #(\d+)$", ops)):
+            area[cur], state = int(m.group(1)), "reserved"
+        elif state == "start" and is_push and regs and all(
+                r.strip() in ("r0", "r1", "r2", "r3") for r in regs.group(1).split(",")):
+            area[cur], state = 4 * count_regs(regs.group(1))[0], "reserved"
+        elif state == "reserved" and is_push:
+            state = "done"
+        else:
+            # Anything else first means no area; a reservation no save follows is no prologue.
+            if state == "reserved":
+                del area[cur]
+            state = "done"
+    return area
 
 
 def runtime_depths(binary: str):
@@ -415,6 +451,9 @@ def measure_stack(key: str, build_dir: str, probe_set: str, size_binary: str) ->
     if not any(f"{name}.dir" in g for g in graphs):
         raise SystemExit(f"no call graph for {name} (built with GCC's -fcallgraph-info=su?)")
     frames, externals, edges = parse_callgraphs(graphs)
+    area = pretend_args(binary)
+    for title in frames:
+        frames[title] += area.get(title.rsplit(":", 1)[-1], 0)
     by_name, by_addr = runtime_depths(binary)
     fig = {}
     for call in PROBES[probe_set]:

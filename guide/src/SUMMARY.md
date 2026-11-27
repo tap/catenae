@@ -10,5 +10,6 @@
 - [Bursts and buffering](bursts_and_buffering.md)
 - [Threads and clocks](threads_and_clocks.md)
 - [The edges](edges.md)
+- [Dynamics](dynamics.md)
 - [Measuring](measuring.md)
 - [Writing a stage](writing_a_stage.md)

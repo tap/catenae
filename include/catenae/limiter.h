@@ -26,8 +26,11 @@
 /// |            | least that frame's r; the last hold at the ceiling is for the rounding of   |
 /// |            | `log` and `exp`, which the grid's rounding up already covers: it moved no    |
 /// |            | sample in the battery, and is pinned at 4 ULP at most under one design       |
-/// | Arithmetic | in S, with S's `log` and `exp`, the window in 32-bit integers; float never   |
-/// |            | leaves a single-precision FPU                                                |
+/// | Arithmetic | in S, with the runtime's `log` and `exp` for S, the window in 32-bit        |
+/// |            | integers; the stage's own float sums stay in float, and where the FPU has   |
+/// |            | single precision only (M4F, M33) newlib's `logf` and `expf` do too; where it |
+/// |            | has double (the M55) they take the double path in hardware; no image links a |
+/// |            | software double                                                              |
 /// | Latency    | exactly `Lookahead` frames                                                    |
 /// | Tail       | `Lookahead` frames: the line empties                                         |
 /// | Limits     | a non-finite sample's own output is not finite (`sanitize` first, PLAN.md    |

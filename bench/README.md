@@ -776,7 +776,8 @@ and C++23 equal to C++17.
 
 A run writes 128,000 samples, so on the M33 the compressor costs 120 instructions a sample, the
 expander 75, the limiter 162 and the strip 327: the one `log` and one `exp` of a stereo frame
-are shared by its two samples. The M55 runs them 27 to 39 % cheaper than the M33. On the M33 the
+are shared by its two samples. The M55 runs them 27 to 39 % cheaper than the M33: its newlib's
+`logf` and `expf` take the double path in its double-precision unit, where the M33's stay in float. On the M33 the
 strip's state is 1,028 bytes and its workspace 516 (`sizeof.state`, `sizeof.workspace`), and its
 `process` reaches 96 bytes of stack static, 84 painted.
 

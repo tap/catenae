@@ -17,7 +17,10 @@
 /// |            | the smooth decoupled peak detector: y1 = max(r, aR y1 + (1 - aR) r),        |
 /// |            | y = aA y + (1 - aA) y1, each value below 2^-64 nepers taken as 0; the frame |
 /// |            | times exp(M - y) (Giannoulis, Massberg and Reiss, JAES 60(6), 2012)          |
-/// | Arithmetic | in S, with S's `log` and `exp`; float never leaves a single-precision FPU    |
+/// | Arithmetic | in S, with the runtime's `log` and `exp` for S; the stage's own float sums   |
+/// |            | stay in float, and where the FPU has single precision only (M4F, M33)        |
+/// |            | newlib's `logf` and `expf` do too; where it has double (the M55) they take   |
+/// |            | the double path in hardware; no image links a software double               |
 /// | Latency    | exactly 0: the gain acts on the frame its level is taken from                 |
 /// | Tail       | 0 frames: silence in is silence out                                          |
 /// | Limits     | a NaN sample is passed through and not read as a level; an infinite one holds |

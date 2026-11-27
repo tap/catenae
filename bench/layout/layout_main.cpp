@@ -25,6 +25,8 @@
 //   CATENAE_LAYOUT_PLANAR  0: one configuration of Ch channels over interleaved frames
 //                          1: Ch mono configurations, each with its own state, each over its
 //                             own contiguous channel buffer
+//                          2: the mono configuration in catenae::planar_section over the
+//                             interleaved frames: what 1 costs with the copies in and out
 //
 // Both layouts know their channel count at compile time. 16,384 frames per channel in calls of
 // 128. Each 128-frame step (one call interleaved, Ch calls planar) runs inside
@@ -52,6 +54,7 @@
 #include "catenae/delay.h"
 #include "catenae/gain.h"
 #include "catenae/map.h"
+#include "catenae/planar_section.h"
 
 #if CATENAE_LAYOUT_KIND == 4
 #include "catenae/biquad.h"
@@ -127,14 +130,16 @@ namespace {
     /// After reset: the gain kinds are set to a new level once, so the first block ramps.
     template <typename Config>
     void prepare(Config& config) noexcept {
-#if CATENAE_LAYOUT_KIND == 0 || CATENAE_LAYOUT_KIND == 3
+#if (CATENAE_LAYOUT_KIND == 0 || CATENAE_LAYOUT_KIND == 3) && CATENAE_LAYOUT_PLANAR == 2
+        config.template stage<0>().mono().template stage<0>().set_level(0.75f); // in the section's mono chain
+#elif CATENAE_LAYOUT_KIND == 0 || CATENAE_LAYOUT_KIND == 3
         config.template stage<0>().set_level(0.75f);
 #else
         static_cast<void>(config);
 #endif
     }
 
-#if CATENAE_LAYOUT_PLANAR
+#if CATENAE_LAYOUT_PLANAR == 1
     /// N copies of one mono configuration: a configuration has no default constructor.
     template <typename T, std::size_t... I>
     constexpr std::array<T, sizeof...(I)> copies(const T& value, std::index_sequence<I...>) noexcept {
@@ -146,6 +151,12 @@ namespace {
     CATENAE_CONSTINIT std::array<catenae::memory_of<config_t>, k_ch> s_memory{};
     CATENAE_CONSTINIT std::array<std::array<float, k_call>, k_ch> s_in{};
     CATENAE_CONSTINIT std::array<std::array<float, k_call>, k_ch> s_out{};
+#elif CATENAE_LAYOUT_PLANAR == 2
+    using config_t                      = decltype(catenae::chain(catenae::planar<k_ch>(make_config<1>())));
+    CATENAE_CONSTINIT config_t s_config = catenae::chain(catenae::planar<k_ch>(make_config<1>()));
+    CATENAE_CONSTINIT catenae::memory_of<config_t> s_memory{};
+    CATENAE_CONSTINIT std::array<float, k_call * k_ch> s_in{};
+    CATENAE_CONSTINIT std::array<float, k_call * k_ch> s_out{};
 #else
     using config_t                      = decltype(make_config<k_ch>());
     CATENAE_CONSTINIT config_t s_config = make_config<k_ch>();
@@ -173,7 +184,7 @@ namespace {
     }
 
     float output(std::size_t frame, std::size_t channel) noexcept {
-#if CATENAE_LAYOUT_PLANAR
+#if CATENAE_LAYOUT_PLANAR == 1
         return s_out[channel][frame];
 #else
         return s_out[frame * k_ch + channel];
@@ -185,7 +196,7 @@ namespace {
 // One step, between the markers: what is counted.
 extern "C" CATENAE_PROBE_NOINLINE void catenae_host_counted() noexcept {
     catenae_call_begin();
-#if CATENAE_LAYOUT_PLANAR
+#if CATENAE_LAYOUT_PLANAR == 1
     for (std::size_t c = 0; c < k_ch; ++c) {
         static_cast<void>(s_config[c].process(s_memory[c], s_in[c], s_out[c]));
     }
@@ -196,7 +207,7 @@ extern "C" CATENAE_PROBE_NOINLINE void catenae_host_counted() noexcept {
 }
 
 int main() {
-#if CATENAE_LAYOUT_PLANAR
+#if CATENAE_LAYOUT_PLANAR == 1
     for (std::size_t c = 0; c < k_ch; ++c) {
         s_config[c].reset(s_memory[c].state);
         prepare(s_config[c]);
@@ -213,7 +224,7 @@ int main() {
     for (std::size_t step = 0; step < k_steps; ++step) {
         for (std::size_t i = 0; i < k_call; ++i) {
             for (std::size_t c = 0; c < k_ch; ++c) {
-#if CATENAE_LAYOUT_PLANAR
+#if CATENAE_LAYOUT_PLANAR == 1
                 s_in[c][i] = next_input(seed);
 #else
                 s_in[i * k_ch + c] = next_input(seed);

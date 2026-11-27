@@ -173,6 +173,16 @@ def report(args, binaries: list[str]) -> int:
         i, p = measured[scenario[:-2] + "_i"], measured[scenario]
         same = "bit-identical" if i["checksum"] == p["checksum"] else "DIFFERENT"
         print(f"{scenario[:-2]:<20} {i['insns']:>13} {p['insns']:>13} {p['insns'] / i['insns']:>7.3f}  {same}")
+    # The mono configurations in a planar_section over the interleaved frames: the planar form
+    # with its copies in and out.
+    sections = sorted((s for s in measured if s.endswith("_s") and s[:-2] + "_i" in measured), key=order)
+    if sections:
+        print()
+        print(f"{'section':<20} {'interleaved':>13} {'section':>13} {'s / i':>7}  output")
+    for scenario in sections:
+        i, s = measured[scenario[:-2] + "_i"], measured[scenario]
+        same = "bit-identical" if i["checksum"] == s["checksum"] else "DIFFERENT"
+        print(f"{scenario[:-2]:<20} {i['insns']:>13} {s['insns']:>13} {s['insns'] / i['insns']:>7.3f}  {same}")
     if args.record:
         record = pathlib.Path(args.record)
         doc = json.loads(record.read_text()) if record.exists() else {}

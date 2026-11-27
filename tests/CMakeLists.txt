@@ -119,6 +119,8 @@ catenae_add_gtest_executable(catenae_tests
         test_expected.cpp
         test_feeding.cpp
         test_fft.cpp
+        test_fft_fir.cpp
+        test_fft_fir_design.cpp
         test_fir.cpp
         test_fir_design.cpp
         test_fir_kernel.cpp
@@ -192,6 +194,14 @@ if(NOT CMAKE_CROSSCOMPILING AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
                      "-DLIBRARY=${PROJECT_SOURCE_DIR}/include/catenae/nyquist_tables.h"
                      "-DTESTS=${CMAKE_CURRENT_SOURCE_DIR}/support/catenae_test/nyquist_test_tables.h"
                      "-DWORK=${CMAKE_CURRENT_BINARY_DIR}" -P "${PROJECT_SOURCE_DIR}/tools/tablegen/check.cmake")
+    # The FFT FIR's example tables: the library's own make(), so the generator links the core.
+    add_executable(catenae_tablegen_fft_fir "${PROJECT_SOURCE_DIR}/tools/tablegen/fft_fir_tables.cpp")
+    target_link_libraries(catenae_tablegen_fft_fir PRIVATE catenae::catenae catenae::trap_handler
+                                                           catenae_test_warnings catenae_contraction)
+    add_test(NAME tablegen.FftFirTablesAreTheGeneratorsOutput
+             COMMAND "${CMAKE_COMMAND}" -DGENERATOR=$<TARGET_FILE:catenae_tablegen_fft_fir>
+                     "-DCOMMITTED=${PROJECT_SOURCE_DIR}/examples/fft_fir_tables.h"
+                     "-DWORK=${CMAKE_CURRENT_BINARY_DIR}" -P "${PROJECT_SOURCE_DIR}/tools/tablegen/check_fft_fir.cmake")
 endif()
 
 # What must not compile (tests/compile_fail) and what must and must not link (tests/link).

@@ -50,7 +50,13 @@ namespace {
 /// The timer's interrupt: one reading posted, and 16 frames pushed, each tick.
 extern "C" void SysTick_Handler(void);
 extern "C" void SysTick_Handler(void) { // the vector's name, which the startup declares weak
-    const std::uint32_t tick = catenae::detail::atomic_load_relaxed(s_ticks) + 1u;
+    const std::uint32_t done = catenae::detail::atomic_load_relaxed(s_ticks);
+    if (done >= k_ticks) {
+        // A tick already pending when the last one stopped the timer: QEMU's SysTick counts the
+        // host's clock, so a slow handler can let the next one fall due before it ends.
+        return;
+    }
+    const std::uint32_t tick = done + 1u;
     reading             r{};
     r.words.fill(tick);
     s_box.post(r);

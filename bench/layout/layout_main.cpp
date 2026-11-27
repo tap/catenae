@@ -16,6 +16,8 @@
 //                            (examples/lowpass_table.h): the recursive stage's row
 //                          5 fir: catenae::fir of 63 taps, the low-pass at 0.1 from its table
 //                            (examples/fir_tables.h): the direct-form FIR's row
+//                          6 overdrive: examples/overdrive.h's soft clip at four times the rate
+//                            in catenae::oversample: the rate family's row
 //   CATENAE_LAYOUT_CH      channels: 1, 2, 6 (5.1) or 12 (7.1.4)
 //   CATENAE_LAYOUT_PLANAR  0: one configuration of Ch channels over interleaved frames
 //                          1: Ch mono configurations, each with its own state, each over its
@@ -55,6 +57,10 @@
 #if CATENAE_LAYOUT_KIND == 5
 #include "catenae/fir.h"
 #include "fir_tables.h"
+#endif
+#if CATENAE_LAYOUT_KIND == 6
+#include "catenae/oversample.h"
+#include "overdrive.h"
 #endif
 
 #ifndef CATENAE_LAYOUT_KIND
@@ -99,8 +105,11 @@ namespace {
         return catenae::chain(catenae::butterworth<Ch, 4>{example::lowpass_at_0_1});
 #elif CATENAE_LAYOUT_KIND == 5
         return catenae::chain(catenae::fir<Ch, 63>{example::fir_lowpass});
+#elif CATENAE_LAYOUT_KIND == 6
+        return catenae::chain(catenae::oversample<4, catenae::map<Ch, example::soft_clip>>{
+            catenae::map<Ch, example::soft_clip>{example::soft_clip{4.0f}}});
 #else
-#error "CATENAE_LAYOUT_KIND: 0 gain, 1 delay, 2 map, 3 strip, 4 biquad or 5 fir"
+#error "CATENAE_LAYOUT_KIND: 0 gain, 1 delay, 2 map, 3 strip, 4 biquad, 5 fir or 6 overdrive"
 #endif
     }
 

@@ -181,7 +181,7 @@ def build(bld):
                 cxxflags=warnings(env, "library"))
     # Each compile-fail case without its defect: the cases are CMake's (tests/compile_fail).
     bld.objects(target="catenae_cf_controls", source=bld.path.ant_glob("tests/compile_fail/*.cpp"),
-                includes=includes + ["tests/compile_fail", "tests/fixtures"], defines=["CATENAE_CF_CONTROL"],
+                includes=includes + ["tests/compile_fail", "tests/fixtures", "tests/support"], defines=["CATENAE_CF_CONTROL"],
                 cxxflags=warnings(env, "test"))
     # Each stage's contract instantiated for q31 (D47), as CMake's catenae_q31_traits.
     bld.objects(target="catenae_q31_traits", source=["tests/q31_traits.cpp"], includes=includes,
@@ -225,6 +225,7 @@ def build(bld):
         "audio_callback": ["examples/audio_callback.cpp"],
         "bursts_and_buffering": ["examples/bursts_and_buffering.cpp"],
         "edges": ["examples/edges.cpp"],
+        "overdrive": ["examples/overdrive.cpp"],
         "print_version": ["examples/print_version.cpp"],
         "stages_and_chains": ["examples/stages_and_chains.cpp"],
         "threads_and_clocks": ["examples/threads_and_clocks.cpp"],

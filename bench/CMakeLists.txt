@@ -106,6 +106,16 @@ foreach(_design IN ITEMS f32_63:0 q15_255:1 f32_1023:2)
     catenae_add_icount(callmax_design_fir_${_dname} icount/fir_design_main.cpp DEFINITIONS CATENAE_FIR_DESIGN=${_did})
 endforeach()
 
+# The rate family (C3): PLAN.md 9.4's four-times overdrive (examples/overdrive.h), and up2 and
+# down2 alone in float, Q15 and Q31.
+foreach(_kind IN ITEMS overdrive:0 up2_f32:1 down2_f32:2 up2_q15:3 down2_q15:4 up2_q31:5 down2_q31:6)
+    string(REPLACE ":" ";" _parts "${_kind}")
+    list(GET _parts 0 _kname)
+    list(GET _parts 1 _kid)
+    catenae_add_icount(${_kname} icount/resample_main.cpp DEFINITIONS CATENAE_RESAMPLE_KIND=${_kid})
+    target_include_directories(catenae_icount_${_kname} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
+endforeach()
+
 # --- The layout benchmark: interleaved against planar, informational (bench/layout/) --------
 add_subdirectory(layout)
 
@@ -139,9 +149,10 @@ catenae_add_probe(c2 probe/c2_probe.cpp)
 catenae_add_probe(fft probe/fft_probe.cpp)
 catenae_add_probe(recursive probe/recursive_probe.cpp)
 catenae_add_probe(fir probe/fir_probe.cpp)
+catenae_add_probe(overdrive probe/overdrive_probe.cpp)
 catenae_add_probe(designers probe/designers_probe.cpp)
 foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip catenae_probe_recursive catenae_stack_recursive
-                        catenae_probe_fir catenae_stack_fir)
+                        catenae_probe_fir catenae_stack_fir catenae_probe_overdrive catenae_stack_overdrive)
     target_include_directories(${_probe} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 
@@ -182,6 +193,9 @@ int main() { return 0; }" CATENAE_HARDWARE_DOUBLE)
     add_test(NAME link_gate.FirImageHasNoSoftwareDouble
              COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
                      $<TARGET_FILE:catenae_probe_fir>)
+    add_test(NAME link_gate.OverdriveImageHasNoSoftwareDouble
+             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
+                     $<TARGET_FILE:catenae_probe_overdrive>)
     if(CATENAE_HARDWARE_DOUBLE)
         add_test(NAME link_gate.HardwareDoubleIsInvisible
                  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py

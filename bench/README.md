@@ -54,6 +54,7 @@ is rooted at a noinline `catenae_probe::probe_<call>`. The sets:
 | `c1` | Every C1 stage once, in one float path: the link-stage gate's first probe image | `reset`, `process` |
 | `c2` | Every C2 stage in one path, 24-bit packed stereo in and out with `sanitize`, `mix` and `dither` in float between: the compiled wire loops (`src/wire.cpp`) and the gate's image for the family | `reset`, `process` |
 | `fft` | A float transform of 512 both ways from the constant tables, and a plan of 512 made at run time (`include/catenae/fft.h`): the FFT family's image for the link-stage gate | `forward`, `inverse`, `make` |
+| `overdrive` | PLAN.md 9.4's chain, `examples/overdrive.h`: a tanh soft clip at four times the rate between `up2` and `down2`, two voices of state and one workspace they share; the rate family's image for the link-stage gate | `reset` (both voices), `process` (one callback of 64 stereo frames) |
 
 `scripts/ceilings.py` reads, per key:
 
@@ -64,7 +65,10 @@ is rooted at a noinline `catenae_probe::probe_<call>`. The sets:
   stack of every start-up function in the image, the runtime's included;
 - each call's static worst-case stack down its path, from GCC's `-fcallgraph-info` with the
   runtime's routines bounded from their disassembly, and the high-water it actually painted
-  (Arm keys);
+  (Arm keys). GCC's frame on Arm leaves out the area a prologue reserves before its register
+  save, where an argument split between r3 and the stack (a `span` by value) is spilled, so the
+  bound adds that area back from the disassembly: without it the overdrive's `process` was
+  bounded 16 bytes below what it painted;
 - each call's code (`code.<call>`): the bytes of every function the call can reach by a direct
   call in the linked image, the root and the runtime's routines included (Arm keys);
 - where the stack probe prints them, a chain's state and workspace as the target lays them out
@@ -295,6 +299,33 @@ Probe `fir`: each cell is the recorded figure / its ceiling, in bytes (start-up 
 | `code.process` | 2,076 / 2,176 | 592 / 640 | 596 / 640 | 612 / 640 |  |
 | `code.reset` | 222 / 256 | 222 / 256 | 222 / 256 | 222 / 256 |  |
 
+Probe `overdrive`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
+
+| figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
+|---|--:|--:|--:|--:|--:|
+| `image.bss` | 13,408 / 13,824 | 13,408 / 13,824 | 13,408 / 13,824 | 13,408 / 13,824 | 12,676 / 13,120 |
+| `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
+| `image.rodata` | 676 / 704 | 676 / 704 | 676 / 704 | 676 / 704 | 616 / 640 |
+| `image.text` | 12,760 / 13,184 | 11,096 / 11,456 | 10,864 / 11,200 | 10,916 / 11,264 | 14,500 / 14,976 |
+| `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.text` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.bss` | 12,392 / 12,800 | 12,392 / 12,800 | 12,392 / 12,800 | 12,392 / 12,800 | 12,392 / 12,800 |
+| `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.rodata` | 576 / 640 | 576 / 640 | 576 / 640 | 576 / 640 | 576 / 640 |
+| `unit.text` | 2,104 / 2,176 | 2,090 / 2,176 | 2,086 / 2,176 | 2,124 / 2,240 | 4,412 / 4,608 |
+| `sizeof.state` | 3,888 / 4,032 | 3,888 / 4,032 | 3,888 / 4,032 | 3,888 / 4,032 |  |
+| `sizeof.workspace` | 4,616 / 4,800 | 4,616 / 4,800 | 4,616 / 4,800 | 4,616 / 4,800 |  |
+| `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
+| `stack.process.measured` | 368 / 384 | 352 / 368 | 352 / 368 | 356 / 368 |  |
+| `stack.process.static` | 376 / 392 | 352 / 368 | 352 / 368 | 356 / 368 |  |
+| `stack.reset.measured` | 52 / 56 | 52 / 56 | 56 / 64 | 56 / 64 |  |
+| `stack.reset.static` | 52 / 56 | 52 / 56 | 56 / 64 | 56 / 64 |  |
+| `code.process` | 5,220 / 5,440 | 3,492 / 3,648 | 3,416 / 3,520 | 3,452 / 3,584 |  |
+| `code.reset` | 366 / 384 | 366 / 384 | 366 / 384 | 366 / 384 |  |
+
 Probe `designers`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
 
 | figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
@@ -426,6 +457,24 @@ The FIR runs each channel's history through the whole block before the next chan
 too costs the same in either layout on the Cortex-M and the host (within 2 %); on Hexagon the
 mono configurations are about a fifth cheaper at 6 and 12 channels.
 
+The overdrive, `examples/overdrive.h` at C channels (kind `overdrive`), planar over interleaved
+from Bench run [45922339828](https://github.com/tap/catenae/actions/runs/45922339828) at
+`3d5df56`, 2026-11-27, every pair bit-identical on every key:
+
+| key | `overdrive` 2 | `overdrive` 6 | `overdrive` 12 |
+|---|---:|---:|---:|
+| `m4-softfp` | 1.007 | 1.017 | 1.019 |
+| `m4f` | 1.010 | 1.171 | 1.200 |
+| `m33` | 1.002 | 1.157 | 1.205 |
+| `m55` | 1.004 | 1.130 | 1.152 |
+| `hexagon` | 1.102 | 1.069 | 1.074 |
+| host (x86-64) | 0.991 | 1.185 | 1.227 |
+
+For stereo the two layouts cost within 1 % of each other on the Cortex-M and the host, and the
+mono configurations 10 % more on Hexagon. From 6 channels up interleaved is the cheaper on every
+key: by 13 to 23 % on the M4F, M33, M55 and the host, 7 % on Hexagon and 2 % on the soft-float
+M4.
+
 ```sh
 cmake -S . -B build-17 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m33-mps2.cmake \
       -DCATENAE_BUILD_TESTS=OFF -DCATENAE_BUILD_EXAMPLES=OFF -DCATENAE_BUILD_BENCH=ON
@@ -442,7 +491,9 @@ then C2's edges (`catenae_probe_c2`, `link_gate.C2ImageHasNoSoftwareDouble`) and
 family, a biquad cascade whose design is a table in ROM with a gain after it
 (`catenae_probe_recursive`, `link_gate.RecursiveImageHasNoSoftwareDouble`), and the FIR
 family, a 63-tap low-pass from its table with a gain after it (`catenae_probe_fir`,
-`link_gate.FirImageHasNoSoftwareDouble`). The `designers`
+`link_gate.FirImageHasNoSoftwareDouble`), and the rate family, the overdrive at four times the
+rate, whose half-bands are generated constants and whose soft clip is `tanhf`
+(`catenae_probe_overdrive`, `link_gate.OverdriveImageHasNoSoftwareDouble`). The `designers`
 probe links `make()` and so its software double on purpose, and the gate does not read it.
 It also proves itself on two fixtures on every Arm key (`bench/link_gate/`, CTest label
 `link_gate`). On the M55, GCC's default FPU has double precision, so a double product is an
@@ -475,6 +526,7 @@ ctest --test-dir build-size -L link_gate
 | `baselines.json`: `fir_f32`, `fir_f64`, `fir_q15` and `fir_q31`, every key, and the three `callmax_design_fir_` workloads, every key but `host`; `ceilings.json`: the probe set `fir`, and the `designers` probe's figures, every key but `host`; the FIR layout table above | Bench run [45866666441](https://github.com/tap/catenae/actions/runs/45866666441) at `7e711bf`, 2026-11-26 (`workflow_dispatch` on `claude/catenae-c3-fir`): its `measured-<key>.json`, `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The FIR's first figures; the `designers` probe gained its three FIR calls, so its image, core and unit figures rose (on the M33 `core.text` from 3,968 to 5,500 B, and `unit.bss` from 0 to 8,188 B, the 1,023-tap table and its workspace) and are recorded as measured. Every other count and figure in that run equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.FirImageHasNoSoftwareDouble` among its tests |
 
 | `baselines.json`: `fft_f32_512`, `fft_f32_2048`, `fft_f64_512` and `callmax_fft_f32_512`, every key | Bench run [45834933446](https://github.com/tap/catenae/actions/runs/45834933446) at `a23f18f`, 2026-11-26 (`workflow_dispatch` on the C4 FFT branch, the merge of `main` at `10b6fd9`): its `measured-<key>` artifacts, copied unchanged; each FFT workload's checksum the same on all six keys, C++20 and C++23 equal to C++17, and every other count in that run equal to its baseline (C2's `edges` among them). The counts recorded first, from run [45762911188](https://github.com/tap/catenae/actions/runs/45762911188) at `1525e89`, came before the kernel's recursion became a loop (`e7bf0d2`) and before the run-time plans to 2^20 and the static-extent frames (`4989d0e`); this run counted them from 1.33 % below to 2.88 % above those (the M55's `fft_f64_512`), inside the gate, and replaces them |
+| `baselines.json`: `overdrive`, `up2_f32`, `down2_f32`, `up2_q15`, `down2_q15`, `up2_q31` and `down2_q31`, every key; `ceilings.json`: the probe set `overdrive`, every key but `host`; the overdrive layout table above | Bench run [45922339828](https://github.com/tap/catenae/actions/runs/45922339828) at `3d5df56`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c3-rate`): its `measured-<key>.json`, `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The rate family's first figures, measured with the stack bound's pretend-argument area counted (the overdrive's `process` 352 bytes static and painted on the M33). Every other count and figure in that run equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.OverdriveImageHasNoSoftwareDouble` among its tests |
 | `ceilings.json`: the probe set `fft`, every key but `host` | Bench run [45821938097](https://github.com/tap/catenae/actions/runs/45821938097) at `4989d0e`, 2026-11-26: its `ceilings-measured-<key>.json` artifacts, the ceilings computed by `scripts/ceilings.py`'s rule. Plans made at run time to 2^20 (Q1) widened the kernel's 29 pending entries from 16 to 32 bits, so `forward` and `inverse` reach 56 B more stack on each Arm key (480 B static on the M33, M4F and M55, 568 B on the soft-float M4), and the code figures moved by under 70 B, inside their ceilings, recorded too; every other figure in that run equal to its record (C2's `c2` probe among them), and the link-stage gate's tests passing on each Arm key. The run before, [45771572341](https://github.com/tap/catenae/actions/runs/45771572341) at `e7bf0d2`, recorded the 16-bit list. Run [45834933446](https://github.com/tap/catenae/actions/runs/45834933446) at `a23f18f`, after the merge of `main`, measured every figure of every probe set equal to its record, `c2` among them: the two `scripts/ceilings.py` fixes leave C2's bounds where they were recorded |
 
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
@@ -623,6 +675,43 @@ high-water, in bytes. From Bench run
 | 63 float taps | 795,614 | 796,085 | 795,684 | 19,018 | 94,804 packets | 2,084 / 1,400 |
 | 255 Q15 taps | 3,293,769 | 3,297,314 | 3,294,376 | 88,170 | 394,638 packets | 3,708 / 3,024 |
 | 1,023 float taps, a table | 12,706,746 | 12,715,386 | 12,708,776 | 294,524 | 1,538,792 packets | 1,076 / 392 |
+
+### The rate family
+
+`overdrive` runs the guide's overdrive (`examples/overdrive.h`: `oversample<4, ...>` around a
+tanh soft clip, stereo) a callback of 64 frames at a time, and `up2_f32`, `down2_f32`, `up2_q15`,
+`down2_q15`, `up2_q31` and `down2_q31` run the half-band at divisor 1 alone, 64 stereo frames in
+a call, 128 or 32 out (`bench/icount/resample_main.cpp`), each 1000 times, every design a
+generated constant. Each folds the first and last value written each call into a checksum. The
+fixed formats print one checksum on every key (`b4fa33dcea64831c` and `5d5b173c1b7c6c9e` in Q15,
+`cdffc6290306816e` and `01485ab363c5bcaa` in Q31). The float half-bands print three: one where
+the compiler fuses no multiply-add (the soft-float M4, x86-64: `6a34b58fb45bd514` up,
+`fbf41613c04c15aa` down), one where the scalar code fuses (M4F, M33, Hexagon: `85a712805a4dc03e`,
+`573a571ae81794cd`), and the M55's (`8cbec0cbb9244db1`, `063406a5b267751d`), whose Helium code
+fuses differently; built with `-ffp-contract=off` the M55 prints the first pair. The overdrive
+prints four: `709de89e007bb0c3` (soft-float M4, x86-64), `af5651ac7ac6397a` (M4F, M33),
+`d541e226d25adf60` (Hexagon) and `76a1d686e73b97cc` (M55). Float carries a floor against the
+golden model, not a bit pin across targets (the stage's card). From Bench run
+[45922339828](https://github.com/tap/catenae/actions/runs/45922339828); every key counted C++20
+and C++23 equal to C++17.
+
+| Key | `overdrive` | `up2_f32` | `down2_f32` | `up2_q15` | `down2_q15` | `up2_q31` | `down2_q31` |
+|---|--:|--:|--:|--:|--:|--:|--:|
+| `m4-softfp` | 2,143,113,838 | 281,690,843 | 148,045,279 | 29,475,515 | 14,827,871 | 41,068,828 | 21,861,098 |
+| `m4f` | 206,448,666 | 26,858,507 | 15,210,034 | 29,475,525 | 14,827,881 | 41,068,840 | 21,861,110 |
+| `m33` | 206,284,021 | 27,050,511 | 15,498,006 | 29,219,530 | 15,147,884 | 40,752,813 | 21,863,115 |
+| `m55` | 248,344,025 | 34,674,494 | 17,744,116 | 27,050,529 | 13,263,853 | 38,514,811 | 20,077,113 |
+| `hexagon` | 150,069,607 packets | 15,192,782 packets | 2,596,906 packets | 11,210,793 packets | 3,617,257 packets | 12,635,995 packets | 5,778,408 packets |
+| `host` | 199,631,655 | 23,740,916 | 12,563,680 | 30,133,944 | 15,489,936 | 33,659,882 | 18,001,695 |
+
+On the M33 the float up2 costs 106 instructions a sample it writes and down2 242: up2's two
+phases are its 20 even taps and the centre, a copy, so an output dots 10.5 taps on average,
+where every one of down2's dots 21. Q15 costs about what float does there (8 % more up, 2 %
+less down) and Q31 1.4 to 1.5 times it. The M55 runs the float half-bands 14 to 28 % dearer than
+the M33 and the fixed formats 5 to 12 % cheaper. The overdrive costs 1,612 instructions a sample on the M33: four half-bands and
+four `tanhf` calls a sample at four times the rate. Its state is 3,888 bytes a voice and its
+workspace 4,616 (`sizeof.state`, `sizeof.workspace` in the probe table above), and its
+`process` reaches 352 bytes of stack, static and painted alike.
 
 ### The floating FFT
 

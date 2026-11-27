@@ -130,10 +130,12 @@ catenae_add_gtest_executable(catenae_tests
         test_mailbox.cpp
         test_map.cpp
         test_mix.cpp
+        test_oversample.cpp
         test_pack.cpp
         test_parallel.cpp
         test_port.cpp
         test_ratio.cpp
+        test_resample.cpp
         test_sample_format.cpp
         test_sample_traits.cpp
         test_sanitize.cpp
@@ -176,6 +178,19 @@ target_compile_definitions(catenae_tests PRIVATE
 # for q31 (D47): an object built on every leg.
 add_library(catenae_q31_traits OBJECT q31_traits.cpp)
 target_link_libraries(catenae_q31_traits PRIVATE catenae::catenae catenae_test_warnings)
+
+# The table generator (tools/tablegen, PLAN.md 3.3, 12): a host tool, built and checked where its
+# designs were printed, on a Linux host with glibc, at contraction off as the battery is: the
+# committed tables must be what it writes. Another libm may round the sine otherwise.
+if(NOT CMAKE_CROSSCOMPILING AND CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    add_executable(catenae_tablegen "${PROJECT_SOURCE_DIR}/tools/tablegen/nyquist_tables.cpp")
+    target_link_libraries(catenae_tablegen PRIVATE catenae_test_warnings catenae_contraction)
+    add_test(NAME tablegen.TablesAreTheGeneratorsOutput
+             COMMAND "${CMAKE_COMMAND}" -DGENERATOR=$<TARGET_FILE:catenae_tablegen>
+                     "-DLIBRARY=${PROJECT_SOURCE_DIR}/include/catenae/nyquist_tables.h"
+                     "-DTESTS=${CMAKE_CURRENT_SOURCE_DIR}/support/catenae_test/nyquist_test_tables.h"
+                     "-DWORK=${CMAKE_CURRENT_BINARY_DIR}" -P "${PROJECT_SOURCE_DIR}/tools/tablegen/check.cmake")
+endif()
 
 # What must not compile (tests/compile_fail) and what must and must not link (tests/link).
 add_subdirectory(compile_fail)

@@ -23,6 +23,7 @@
 #include "catenae/mix.h"
 #include "catenae/pack.h"
 #include "catenae/parallel.h"
+#include "catenae/resample.h"
 #include "catenae/stage_traits.h"
 #include "catenae/steady.h"
 #include "catenae/unpack.h"
@@ -60,6 +61,10 @@ namespace {
     static_assert(contract<catenae::fir_q31<1, 255>>(), "fir in q31, its taps viewed");
     static_assert(contract<catenae::fir_any_q31<2, 16>>(), "any FIR in q31");
     static_assert(contract<catenae::fir_q4_27<2, 63>>(), "fir in Q4.27");
+    static_assert(contract<catenae::up2_q31<2>>(), "up2 in q31");
+    static_assert(contract<catenae::down2_q31<2, 2>>(), "down2 in q31, relaxed");
+    static_assert(contract<catenae::up2_q4_27<2>>(), "up2 in Q4.27");
+    static_assert(contract<catenae::chain<catenae::up2_q31<2>, catenae::down2_q31<2>>>(), "a q31 round trip");
     static_assert(contract<catenae::chain<catenae::fir_q31<2, 31>, catenae::delay_q31<2, 4>>>(), "fir in a q31 chain");
     static_assert(contract<catenae::mix_q31<2, 1>>(), "mix in q31: its contract, Q1.30 coefficients");
     static_assert(contract<catenae::unpack<catenae::wire::s24le_packed, 2>>(), "unpack to q31");

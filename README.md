@@ -22,7 +22,10 @@ cookbook's nine responses or a Butterworth of even order up to 16, by a `make()`
 or from a table in ROM that is checked when it is compiled. A direct-form `fir`, linear phase
 by its type and so of exact latency, runs a Kaiser-windowed low-pass, high-pass, band-pass or
 band-stop, or a checked table, in `float`, `double`, `q15`, `q31` and Q4.27; `fir_any` runs
-any table. `steady` makes a
+any table. `resample` changes the rate by a compile-time L/M of the form 2^a 3^b through a
+Nyquist design generated as a constant, `up2` and `down2` are its pinned half-bands, and
+`oversample` runs a stage at two or four times the rate between them, its latency made a whole
+number of frames, so a dry path lines up with it by type. `steady` makes a
 stage that works in blocks frame-synchronous, and `parallel` runs two chains on two groups of
 a port's channels. `handoff` joins two threads of one clock with a fill policy stated as
 numbers, `feeding` and `fed_by` run a chain on either side of it, and a `mailbox` carries a

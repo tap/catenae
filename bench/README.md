@@ -54,6 +54,7 @@ is rooted at a noinline `catenae_probe::probe_<call>`. The sets:
 | `c1` | Every C1 stage once, in one float path: the link-stage gate's first probe image | `reset`, `process` |
 | `c2` | Every C2 stage in one path, 24-bit packed stereo in and out with `sanitize`, `mix` and `dither` in float between: the compiled wire loops (`src/wire.cpp`) and the gate's image for the family | `reset`, `process` |
 | `fft` | A float transform of 512 both ways from the constant tables, and a plan of 512 made at run time (`include/catenae/fft.h`): the FFT family's image for the link-stage gate | `forward`, `inverse`, `make` |
+| `overdrive` | PLAN.md 9.4's chain, `examples/overdrive.h`: a tanh soft clip at four times the rate between `up2` and `down2`, two voices of state and one workspace they share; the rate family's image for the link-stage gate | `reset` (both voices), `process` (one callback of 64 stereo frames) |
 
 `scripts/ceilings.py` reads, per key:
 
@@ -445,7 +446,9 @@ then C2's edges (`catenae_probe_c2`, `link_gate.C2ImageHasNoSoftwareDouble`) and
 family, a biquad cascade whose design is a table in ROM with a gain after it
 (`catenae_probe_recursive`, `link_gate.RecursiveImageHasNoSoftwareDouble`), and the FIR
 family, a 63-tap low-pass from its table with a gain after it (`catenae_probe_fir`,
-`link_gate.FirImageHasNoSoftwareDouble`). The `designers`
+`link_gate.FirImageHasNoSoftwareDouble`), and the rate family, the overdrive at four times the
+rate, whose half-bands are generated constants and whose soft clip is `tanhf`
+(`catenae_probe_overdrive`, `link_gate.OverdriveImageHasNoSoftwareDouble`). The `designers`
 probe links `make()` and so its software double on purpose, and the gate does not read it.
 It also proves itself on two fixtures on every Arm key (`bench/link_gate/`, CTest label
 `link_gate`). On the M55, GCC's default FPU has double precision, so a double product is an

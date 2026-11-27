@@ -130,6 +130,7 @@ catenae_add_gtest_executable(catenae_tests
         test_mailbox.cpp
         test_map.cpp
         test_mix.cpp
+        test_oversample.cpp
         test_pack.cpp
         test_parallel.cpp
         test_port.cpp

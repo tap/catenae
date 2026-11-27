@@ -64,7 +64,10 @@ is rooted at a noinline `catenae_probe::probe_<call>`. The sets:
   stack of every start-up function in the image, the runtime's included;
 - each call's static worst-case stack down its path, from GCC's `-fcallgraph-info` with the
   runtime's routines bounded from their disassembly, and the high-water it actually painted
-  (Arm keys);
+  (Arm keys). GCC's frame on Arm leaves out the area a prologue reserves before its register
+  save, where an argument split between r3 and the stack (a `span` by value) is spilled, so the
+  bound adds that area back from the disassembly: without it the overdrive's `process` was
+  bounded 16 bytes below what it painted;
 - each call's code (`code.<call>`): the bytes of every function the call can reach by a direct
   call in the linked image, the root and the runtime's routines included (Arm keys);
 - where the stack probe prints them, a chain's state and workspace as the target lays them out

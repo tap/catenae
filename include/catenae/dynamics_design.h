@@ -28,7 +28,9 @@
 /// |             | that fails does not initialise a constant, and at run time reaches             |
 /// |             | `check::table_rejected`                                                       |
 /// | Cost        | `make()` runs in the caller's frame, outside the audio path: a few `exp` and   |
-/// |             | `expm1` in double                                                              |
+/// |             | `expm1` in double. Cortex-M33, worst call (Bench run 46001165800): the         |
+/// |             | compressor's 11,225 instructions, the limiter's 6,617, the expander's 11,262;  |
+/// |             | 452, 300 and 476 B of stack                                                    |
 /// | Formats     | float and double; q31 declares its contract, its numbers held in float until   |
 /// |             | its profile arrives at C6 (D47)                                                |
 /// | Rationale   | D12, D24, D37, D47, D54, PLAN.md 2                                             |

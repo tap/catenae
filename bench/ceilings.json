@@ -122,8 +122,8 @@
         "recorded": 36
       },
       "core.text": {
-        "ceiling": 7744,
-        "recorded": 7468
+        "ceiling": 9664,
+        "recorded": 9376
       },
       "image.bss": {
         "ceiling": 8768,
@@ -138,8 +138,8 @@
         "recorded": 11344
       },
       "image.text": {
-        "ceiling": 53184,
-        "recorded": 51588
+        "ceiling": 61120,
+        "recorded": 59332
       },
       "startup.functions": {
         "ceiling": 0,
@@ -158,8 +158,62 @@
         "recorded": 0
       },
       "unit.text": {
-        "ceiling": 10752,
-        "recorded": 10408
+        "ceiling": 12224,
+        "recorded": 11844
+      }
+    },
+    "dynamics": {
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 1920,
+        "recorded": 1828
+      },
+      "image.data": {
+        "ceiling": 64,
+        "recorded": 4
+      },
+      "image.rodata": {
+        "ceiling": 768,
+        "recorded": 744
+      },
+      "image.text": {
+        "ceiling": 13056,
+        "recorded": 12644
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.bss": {
+        "ceiling": 1600,
+        "recorded": 1544
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 128,
+        "recorded": 92
+      },
+      "unit.text": {
+        "ceiling": 1984,
+        "recorded": 1900
       }
     },
     "fft": {
@@ -739,9 +793,17 @@
         "ceiling": 17792,
         "recorded": 17248
       },
+      "code.compressor": {
+        "ceiling": 7040,
+        "recorded": 6792
+      },
       "code.cookbook": {
         "ceiling": 22848,
         "recorded": 22154
+      },
+      "code.expander": {
+        "ceiling": 7040,
+        "recorded": 6784
       },
       "code.fir_1023": {
         "ceiling": 14016,
@@ -754,6 +816,10 @@
       "code.fir_q15_255": {
         "ceiling": 15232,
         "recorded": 14784
+      },
+      "code.limiter": {
+        "ceiling": 6144,
+        "recorded": 5954
       },
       "core.bss": {
         "ceiling": 0,
@@ -768,8 +834,8 @@
         "recorded": 0
       },
       "core.text": {
-        "ceiling": 5696,
-        "recorded": 5500
+        "ceiling": 7104,
+        "recorded": 6876
       },
       "image.bss": {
         "ceiling": 9536,
@@ -780,12 +846,12 @@
         "recorded": 1372
       },
       "image.rodata": {
-        "ceiling": 704,
-        "recorded": 648
+        "ceiling": 896,
+        "recorded": 816
       },
       "image.text": {
-        "ceiling": 40064,
-        "recorded": 38852
+        "ceiling": 44608,
+        "recorded": 43300
       },
       "stack.butterworth_16.measured": {
         "ceiling": 22664,
@@ -819,6 +885,14 @@
         "ceiling": 6304,
         "recorded": 6120
       },
+      "stack.compressor.measured": {
+        "ceiling": 448,
+        "recorded": 432
+      },
+      "stack.compressor.static": {
+        "ceiling": 472,
+        "recorded": 452
+      },
       "stack.cookbook.measured": {
         "ceiling": 1088,
         "recorded": 1056
@@ -826,6 +900,14 @@
       "stack.cookbook.static": {
         "ceiling": 1424,
         "recorded": 1380
+      },
+      "stack.expander.measured": {
+        "ceiling": 472,
+        "recorded": 456
+      },
+      "stack.expander.static": {
+        "ceiling": 496,
+        "recorded": 476
       },
       "stack.fir_1023.measured": {
         "ceiling": 408,
@@ -851,6 +933,14 @@
         "ceiling": 3824,
         "recorded": 3708
       },
+      "stack.limiter.measured": {
+        "ceiling": 296,
+        "recorded": 280
+      },
+      "stack.limiter.static": {
+        "ceiling": 312,
+        "recorded": 300
+      },
       "startup.functions": {
         "ceiling": 0,
         "recorded": 0
@@ -868,12 +958,102 @@
         "recorded": 0
       },
       "unit.rodata": {
-        "ceiling": 128,
-        "recorded": 64
+        "ceiling": 192,
+        "recorded": 184
       },
       "unit.text": {
-        "ceiling": 8256,
-        "recorded": 7990
+        "ceiling": 9088,
+        "recorded": 8776
+      }
+    },
+    "dynamics": {
+      "code.process": {
+        "ceiling": 2624,
+        "recorded": 2518
+      },
+      "code.reset": {
+        "ceiling": 256,
+        "recorded": 218
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 2688,
+        "recorded": 2560
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 116
+      },
+      "image.text": {
+        "ceiling": 10304,
+        "recorded": 9960
+      },
+      "sizeof.state": {
+        "ceiling": 1088,
+        "recorded": 1028
+      },
+      "sizeof.workspace": {
+        "ceiling": 576,
+        "recorded": 516
+      },
+      "stack.process.measured": {
+        "ceiling": 88,
+        "recorded": 84
+      },
+      "stack.process.static": {
+        "ceiling": 104,
+        "recorded": 96
+      },
+      "stack.reset.measured": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "stack.reset.static": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 1600,
+        "recorded": 1544
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.text": {
+        "ceiling": 1408,
+        "recorded": 1334
       }
     },
     "fft": {
@@ -1669,9 +1849,17 @@
         "ceiling": 18112,
         "recorded": 17576
       },
+      "code.compressor": {
+        "ceiling": 6976,
+        "recorded": 6770
+      },
       "code.cookbook": {
         "ceiling": 22848,
         "recorded": 22144
+      },
+      "code.expander": {
+        "ceiling": 6976,
+        "recorded": 6758
       },
       "code.fir_1023": {
         "ceiling": 13504,
@@ -1684,6 +1872,10 @@
       "code.fir_q15_255": {
         "ceiling": 14784,
         "recorded": 14352
+      },
+      "code.limiter": {
+        "ceiling": 6208,
+        "recorded": 5966
       },
       "core.bss": {
         "ceiling": 0,
@@ -1698,8 +1890,8 @@
         "recorded": 0
       },
       "core.text": {
-        "ceiling": 5312,
-        "recorded": 5146
+        "ceiling": 6656,
+        "recorded": 6446
       },
       "image.bss": {
         "ceiling": 9536,
@@ -1710,12 +1902,12 @@
         "recorded": 1372
       },
       "image.rodata": {
-        "ceiling": 704,
-        "recorded": 648
+        "ceiling": 896,
+        "recorded": 816
       },
       "image.text": {
-        "ceiling": 39936,
-        "recorded": 38744
+        "ceiling": 44224,
+        "recorded": 42904
       },
       "stack.butterworth_16.measured": {
         "ceiling": 22664,
@@ -1749,6 +1941,14 @@
         "ceiling": 6304,
         "recorded": 6120
       },
+      "stack.compressor.measured": {
+        "ceiling": 432,
+        "recorded": 416
+      },
+      "stack.compressor.static": {
+        "ceiling": 456,
+        "recorded": 436
+      },
       "stack.cookbook.measured": {
         "ceiling": 1088,
         "recorded": 1056
@@ -1756,6 +1956,14 @@
       "stack.cookbook.static": {
         "ceiling": 1408,
         "recorded": 1364
+      },
+      "stack.expander.measured": {
+        "ceiling": 456,
+        "recorded": 440
+      },
+      "stack.expander.static": {
+        "ceiling": 480,
+        "recorded": 460
       },
       "stack.fir_1023.measured": {
         "ceiling": 408,
@@ -1781,6 +1989,14 @@
         "ceiling": 3832,
         "recorded": 3716
       },
+      "stack.limiter.measured": {
+        "ceiling": 360,
+        "recorded": 344
+      },
+      "stack.limiter.static": {
+        "ceiling": 376,
+        "recorded": 364
+      },
       "startup.functions": {
         "ceiling": 0,
         "recorded": 0
@@ -1798,12 +2014,102 @@
         "recorded": 0
       },
       "unit.rodata": {
-        "ceiling": 128,
-        "recorded": 64
+        "ceiling": 192,
+        "recorded": 184
       },
       "unit.text": {
-        "ceiling": 8320,
-        "recorded": 8066
+        "ceiling": 9088,
+        "recorded": 8790
+      }
+    },
+    "dynamics": {
+      "code.process": {
+        "ceiling": 4800,
+        "recorded": 4622
+      },
+      "code.reset": {
+        "ceiling": 256,
+        "recorded": 218
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 2688,
+        "recorded": 2560
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 116
+      },
+      "image.text": {
+        "ceiling": 12352,
+        "recorded": 11992
+      },
+      "sizeof.state": {
+        "ceiling": 1088,
+        "recorded": 1028
+      },
+      "sizeof.workspace": {
+        "ceiling": 576,
+        "recorded": 516
+      },
+      "stack.process.measured": {
+        "ceiling": 144,
+        "recorded": 136
+      },
+      "stack.process.static": {
+        "ceiling": 168,
+        "recorded": 156
+      },
+      "stack.reset.measured": {
+        "ceiling": 32,
+        "recorded": 28
+      },
+      "stack.reset.static": {
+        "ceiling": 32,
+        "recorded": 28
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 1600,
+        "recorded": 1544
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.text": {
+        "ceiling": 1408,
+        "recorded": 1320
       }
     },
     "fft": {
@@ -2599,9 +2905,17 @@
         "ceiling": 17792,
         "recorded": 17248
       },
+      "code.compressor": {
+        "ceiling": 7104,
+        "recorded": 6852
+      },
       "code.cookbook": {
         "ceiling": 22848,
         "recorded": 22134
+      },
+      "code.expander": {
+        "ceiling": 7104,
+        "recorded": 6844
       },
       "code.fir_1023": {
         "ceiling": 14016,
@@ -2614,6 +2928,10 @@
       "code.fir_q15_255": {
         "ceiling": 15360,
         "recorded": 14892
+      },
+      "code.limiter": {
+        "ceiling": 6144,
+        "recorded": 5942
       },
       "core.bss": {
         "ceiling": 0,
@@ -2628,8 +2946,8 @@
         "recorded": 0
       },
       "core.text": {
-        "ceiling": 5696,
-        "recorded": 5508
+        "ceiling": 7104,
+        "recorded": 6884
       },
       "image.bss": {
         "ceiling": 9536,
@@ -2640,12 +2958,12 @@
         "recorded": 1372
       },
       "image.rodata": {
-        "ceiling": 704,
-        "recorded": 648
+        "ceiling": 896,
+        "recorded": 816
       },
       "image.text": {
-        "ceiling": 40192,
-        "recorded": 39000
+        "ceiling": 44736,
+        "recorded": 43416
       },
       "stack.butterworth_16.measured": {
         "ceiling": 22664,
@@ -2679,6 +2997,14 @@
         "ceiling": 6304,
         "recorded": 6120
       },
+      "stack.compressor.measured": {
+        "ceiling": 448,
+        "recorded": 432
+      },
+      "stack.compressor.static": {
+        "ceiling": 472,
+        "recorded": 452
+      },
       "stack.cookbook.measured": {
         "ceiling": 1088,
         "recorded": 1056
@@ -2686,6 +3012,14 @@
       "stack.cookbook.static": {
         "ceiling": 1424,
         "recorded": 1380
+      },
+      "stack.expander.measured": {
+        "ceiling": 472,
+        "recorded": 456
+      },
+      "stack.expander.static": {
+        "ceiling": 496,
+        "recorded": 476
       },
       "stack.fir_1023.measured": {
         "ceiling": 408,
@@ -2711,6 +3045,14 @@
         "ceiling": 3824,
         "recorded": 3708
       },
+      "stack.limiter.measured": {
+        "ceiling": 296,
+        "recorded": 280
+      },
+      "stack.limiter.static": {
+        "ceiling": 312,
+        "recorded": 300
+      },
       "startup.functions": {
         "ceiling": 0,
         "recorded": 0
@@ -2728,12 +3070,102 @@
         "recorded": 0
       },
       "unit.rodata": {
-        "ceiling": 128,
-        "recorded": 64
+        "ceiling": 192,
+        "recorded": 184
       },
       "unit.text": {
-        "ceiling": 8256,
-        "recorded": 7990
+        "ceiling": 9088,
+        "recorded": 8776
+      }
+    },
+    "dynamics": {
+      "code.process": {
+        "ceiling": 2752,
+        "recorded": 2670
+      },
+      "code.reset": {
+        "ceiling": 256,
+        "recorded": 218
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 2688,
+        "recorded": 2560
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 128,
+        "recorded": 116
+      },
+      "image.text": {
+        "ceiling": 10624,
+        "recorded": 10264
+      },
+      "sizeof.state": {
+        "ceiling": 1088,
+        "recorded": 1028
+      },
+      "sizeof.workspace": {
+        "ceiling": 576,
+        "recorded": 516
+      },
+      "stack.process.measured": {
+        "ceiling": 88,
+        "recorded": 80
+      },
+      "stack.process.static": {
+        "ceiling": 104,
+        "recorded": 96
+      },
+      "stack.reset.measured": {
+        "ceiling": 32,
+        "recorded": 28
+      },
+      "stack.reset.static": {
+        "ceiling": 32,
+        "recorded": 28
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 1600,
+        "recorded": 1544
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.text": {
+        "ceiling": 1408,
+        "recorded": 1334
       }
     },
     "fft": {
@@ -3529,9 +3961,17 @@
         "ceiling": 9664,
         "recorded": 9338
       },
+      "code.compressor": {
+        "ceiling": 2816,
+        "recorded": 2700
+      },
       "code.cookbook": {
         "ceiling": 11776,
         "recorded": 11398
+      },
+      "code.expander": {
+        "ceiling": 2816,
+        "recorded": 2700
       },
       "code.fir_1023": {
         "ceiling": 6400,
@@ -3544,6 +3984,10 @@
       "code.fir_q15_255": {
         "ceiling": 7616,
         "recorded": 7354
+      },
+      "code.limiter": {
+        "ceiling": 2048,
+        "recorded": 1974
       },
       "core.bss": {
         "ceiling": 0,
@@ -3558,8 +4002,8 @@
         "recorded": 0
       },
       "core.text": {
-        "ceiling": 3712,
-        "recorded": 3568
+        "ceiling": 4864,
+        "recorded": 4684
       },
       "image.bss": {
         "ceiling": 9536,
@@ -3570,12 +4014,12 @@
         "recorded": 1372
       },
       "image.rodata": {
-        "ceiling": 9472,
-        "recorded": 9148
+        "ceiling": 9600,
+        "recorded": 9268
       },
       "image.text": {
-        "ceiling": 27136,
-        "recorded": 26308
+        "ceiling": 30208,
+        "recorded": 29324
       },
       "stack.butterworth_16.measured": {
         "ceiling": 22456,
@@ -3609,6 +4053,14 @@
         "ceiling": 6112,
         "recorded": 5928
       },
+      "stack.compressor.measured": {
+        "ceiling": 376,
+        "recorded": 360
+      },
+      "stack.compressor.static": {
+        "ceiling": 400,
+        "recorded": 384
+      },
       "stack.cookbook.measured": {
         "ceiling": 896,
         "recorded": 864
@@ -3616,6 +4068,14 @@
       "stack.cookbook.static": {
         "ceiling": 1328,
         "recorded": 1288
+      },
+      "stack.expander.measured": {
+        "ceiling": 408,
+        "recorded": 392
+      },
+      "stack.expander.static": {
+        "ceiling": 432,
+        "recorded": 416
       },
       "stack.fir_1023.measured": {
         "ceiling": 304,
@@ -3641,6 +4101,14 @@
         "ceiling": 3712,
         "recorded": 3600
       },
+      "stack.limiter.measured": {
+        "ceiling": 216,
+        "recorded": 208
+      },
+      "stack.limiter.static": {
+        "ceiling": 240,
+        "recorded": 232
+      },
       "startup.functions": {
         "ceiling": 0,
         "recorded": 0
@@ -3658,12 +4126,102 @@
         "recorded": 0
       },
       "unit.rodata": {
-        "ceiling": 128,
-        "recorded": 64
+        "ceiling": 192,
+        "recorded": 184
       },
       "unit.text": {
-        "ceiling": 7168,
-        "recorded": 6936
+        "ceiling": 7872,
+        "recorded": 7614
+      }
+    },
+    "dynamics": {
+      "code.process": {
+        "ceiling": 1856,
+        "recorded": 1798
+      },
+      "code.reset": {
+        "ceiling": 256,
+        "recorded": 218
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.text": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "image.bss": {
+        "ceiling": 2688,
+        "recorded": 2560
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 768,
+        "recorded": 708
+      },
+      "image.text": {
+        "ceiling": 9472,
+        "recorded": 9184
+      },
+      "sizeof.state": {
+        "ceiling": 1088,
+        "recorded": 1028
+      },
+      "sizeof.workspace": {
+        "ceiling": 576,
+        "recorded": 516
+      },
+      "stack.process.measured": {
+        "ceiling": 80,
+        "recorded": 72
+      },
+      "stack.process.static": {
+        "ceiling": 96,
+        "recorded": 88
+      },
+      "stack.reset.measured": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "stack.reset.static": {
+        "ceiling": 40,
+        "recorded": 32
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 1600,
+        "recorded": 1544
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.text": {
+        "ceiling": 1408,
+        "recorded": 1324
       }
     },
     "fft": {

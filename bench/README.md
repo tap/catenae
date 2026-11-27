@@ -333,16 +333,16 @@ Probe `designers`: each cell is the recorded figure / its ceiling, in bytes (sta
 |---|--:|--:|--:|--:|--:|
 | `image.bss` | 9,204 / 9,536 | 9,204 / 9,536 | 9,204 / 9,536 | 9,204 / 9,536 | 8,476 / 8,768 |
 | `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
-| `image.rodata` | 648 / 704 | 648 / 704 | 648 / 704 | 9,148 / 9,472 | 11,344 / 11,712 |
-| `image.text` | 38,744 / 39,936 | 39,000 / 40,192 | 38,852 / 40,064 | 26,308 / 27,136 | 51,588 / 53,184 |
+| `image.rodata` | 816 / 896 | 816 / 896 | 816 / 896 | 9,268 / 9,600 | 11,344 / 11,712 |
+| `image.text` | 42,904 / 44,224 | 43,416 / 44,736 | 43,300 / 44,608 | 29,324 / 30,208 | 59,332 / 61,120 |
 | `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 36 / 64 |
-| `core.text` | 5,146 / 5,312 | 5,508 / 5,696 | 5,500 / 5,696 | 3,568 / 3,712 | 7,468 / 7,744 |
+| `core.text` | 6,446 / 6,656 | 6,884 / 7,104 | 6,876 / 7,104 | 4,684 / 4,864 | 9,376 / 9,664 |
 | `unit.bss` | 8,188 / 8,448 | 8,188 / 8,448 | 8,188 / 8,448 | 8,188 / 8,448 | 8,188 / 8,448 |
 | `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
-| `unit.rodata` | 64 / 128 | 64 / 128 | 64 / 128 | 64 / 128 | 0 / 0 |
-| `unit.text` | 8,066 / 8,320 | 7,990 / 8,256 | 7,990 / 8,256 | 6,936 / 7,168 | 10,408 / 10,752 |
+| `unit.rodata` | 184 / 192 | 184 / 192 | 184 / 192 | 184 / 192 | 0 / 0 |
+| `unit.text` | 8,790 / 9,088 | 8,776 / 9,088 | 8,776 / 9,088 | 7,614 / 7,872 | 11,844 / 12,224 |
 | `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
 | `stack.butterworth_16.measured` | 22,000 / 22,664 | 22,000 / 22,664 | 22,000 / 22,664 | 21,800 / 22,456 |  |
@@ -353,22 +353,58 @@ Probe `designers`: each cell is the recorded figure / its ceiling, in bytes (sta
 | `stack.butterworth_4.static` | 2,000 / 2,064 | 2,008 / 2,072 | 2,008 / 2,072 | 1,824 / 1,880 |  |
 | `stack.butterworth_8.measured` | 6,112 / 6,296 | 6,112 / 6,296 | 6,112 / 6,296 | 5,904 / 6,088 |  |
 | `stack.butterworth_8.static` | 6,120 / 6,304 | 6,120 / 6,304 | 6,120 / 6,304 | 5,928 / 6,112 |  |
+| `stack.compressor.measured` | 416 / 432 | 432 / 448 | 432 / 448 | 360 / 376 |  |
+| `stack.compressor.static` | 436 / 456 | 452 / 472 | 452 / 472 | 384 / 400 |  |
 | `stack.cookbook.measured` | 1,056 / 1,088 | 1,056 / 1,088 | 1,056 / 1,088 | 864 / 896 |  |
 | `stack.cookbook.static` | 1,364 / 1,408 | 1,380 / 1,424 | 1,380 / 1,424 | 1,288 / 1,328 |  |
+| `stack.expander.measured` | 440 / 456 | 456 / 472 | 456 / 472 | 392 / 408 |  |
+| `stack.expander.static` | 460 / 480 | 476 / 496 | 476 / 496 | 416 / 432 |  |
 | `stack.fir_1023.measured` | 392 / 408 | 392 / 408 | 392 / 408 | 288 / 304 |  |
 | `stack.fir_1023.static` | 1,084 / 1,120 | 1,076 / 1,112 | 1,076 / 1,112 | 984 / 1,016 |  |
 | `stack.fir_63.measured` | 1,400 / 1,448 | 1,400 / 1,448 | 1,400 / 1,448 | 1,296 / 1,336 |  |
 | `stack.fir_63.static` | 2,092 / 2,160 | 2,084 / 2,152 | 2,084 / 2,152 | 1,992 / 2,056 |  |
 | `stack.fir_q15_255.measured` | 3,024 / 3,120 | 3,024 / 3,120 | 3,024 / 3,120 | 2,904 / 2,992 |  |
 | `stack.fir_q15_255.static` | 3,716 / 3,832 | 3,708 / 3,824 | 3,708 / 3,824 | 3,600 / 3,712 |  |
+| `stack.limiter.measured` | 344 / 360 | 280 / 296 | 280 / 296 | 208 / 216 |  |
+| `stack.limiter.static` | 364 / 376 | 300 / 312 | 300 / 312 | 232 / 240 |  |
 | `code.butterworth_16` | 17,612 / 18,176 | 17,322 / 17,856 | 17,322 / 17,856 | 9,416 / 9,728 |  |
 | `code.butterworth_2` | 17,386 / 17,920 | 17,088 / 17,664 | 17,160 / 17,728 | 9,072 / 9,408 |  |
 | `code.butterworth_4` | 17,440 / 17,984 | 17,122 / 17,664 | 17,122 / 17,664 | 9,224 / 9,536 |  |
 | `code.butterworth_8` | 17,576 / 18,112 | 17,248 / 17,792 | 17,248 / 17,792 | 9,338 / 9,664 |  |
+| `code.compressor` | 6,770 / 6,976 | 6,852 / 7,104 | 6,792 / 7,040 | 2,700 / 2,816 |  |
 | `code.cookbook` | 22,144 / 22,848 | 22,134 / 22,848 | 22,154 / 22,848 | 11,398 / 11,776 |  |
+| `code.expander` | 6,758 / 6,976 | 6,844 / 7,104 | 6,784 / 7,040 | 2,700 / 2,816 |  |
 | `code.fir_1023` | 13,064 / 13,504 | 13,588 / 14,016 | 13,552 / 14,016 | 6,186 / 6,400 |  |
 | `code.fir_63` | 13,606 / 14,016 | 14,130 / 14,592 | 14,022 / 14,464 | 6,648 / 6,848 |  |
 | `code.fir_q15_255` | 14,352 / 14,784 | 14,892 / 15,360 | 14,784 / 15,232 | 7,354 / 7,616 |  |
+| `code.limiter` | 5,966 / 6,208 | 5,942 / 6,144 | 5,954 / 6,144 | 1,974 / 2,048 |  |
+
+Probe `dynamics`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
+
+| figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
+|---|--:|--:|--:|--:|--:|
+| `image.bss` | 2,560 / 2,688 | 2,560 / 2,688 | 2,560 / 2,688 | 2,560 / 2,688 | 1,828 / 1,920 |
+| `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
+| `image.rodata` | 116 / 128 | 116 / 128 | 116 / 128 | 708 / 768 | 744 / 768 |
+| `image.text` | 11,992 / 12,352 | 10,264 / 10,624 | 9,960 / 10,304 | 9,184 / 9,472 | 12,644 / 13,056 |
+| `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.text` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.bss` | 1,544 / 1,600 | 1,544 / 1,600 | 1,544 / 1,600 | 1,544 / 1,600 | 1,544 / 1,600 |
+| `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `unit.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 92 / 128 |
+| `unit.text` | 1,320 / 1,408 | 1,334 / 1,408 | 1,334 / 1,408 | 1,324 / 1,408 | 1,900 / 1,984 |
+| `sizeof.state` | 1,028 / 1,088 | 1,028 / 1,088 | 1,028 / 1,088 | 1,028 / 1,088 |  |
+| `sizeof.workspace` | 516 / 576 | 516 / 576 | 516 / 576 | 516 / 576 |  |
+| `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
+| `stack.process.measured` | 136 / 144 | 80 / 88 | 84 / 88 | 72 / 80 |  |
+| `stack.process.static` | 156 / 168 | 96 / 104 | 96 / 104 | 88 / 96 |  |
+| `stack.reset.measured` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
+| `stack.reset.static` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
+| `code.process` | 4,622 / 4,800 | 2,670 / 2,752 | 2,518 / 2,624 | 1,798 / 1,856 |  |
+| `code.reset` | 218 / 256 | 218 / 256 | 218 / 256 | 218 / 256 |  |
 <!-- ceilings:end -->
 
 ## The layout benchmark (informational, never a gate)
@@ -530,6 +566,7 @@ ctest --test-dir build-size -L link_gate
 
 | `baselines.json`: `fft_f32_512`, `fft_f32_2048`, `fft_f64_512` and `callmax_fft_f32_512`, every key | Bench run [45834933446](https://github.com/tap/catenae/actions/runs/45834933446) at `a23f18f`, 2026-11-26 (`workflow_dispatch` on the C4 FFT branch, the merge of `main` at `10b6fd9`): its `measured-<key>` artifacts, copied unchanged; each FFT workload's checksum the same on all six keys, C++20 and C++23 equal to C++17, and every other count in that run equal to its baseline (C2's `edges` among them). The counts recorded first, from run [45762911188](https://github.com/tap/catenae/actions/runs/45762911188) at `1525e89`, came before the kernel's recursion became a loop (`e7bf0d2`) and before the run-time plans to 2^20 and the static-extent frames (`4989d0e`); this run counted them from 1.33 % below to 2.88 % above those (the M55's `fft_f64_512`), inside the gate, and replaces them |
 | `baselines.json`: `overdrive`, `up2_f32`, `down2_f32`, `up2_q15`, `down2_q15`, `up2_q31` and `down2_q31`, every key; `ceilings.json`: the probe set `overdrive`, every key but `host`; the overdrive layout table above | Bench run [45922339828](https://github.com/tap/catenae/actions/runs/45922339828) at `3d5df56`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c3-rate`): its `measured-<key>.json`, `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The rate family's first figures, measured with the stack bound's pretend-argument area counted (the overdrive's `process` 352 bytes static and painted on the M33). Every other count and figure in that run equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.OverdriveImageHasNoSoftwareDouble` among its tests |
+| `baselines.json`: `compressor_f32`, `expander_f32`, `limiter_f32` and `dynamics`, every key, and the three `callmax_design_` workloads of the family, every key but `host`; `ceilings.json`: the probe set `dynamics`, and the `designers` probe's figures, every key but `host` | Bench run [46001165800](https://github.com/tap/catenae/actions/runs/46001165800) at `617087a`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c3-dynamics`): its `measured-<key>.json` and `ceilings-measured-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The dynamics family's first figures; the `designers` probe gained its three dynamics calls, so its image, core and unit figures rose (on the M33 `core.text` from 5,500 to 6,876 B) and are recorded as measured. The fixes after it, at `87808ee`, change no code the bench builds. Every other count and figure in that run equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.DynamicsImageHasNoSoftwareDouble` among its tests |
 | `ceilings.json`: the probe set `fft`, every key but `host` | Bench run [45821938097](https://github.com/tap/catenae/actions/runs/45821938097) at `4989d0e`, 2026-11-26: its `ceilings-measured-<key>.json` artifacts, the ceilings computed by `scripts/ceilings.py`'s rule. Plans made at run time to 2^20 (Q1) widened the kernel's 29 pending entries from 16 to 32 bits, so `forward` and `inverse` reach 56 B more stack on each Arm key (480 B static on the M33, M4F and M55, 568 B on the soft-float M4), and the code figures moved by under 70 B, inside their ceilings, recorded too; every other figure in that run equal to its record (C2's `c2` probe among them), and the link-stage gate's tests passing on each Arm key. The run before, [45771572341](https://github.com/tap/catenae/actions/runs/45771572341) at `e7bf0d2`, recorded the 16-bit list. Run [45834933446](https://github.com/tap/catenae/actions/runs/45834933446) at `a23f18f`, after the merge of `main`, measured every figure of every probe set equal to its record, `c2` among them: the two `scripts/ceilings.py` fixes leave C2's bounds where they were recorded |
 
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
@@ -715,6 +752,44 @@ the M33 and the fixed formats 5 to 12 % cheaper. The overdrive costs 1,612 instr
 four `tanhf` calls a sample at four times the rate. Its state is 3,888 bytes a voice and its
 workspace 4,616 (`sizeof.state`, `sizeof.workspace` in the probe table above), and its
 `process` reaches 352 bytes of stack, static and painted alike.
+
+### The dynamics family
+
+`compressor_f32`, `expander_f32`, `limiter_f32` and `dynamics` run each stage of the strip in
+`examples/dynamics_tables.h` alone and the strip itself (an expander, a compressor and a limiter
+48 frames ahead), stereo, 1000 callbacks of 64 frames whose level steps every 8 callbacks
+between -70, -30, -12 and +6 dBFS (`bench/icount/dynamics_main.cpp`), every design a table.
+Each frame takes one `logf` and one `expf`, each runtime's own, so the float checksums differ
+between runtimes and between fusing and non-fusing cores: the stages carry a floor against the
+golden model, not a bit pin across targets. From Bench run
+[46001165800](https://github.com/tap/catenae/actions/runs/46001165800); every key counted C++20
+and C++23 equal to C++17.
+
+| Key | `compressor_f32` | `expander_f32` | `limiter_f32` | `dynamics` |
+|---|--:|--:|--:|--:|
+| `m4-softfp` | 228,107,705 | 131,446,575 | 222,777,497 | 510,653,113 |
+| `m4f` | 15,314,779 | 9,510,705 | 21,174,406 | 41,814,042 |
+| `m33` | 15,374,501 | 9,635,643 | 20,778,127 | 41,866,374 |
+| `m55` | 9,426,046 | 6,823,259 | 15,139,026 | 28,863,894 |
+| `hexagon` | 33,974,218 packets | 34,965,907 packets | 39,548,056 packets | 107,403,921 packets |
+| `host` | 11,244,041 | 8,048,683 | 16,380,395 | 31,630,736 |
+
+A run writes 128,000 samples, so on the M33 the compressor costs 120 instructions a sample, the
+expander 75, the limiter 162 and the strip 327: the one `log` and one `exp` of a stereo frame
+are shared by its two samples. The M55 runs them 27 to 39 % cheaper than the M33. On the M33 the
+strip's state is 1,028 bytes and its workspace 516 (`sizeof.state`, `sizeof.workspace`), and its
+`process` reaches 96 bytes of stack static, 84 painted.
+
+Each `callmax_design_` workload of the family makes four designs, their time constants from 1 to
+48,000 frames, and counts the worst single `make()` (`bench/icount/dynamics_design_main.cpp`,
+QEMU keys only); the stack is the `designers` probe's, static then painted, in bytes. The
+checksums of what `make()` returned are the same on every key. From the same run:
+
+| `make()` | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` | stack, `m33` |
+|---|--:|--:|--:|--:|--:|--:|
+| `compressor_design` | 11,962 | 11,222 | 11,225 | 602 | 2,147 packets | 452 / 432 |
+| `limiter_design` | 6,942 | 6,615 | 6,617 | 278 | 1,447 packets | 300 / 280 |
+| `expander_design` | 11,925 | 11,257 | 11,262 | 613 | 2,118 packets | 476 / 456 |
 
 ### The floating FFT
 

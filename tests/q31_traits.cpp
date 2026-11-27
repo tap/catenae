@@ -9,10 +9,13 @@
 // Verifies CAT-STAGE-001.
 #include <cstdint>
 
+#include "catenae/analyzer_traits.h"
+#include "catenae/autocorrelation.h"
 #include "catenae/biquad.h"
 #include "catenae/chain.h"
 #include "catenae/compressor.h"
 #include "catenae/convert.h"
+#include "catenae/cross_correlation.h"
 #include "catenae/delay.h"
 #include "catenae/dither.h"
 #include "catenae/expander.h"
@@ -27,9 +30,13 @@
 #include "catenae/mix.h"
 #include "catenae/pack.h"
 #include "catenae/parallel.h"
+#include "catenae/peak_meter.h"
+#include "catenae/ppm_meter.h"
 #include "catenae/resample.h"
+#include "catenae/rms_meter.h"
 #include "catenae/stage_traits.h"
 #include "catenae/steady.h"
+#include "catenae/tap.h"
 #include "catenae/unpack.h"
 
 namespace {
@@ -85,5 +92,13 @@ namespace {
                   "wire to wire through q31");
     static_assert(catenae::junction_traits<catenae::handoff<catenae::q31, 2, 256, 64, 64>>::opted_in,
                   "a handoff of q31 frames: the junction's contract");
+    // The analyzers: meters and correlation run in q31 at C5 (D47); the peak programme meter's
+    // recursion arrives at C6, its contract here.
+    static_assert(contract<catenae::tap<2, catenae::peak_meter_q31<2, 64>>>(), "a q31 peak meter's tap");
+    static_assert(contract<catenae::tap<2, catenae::rms_meter_q31<2, 64, 256>>>(), "a q31 RMS meter's tap");
+    static_assert(contract<catenae::tap<2, catenae::ppm_meter_q31<2, 64>>>(), "a q31 PPM's tap: its contract");
+    static_assert(contract<catenae::tap<2, catenae::autocorrelation_q31<2, 8, 64>>>(), "q31 autocorrelation");
+    static_assert(contract<catenae::tap<2, catenae::cross_correlation_q31<2, 0, 1, 8, 64>>>(), "q31 cross-correlation");
+    static_assert(catenae::analyzer_traits<catenae::ppm_meter_q31<1, 32>>::opted_in, "the q31 PPM, an analyzer");
 
 } // namespace

@@ -86,7 +86,8 @@ window, because its memory is its ballistics.
 
 A meter's state is part of the chain's state: plain storage, all zero at rest, in `.bss`
 when static. On the M33 the bus's state is 2,200 bytes and its workspace 520, and
-`process` reaches 312 bytes of stack (the `meters` probe, `scripts/ceilings.py measure`).
+`process` reaches 312 bytes of stack, static and painted alike (the `meters` probe,
+`scripts/ceilings.py measure`).
 The first assertion under the chain is the tap's promise for all four: frame-synchronous,
 and no latency.
 

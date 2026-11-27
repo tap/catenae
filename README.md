@@ -25,7 +25,10 @@ band-stop, or a checked table, in `float`, `double`, `q15`, `q31` and Q4.27; `fi
 any table. `resample` changes the rate by a compile-time L/M of the form 2^a 3^b through a
 Nyquist design generated as a constant, `up2` and `down2` are its pinned half-bands, and
 `oversample` runs a stage at two or four times the rate between them, its latency made a whole
-number of frames, so a dry path lines up with it by type. `steady` makes a
+number of frames, so a dry path lines up with it by type. `compressor`, `limiter` and
+`expander` follow a level taken across the channels: a soft-knee compressor, a look-ahead
+limiter whose output never exceeds its ceiling, and a downward expander, a gate at a ratio of
+infinity. `steady` makes a
 stage that works in blocks frame-synchronous, and `parallel` runs two chains on two groups of
 a port's channels. `handoff` joins two threads of one clock with a fill policy stated as
 numbers, `feeding` and `fed_by` run a chain on either side of it, and a `mailbox` carries a

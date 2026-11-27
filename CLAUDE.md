@@ -32,7 +32,9 @@ Kaiser-windowed designs, the fixed formats' row-sum-preserving taps, `from_table
 check); rate change (`resample` at a compile-time L/M over a Nyquist design that
 `tools/tablegen` writes as a constant, its two machines, `up2` and `down2` pinned at economy's
 half-bands, `oversample` with the delay that makes its latency whole, the overdrive example);
-then the three dynamics stages.
+and dynamics (`compressor`, the look-ahead `limiter` and `expander`, in the log domain from
+Giannoulis, Massberg and Reiss and from Reiss and McPherson, their channels linked, the dynamics
+strip example).
 
 ## How to work here
 

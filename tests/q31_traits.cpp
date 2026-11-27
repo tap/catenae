@@ -31,6 +31,7 @@
 #include "catenae/pack.h"
 #include "catenae/parallel.h"
 #include "catenae/peak_meter.h"
+#include "catenae/planar_section.h"
 #include "catenae/ppm_meter.h"
 #include "catenae/resample.h"
 #include "catenae/rms_meter.h"
@@ -83,6 +84,8 @@ namespace {
     static_assert(contract<catenae::limiter_q31<2, 32>>(), "limiter in q31: its contract");
     static_assert(contract<catenae::fft_fir_q31<2, 255>>(), "the FFT FIR in q31: its contract");
     static_assert(contract<catenae::steady<catenae::fft_fir_q31<1, 31>>>(), "the FFT FIR in q31, steady");
+    static_assert(contract<catenae::planar_section<2, catenae::gain_q31<1>, catenae::delay_q31<1, 4>>>(),
+                  "planar_section in q31: its contract");
     static_assert(contract<catenae::chain<catenae::compressor_q31<2>, catenae::limiter_q31<2, 8>>>(),
                   "dynamics in a q31 chain");
     static_assert(contract<catenae::unpack<catenae::wire::s24le_packed, 2>>(), "unpack to q31");

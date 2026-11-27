@@ -139,6 +139,7 @@ catenae_add_gtest_executable(catenae_tests
         test_oversample.cpp
         test_pack.cpp
         test_parallel.cpp
+        test_planar_section.cpp
         test_port.cpp
         test_ppm.cpp
         test_ratio.cpp

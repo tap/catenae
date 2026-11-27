@@ -228,6 +228,7 @@ def build(bld):
         "long_filter": ["examples/long_filter.cpp"],
         "meters": ["examples/meters.cpp"],
         "overdrive": ["examples/overdrive.cpp"],
+        "planar": ["examples/planar.cpp"],
         "dynamics": ["examples/dynamics.cpp"],
         "print_version": ["examples/print_version.cpp"],
         "stages_and_chains": ["examples/stages_and_chains.cpp"],

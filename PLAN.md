@@ -81,7 +81,7 @@ Every decision in section 1 is the maintainer's, settled on or before 2026-11-25
 | D36 | The `float` profile accumulates in `float`, so it never leaves a single-precision FPU. The order of summation is part of the numeric design and is fixed before a floor is recorded. Floors are measured and stated per stage; a `float` FIR carries a floor and a tolerance, not a bit pin across targets. A link-stage gate rejects a software-double routine in a named probe image whose designs are all tables. Comparison with SampleRateTap is to an absolute tolerance for `float` and bit for bit where the arithmetic is unchanged (`double`, Q15, Q31). |
 | D29 | A fixed-point port names its Q format in its type: `fixed<Storage, F>`, a tag over raw `int16_t` or `int32_t`, never a wrapper class. `convert` moves between formats. A stage accepts only the formats its battery pins. First set: `q15`, `q31`, Q4.27. Wire formats unpack to `q15` (16-bit) or `q31` (24-bit left-justified, 32-bit). |
 | D47 | Fixed point arrives with a stage's first version where the carried code has it (FIR kernels, decimators, L/M stages), where the stage exists only because of it (`convert`, `unpack`, `pack`, written new), and where it is a copy or one saturating helper (`delay`, the layout converters, `mix`, dither, the meters, correlation). It arrives at C6 where it is new design (recursive, nonlinear, ramped and spectral stages, and the FFT FIR). Q4.27 arrives at C1 in `convert` and is pinned per stage with that stage's fixed-point profile. From C1 every stage is a template on its sample format and CI instantiates its contract, not its arithmetic, for `q31`. |
-| D25 | A spectrum frame is, per channel, N/2 + 1 bins of `complex<S>`, DC to Nyquist, all stored, channels end to end (section 5.2). Frozen at C4 after the split-complex measurement. |
+| D25 | A spectrum frame is, per channel, N/2 + 1 bins of `complex<S>`, DC to Nyquist, all stored, channels end to end (section 5.2). Frozen at C4 as it stands, on the split-complex measurement (`bench/README.md`). |
 | D38 | Q15 spectra are for analysis only. The forward transform is fixed scaling, so a spectrum's format is its type. Q31 resynthesis uses the own engine's block-floating inverse, whose exponent `istft` consumes itself, so none travels; its floor is stated in dBFS per length. A block-floating forward transform, whose exponent would travel with every frame, waits for a design of its own. |
 
 ### Build and tools
@@ -414,7 +414,10 @@ channel 1:  re[0] im[0]  re[1] im[1]  ...  re[N/2] im[N/2]
   scaling both ways gave -122.3, -116.7, -110.2 and -98.2). CMSIS-DSP has no block-floating
   inverse, so on that back end the Q31 `istft` is fixed scaling both ways with its own,
   higher floor: the contract number is per back end.
-- Split complex (vDSP's form) is measured against this at C4, and D25 is frozen then.
+- Split complex (vDSP's form) was measured against this at C4, and D25 is frozen as it stands:
+  split is the cheaper for a bin times a filter's on the M4F, the M33 and the host, the
+  dearer on the M55, and within a few per cent for a real gain per bin on every Cortex-M
+  and the host (`bench/README.md`, the split-complex measurement).
 
 ## 6. Junctions, analyzers and mailboxes
 

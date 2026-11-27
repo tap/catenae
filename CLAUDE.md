@@ -34,11 +34,12 @@ check); rate change (`resample` at a compile-time L/M over a Nyquist design that
 half-bands, `oversample` with the delay that makes its latency whole, the overdrive example);
 and dynamics (`compressor`, the look-ahead `limiter` and `expander`, in the log domain from
 Giannoulis, Massberg and Reiss and from Reiss and McPherson, their channels linked, the dynamics
-strip example). **C4** is under way, in two pull requests: the overlap-save FFT FIR (`fft_fir`,
+strip example). **C4** is done too, in two pull requests: the overlap-save FFT FIR (`fft_fir`,
 a stage that works in blocks, its transforms and product in the compiled core so its bits are
 the same on every target, its spectrum a design made in double or a table in ROM that
-`tools/tablegen` writes, the long-filter example); then `planar_section` and the split-complex
-measurement after which the maintainer freezes D25. **C5** is under way, in three pull requests:
+`tools/tablegen` writes, the long-filter example); then `planar_section`, a chain of mono stages
+over each channel of a port, and the split-complex measurement, on which the maintainer froze
+D25 as it stands. **C5** is under way, in three pull requests:
 the analyzers (`tap`, `peak_meter` and `rms_meter` in every format, the peak programme meter with
 the EBU's ballistics, `autocorrelation` and `cross_correlation`, the bus-meters example); then
 true peak and loudness (ITU-R BS.1770-4); then `stft` and `istft` with their windows and the

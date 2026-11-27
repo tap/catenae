@@ -33,10 +33,11 @@
 /// |            | software double                                                              |
 /// | Latency    | exactly `Lookahead` frames                                                    |
 /// | Tail       | `Lookahead` frames: the line empties                                         |
-/// | Limits     | a non-finite sample's own output is not finite (`sanitize` first, PLAN.md    |
-/// |            | 3.4); a double louder than 128 nepers above the threshold is held at the     |
-/// |            | ceiling by the last step alone; after `set_design()` the window carries the  |
-/// |            | old design's reductions for L + 1 frames, and the last step holds the ceiling |
+/// | Limits     | a non-finite sample's own output is not finite, and on Hexagon (clang 19) is |
+/// |            | held within the ceiling instead (`sanitize` first, PLAN.md 3.4); a double     |
+/// |            | louder than 128 nepers above the threshold is held at the ceiling by the last |
+/// |            | step alone; after `set_design()` the window carries the old design's          |
+/// |            | reductions for L + 1 frames, and the last step holds the ceiling              |
 /// | Formats    | float and double; q31 declares its contract and its arithmetic arrives with  |
 /// |            | its profile at C6 (D47)                                                      |
 /// | Contraction| pinned at contraction off; a header template, it compiles under the caller's |

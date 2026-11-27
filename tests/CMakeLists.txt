@@ -114,6 +114,8 @@ catenae_add_gtest_executable(catenae_tests
         test_convert_shift.cpp
         test_delay.cpp
         test_dither.cpp
+        test_dynamics.cpp
+        test_dynamics_design.cpp
         test_expected.cpp
         test_feeding.cpp
         test_fft.cpp

@@ -22,8 +22,6 @@ flicker, you would put a mutex around the members.
 The other natural shape is a metering callback. The audio thread converts to decibels at
 the end of each block, and calls a function the display registered.
 
-Both read well, and both are how a desktop meter is commonly written.
-
 ## What it costs on the target
 
 - **A lock the callback can wait on.** The display thread holds the mutex while it reads,
@@ -39,18 +37,26 @@ Both read well, and both are how a desktop meter is commonly written.
   floating-point unit is single precision it is a library routine that works with
   integers. No number is claimed for it here: none was measured.
   [What arithmetic costs](what_arithmetic_costs.md) has what `double` costs on these
-  cores. The display redraws perhaps 30 times a second, and most of those conversions
-  are never seen.
+  cores.
 
 What remains is the cost of the meters themselves, with no lock and no logarithm. The
 harness runs them over 1000 callbacks of 64 stereo frames of noise, 128,000 samples, a
 result every 480 frames over a window of 4,800. The workloads are in
 `bench/icount/meters_main.cpp`.
 
-<!-- NUMBERS: meters_f32, meters_q15, meters_q31 from Bench -->
+| Workload on the Cortex-M33 | Instructions | A sample |
+|---|--:|--:|
+| `meters_f32`: the bus, all four meters | 23,071,423 | 180 |
+| `meters_q15`: peak, RMS and the same correlation in Q15 | 17,547,036 | 137 |
+| `meters_q31`: the same in Q31 | 43,302,954 | 338 |
 
-These reproduce the counts on the Cortex-M33; `bench/README.md` says how the plugin is
-built, and [Measuring](measuring.md) explains the script.
+The 33 lags of the correlation are most of the bus's cost. The fixed-point workloads
+print one checksum on all six keys the bench runs, because their sums are integers.
+
+The numbers are from
+[bench run 46060474080](https://github.com/tap/catenae/actions/runs/46060474080), and are
+recorded in `bench/README.md`, which says how the plugin is built. These reproduce the
+M33's counts; [Measuring](measuring.md) explains the script.
 
 ```sh
 cmake -S . -B build-17 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m33-mps2.cmake \
@@ -79,8 +85,10 @@ reads channels 0 and 1 at lags of up to 16 frames either way. The PPM has a hop 
 window, because its memory is its ballistics.
 
 A meter's state is part of the chain's state: plain storage, all zero at rest, in `.bss`
-when static. The assertion under the chain is the tap's promise for all four:
-frame-synchronous, and no latency.
+when static. On the M33 the bus's state is 2,200 bytes and its workspace 520, and
+`process` reaches 312 bytes of stack (the `meters` probe, `scripts/ceilings.py measure`).
+The first assertion under the chain is the tap's promise for all four: frame-synchronous,
+and no latency.
 
 ### Results are raw, and whole
 
@@ -111,12 +119,12 @@ posts the struct.
 ```
 
 `stage<I>()` reaches a tap, and `stage_state<I>()` its part of the chain's state. All
-four meters have the same hop, so one count serves for all.
+four meters have the same hop, which is the chain's second assertion, so the RMS meter's
+count serves for all.
 
 The mailbox has one poster and one taker, and neither waits. The four results are posted
 together, so they arrive together, from the same hop. A reading never taken is replaced
-by the next: a display that redraws slowly sees the newest, and the audio thread does
-not know or care.
+by the next: a display that redraws slowly sees the newest.
 
 ### Decibels are the reader's
 
@@ -149,9 +157,10 @@ Half of full scale is -6.02 dBFS, and a sine's RMS level is 3.01 dB below its pe
 ### The ballistics are a table
 
 The PPM's two coefficients come from a design. `make()` finds the attack by simulating
-the standard's 5 kHz burst, about ten simulations of 25 bursts each, in `double`. That
-is work for a host, or for a thread with no deadline. The chain holds the result as two
-numbers in flash.
+the standard's 5 kHz burst, about ten simulations of 25 bursts each, in `double`. Its
+worst call is 81.5 million instructions on the M33, whose `double` is software, and
+4.5 million on the M55 (`callmax_design_ppm`, the same run). That is work for a host, or
+for a thread with no deadline. The chain holds the result as two numbers in flash.
 
 ```cpp
 {{#include ../../examples/meters.h:ppm}}
@@ -160,6 +169,8 @@ numbers in flash.
 `from_table` checks them as it compiles: an attack in (0, 1] and a release in (0, 1). A
 table that fails does not initialise a constant. The battery checks the two numbers
 against `make()` on every CI leg (`ExampleTableIsTheEbuDesign` in `tests/test_ppm.cpp`).
+With the design a table and the decibels the reader's, the bus's image links no software
+`double`: `link_gate.MetersImageHasNoSoftwareDouble` passes on every Arm core.
 
 ## What was given up
 

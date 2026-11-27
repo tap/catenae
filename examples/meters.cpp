@@ -30,7 +30,8 @@ namespace {
 
     // ANCHOR: post
     /// The audio thread, after each callback: when the RMS meter has a new result (all four
-    /// complete their hops together), post them all. Nothing here converts or waits.
+    /// complete their hops together, as meters.h asserts), post them all. Nothing here converts
+    /// or waits.
     void post_new_results(std::uint32_t& seen) noexcept {
         const auto& chain = example::bus_meters;
         const auto& st    = s_bus.state;

@@ -41,6 +41,9 @@ namespace example {
     using bus_meters_t = std::remove_cv_t<decltype(bus_meters)>;
 
     static_assert(bus_meters_t::is_frame_synchronous && bus_meters_t::exact_latency == (catenae::ratio{0, 1}));
+    // One hop for all four, so a new result on one is a new result on each.
+    static_assert(peak_t::hop_frames == rms_t::hop_frames && ppm_t::hop_frames == rms_t::hop_frames
+                  && correlation_t::hop_frames == rms_t::hop_frames);
     // ANCHOR_END: meters
 
 } // namespace example

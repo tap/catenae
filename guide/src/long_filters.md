@@ -40,14 +40,14 @@ counts are instructions executed.
 | Workload | What it runs | Instructions |
 |---|---|--:|
 | `fir_f32_255` | the direct form, `long_direct` | 134,348,070 |
-| `fft_fir_f32` | the block form of the next section, in `steady<>` | 24,911,709 |
+| `fft_fir_f32` | the block form of the next section, in `steady<>` | 24,912,209 |
 
 The direct form is about 1,050 instructions an output sample, and about 134,300 every
 callback: the totals divided by 128,000 and by 1000. The cost is the same on every call,
 and it grows in step with the length of the filter.
 
 The numbers are from
-[bench run 46021806011](https://github.com/tap/catenae/actions/runs/46021806011). The
+[bench run 46028066821](https://github.com/tap/catenae/actions/runs/46028066821). The
 workloads are in `bench/icount/fft_fir_main.cpp`, and `bench/README.md` says how the
 plugin is built. These reproduce the counts:
 
@@ -95,8 +95,8 @@ sample. By the ratio of the two totals it is 5.4 times cheaper than the direct f
 
 **The worst call.** The work does not spread. All of a block's transforms land on the
 call that completes it, one callback in four here, and the other three only copy. The
-mean callback is 23,349 instructions; the worst, the workload `callmax_fft_fir_f32` of
-the same run, is 89,815. A callback's deadline is met by its worst call, not its mean,
+mean callback is 23,350 instructions; the worst, the workload `callmax_fft_fir_f32` of
+the same run, is 89,817. A callback's deadline is met by its worst call, not its mean,
 so that is the number to budget. It is still less than the 134,300 the direct form
 spends on every call.
 

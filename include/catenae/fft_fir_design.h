@@ -25,7 +25,7 @@
 /// | Latency     | the taps design's: (Taps - 1) / 2 frames at linear phase, else as it states |
 /// | Cost        | `make()` runs in the caller's frame, outside the audio path: one double      |
 /// |             | transform of N, software double on a single-precision FPU. Cortex-M33, worst |
-/// |             | call (Bench run 46021806011): 255 float taps in blocks of 256, 0.59 M        |
+/// |             | call (Bench run 46028066821): 255 float taps in blocks of 256, 0.59 M        |
 /// |             | instructions and 872 B of stack                                              |
 /// | Formats     | float and double; q31 declares its contract, and its spectrum's format and   |
 /// |             | its arithmetic are new design at C6 (D47)                                    |

@@ -1219,7 +1219,7 @@
     "fft_fir": {
       "code.process": {
         "ceiling": 8384,
-        "recorded": 8120
+        "recorded": 8124
       },
       "code.reset": {
         "ceiling": 256,
@@ -1239,7 +1239,7 @@
       },
       "core.text": {
         "ceiling": 7680,
-        "recorded": 7422
+        "recorded": 7426
       },
       "image.bss": {
         "ceiling": 14272,
@@ -1255,7 +1255,7 @@
       },
       "image.text": {
         "ceiling": 16000,
-        "recorded": 15524
+        "recorded": 15528
       },
       "sizeof.state": {
         "ceiling": 8512,
@@ -2376,8 +2376,8 @@
     },
     "fft_fir": {
       "code.process": {
-        "ceiling": 10944,
-        "recorded": 10624
+        "ceiling": 11008,
+        "recorded": 10628
       },
       "code.reset": {
         "ceiling": 256,
@@ -2397,7 +2397,7 @@
       },
       "core.text": {
         "ceiling": 9152,
-        "recorded": 8838
+        "recorded": 8842
       },
       "image.bss": {
         "ceiling": 14272,
@@ -3535,7 +3535,7 @@
     "fft_fir": {
       "code.process": {
         "ceiling": 8384,
-        "recorded": 8120
+        "recorded": 8124
       },
       "code.reset": {
         "ceiling": 256,
@@ -3555,7 +3555,7 @@
       },
       "core.text": {
         "ceiling": 7680,
-        "recorded": 7422
+        "recorded": 7426
       },
       "image.bss": {
         "ceiling": 14272,
@@ -4692,8 +4692,8 @@
     },
     "fft_fir": {
       "code.process": {
-        "ceiling": 8448,
-        "recorded": 8198
+        "ceiling": 8512,
+        "recorded": 8202
       },
       "code.reset": {
         "ceiling": 256,
@@ -4713,7 +4713,7 @@
       },
       "core.text": {
         "ceiling": 7744,
-        "recorded": 7468
+        "recorded": 7472
       },
       "image.bss": {
         "ceiling": 14272,
@@ -4729,7 +4729,7 @@
       },
       "image.text": {
         "ceiling": 16128,
-        "recorded": 15604
+        "recorded": 15608
       },
       "sizeof.state": {
         "ceiling": 8512,

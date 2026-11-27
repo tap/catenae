@@ -28,8 +28,8 @@
 /// |            | is still to be written holds only zeros, and transforms to zero exactly    |
 /// | Cost       | all of a block's work is on the call that completes it: 2 Ch transforms of |
 /// |            | N and Ch products of Block + 1 bins; the other calls only copy. Cortex-M33  |
-/// |            | (Bench run 46021806011), 255 taps in blocks of 256, stereo, in `steady<>` in |
-/// |            | callbacks of 64: 195 instructions an output, the worst callback 89,815; the |
+/// |            | (Bench run 46028066821), 255 taps in blocks of 256, stereo, in `steady<>` in |
+/// |            | callbacks of 64: 195 instructions an output, the worst callback 89,817; the |
 /// |            | direct form 1,050 an output                                                  |
 /// | Formats    | float and double; q31 declares its contract, and its arithmetic is new      |
 /// |            | design at C6 (D47)                                                           |

@@ -55,6 +55,7 @@ is rooted at a noinline `catenae_probe::probe_<call>`. The sets:
 | `c2` | Every C2 stage in one path, 24-bit packed stereo in and out with `sanitize`, `mix` and `dither` in float between: the compiled wire loops (`src/wire.cpp`) and the gate's image for the family | `reset`, `process` |
 | `dynamics` | The dynamics strip, `examples/dynamics_tables.h`: an expander, a compressor and a limiter 48 frames ahead, from tables in ROM; the dynamics family's image for the link-stage gate | `reset`, `process` (one callback of 64 stereo frames) |
 | `fft` | A float transform of 512 both ways from the constant tables, and a plan of 512 made at run time (`include/catenae/fft.h`): the FFT family's image for the link-stage gate | `forward`, `inverse`, `make` |
+| `fft_fir` | The long filter of `examples/long_filter.h`: the 255-tap low-pass by `fft_fir` in blocks of 256, in `steady<>`, stereo, from its spectrum in ROM; the FFT FIR's image for the link-stage gate | `reset`, `process` (the deepest of four callbacks of 64 stereo frames, the fourth completing a block) |
 | `overdrive` | PLAN.md 9.4's chain, `examples/overdrive.h`: a tanh soft clip at four times the rate between `up2` and `down2`, two voices of state and one workspace they share; the rate family's image for the link-stage gate | `reset` (both voices), `process` (one callback of 64 stereo frames) |
 
 `scripts/ceilings.py` reads, per key:
@@ -331,18 +332,18 @@ Probe `designers`: each cell is the recorded figure / its ceiling, in bytes (sta
 
 | figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
 |---|--:|--:|--:|--:|--:|
-| `image.bss` | 9,204 / 9,536 | 9,204 / 9,536 | 9,204 / 9,536 | 9,204 / 9,536 | 8,476 / 8,768 |
+| `image.bss` | 15,372 / 15,872 | 15,372 / 15,872 | 15,372 / 15,872 | 15,372 / 15,872 | 14,644 / 15,104 |
 | `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
-| `image.rodata` | 816 / 896 | 816 / 896 | 816 / 896 | 9,268 / 9,600 | 11,344 / 11,712 |
-| `image.text` | 42,904 / 44,224 | 43,416 / 44,736 | 43,300 / 44,608 | 29,324 / 30,208 | 59,332 / 61,120 |
+| `image.rodata` | 5,816 / 6,016 | 5,816 / 6,016 | 5,816 / 6,016 | 14,268 / 14,720 | 16,272 / 16,768 |
+| `image.text` | 48,472 / 49,984 | 48,856 / 50,368 | 48,716 / 50,240 | 33,636 / 34,688 | 68,516 / 70,592 |
 | `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
-| `core.rodata` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 36 / 64 |
-| `core.text` | 6,446 / 6,656 | 6,884 / 7,104 | 6,876 / 7,104 | 4,684 / 4,864 | 9,376 / 9,664 |
-| `unit.bss` | 8,188 / 8,448 | 8,188 / 8,448 | 8,188 / 8,448 | 8,188 / 8,448 | 8,188 / 8,448 |
-| `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
-| `unit.rodata` | 184 / 192 | 184 / 192 | 184 / 192 | 184 / 192 | 0 / 0 |
-| `unit.text` | 8,790 / 9,088 | 8,776 / 9,088 | 8,776 / 9,088 | 7,614 / 7,872 | 11,844 / 12,224 |
+| `core.rodata` | 3,984 / 4,160 | 3,984 / 4,160 | 3,984 / 4,160 | 3,984 / 4,160 | 3,908 / 4,032 |
+| `core.text` | 11,746 / 12,160 | 12,004 / 12,416 | 11,996 / 12,416 | 8,730 / 9,024 | 18,168 / 18,752 |
+| `unit.bss` | 14,356 / 14,848 | 14,356 / 14,848 | 14,356 / 14,848 | 14,356 / 14,848 | 14,356 / 14,848 |
+| `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 4 / 64 |
+| `unit.rodata` | 1,204 / 1,280 | 1,204 / 1,280 | 1,204 / 1,280 | 1,204 / 1,280 | 1,020 / 1,088 |
+| `unit.text` | 9,050 / 9,344 | 9,060 / 9,344 | 9,060 / 9,344 | 7,878 / 8,128 | 12,192 / 12,608 |
 | `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
 | `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
 | `stack.butterworth_16.measured` | 22,000 / 22,664 | 22,000 / 22,664 | 22,000 / 22,664 | 21,800 / 22,456 |  |
@@ -359,6 +360,8 @@ Probe `designers`: each cell is the recorded figure / its ceiling, in bytes (sta
 | `stack.cookbook.static` | 1,364 / 1,408 | 1,380 / 1,424 | 1,380 / 1,424 | 1,288 / 1,328 |  |
 | `stack.expander.measured` | 440 / 456 | 456 / 472 | 456 / 472 | 392 / 408 |  |
 | `stack.expander.static` | 460 / 480 | 476 / 496 | 476 / 496 | 416 / 432 |  |
+| `stack.fft_fir_255.measured` | 832 / 864 | 872 / 904 | 872 / 904 | 680 / 704 |  |
+| `stack.fft_fir_255.static` | 832 / 864 | 872 / 904 | 872 / 904 | 712 / 736 |  |
 | `stack.fir_1023.measured` | 392 / 408 | 392 / 408 | 392 / 408 | 288 / 304 |  |
 | `stack.fir_1023.static` | 1,084 / 1,120 | 1,076 / 1,112 | 1,076 / 1,112 | 984 / 1,016 |  |
 | `stack.fir_63.measured` | 1,400 / 1,448 | 1,400 / 1,448 | 1,400 / 1,448 | 1,296 / 1,336 |  |
@@ -374,6 +377,7 @@ Probe `designers`: each cell is the recorded figure / its ceiling, in bytes (sta
 | `code.compressor` | 6,770 / 6,976 | 6,852 / 7,104 | 6,792 / 7,040 | 2,700 / 2,816 |  |
 | `code.cookbook` | 22,144 / 22,848 | 22,134 / 22,848 | 22,154 / 22,848 | 11,398 / 11,776 |  |
 | `code.expander` | 6,758 / 6,976 | 6,844 / 7,104 | 6,784 / 7,040 | 2,700 / 2,816 |  |
+| `code.fft_fir_255` | 7,806 / 8,064 | 7,480 / 7,744 | 7,480 / 7,744 | 4,302 / 4,480 |  |
 | `code.fir_1023` | 13,064 / 13,504 | 13,588 / 14,016 | 13,552 / 14,016 | 6,186 / 6,400 |  |
 | `code.fir_63` | 13,606 / 14,016 | 14,130 / 14,592 | 14,022 / 14,464 | 6,648 / 6,848 |  |
 | `code.fir_q15_255` | 14,352 / 14,784 | 14,892 / 15,360 | 14,784 / 15,232 | 7,354 / 7,616 |  |
@@ -405,6 +409,33 @@ Probe `dynamics`: each cell is the recorded figure / its ceiling, in bytes (star
 | `stack.reset.static` | 28 / 32 | 28 / 32 | 32 / 40 | 32 / 40 |  |
 | `code.process` | 4,622 / 4,800 | 2,670 / 2,752 | 2,518 / 2,624 | 1,798 / 1,856 |  |
 | `code.reset` | 218 / 256 | 218 / 256 | 218 / 256 | 218 / 256 |  |
+
+Probe `fft_fir`: each cell is the recorded figure / its ceiling, in bytes (start-up functions: a count).
+
+| figure | `m4-softfp` | `m4f` | `m33` | `m55` | `hexagon` |
+|---|--:|--:|--:|--:|--:|
+| `image.bss` | 13,840 / 14,272 | 13,840 / 14,272 | 13,840 / 14,272 | 13,840 / 14,272 | 13,108 / 13,504 |
+| `image.data` | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 1,372 / 1,472 | 4 / 64 |
+| `image.rodata` | 4,084 / 4,224 | 4,084 / 4,224 | 4,084 / 4,224 | 4,084 / 4,224 | 4,032 / 4,160 |
+| `image.text` | 18,264 / 18,816 | 15,640 / 16,128 | 15,528 / 16,000 | 15,608 / 16,128 | 19,412 / 20,032 |
+| `core.bss` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `core.rodata` | 1,936 / 2,048 | 1,936 / 2,048 | 1,936 / 2,048 | 1,936 / 2,048 | 1,936 / 2,048 |
+| `core.text` | 8,842 / 9,152 | 7,426 / 7,680 | 7,426 / 7,680 | 7,472 / 7,744 | 10,228 / 10,560 |
+| `unit.bss` | 12,824 / 13,248 | 12,824 / 13,248 | 12,824 / 13,248 | 12,824 / 13,248 | 12,824 / 13,248 |
+| `unit.data` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 4 / 64 |
+| `unit.rodata` | 2,060 / 2,176 | 2,060 / 2,176 | 2,060 / 2,176 | 2,060 / 2,176 | 2,056 / 2,176 |
+| `unit.text` | 594 / 640 | 574 / 640 | 574 / 640 | 606 / 640 | 1,260 / 1,344 |
+| `sizeof.state` | 8,204 / 8,512 | 8,204 / 8,512 | 8,204 / 8,512 | 8,204 / 8,512 |  |
+| `sizeof.workspace` | 4,620 / 4,800 | 4,620 / 4,800 | 4,620 / 4,800 | 4,620 / 4,800 |  |
+| `startup.functions` | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 | 0 / 0 |
+| `startup.stack` | 12 / 16 | 12 / 16 | 12 / 16 | 12 / 16 |  |
+| `stack.process.measured` | 656 / 680 | 544 / 568 | 544 / 568 | 552 / 576 |  |
+| `stack.process.static` | 656 / 680 | 560 / 584 | 560 / 584 | 568 / 592 |  |
+| `stack.reset.measured` | 20 / 24 | 20 / 24 | 24 / 32 | 24 / 32 |  |
+| `stack.reset.static` | 20 / 24 | 20 / 24 | 24 / 32 | 24 / 32 |  |
+| `code.process` | 10,628 / 11,008 | 8,124 / 8,384 | 8,124 / 8,384 | 8,202 / 8,512 |  |
+| `code.reset` | 230 / 256 | 230 / 256 | 230 / 256 | 230 / 256 |  |
 <!-- ceilings:end -->
 
 ## The layout benchmark (informational, never a gate)
@@ -512,6 +543,25 @@ mono configurations 10 % more on Hexagon. From 6 channels up interleaved is the 
 key: by 13 to 23 % on the M4F, M33, M55 and the host, 7 % on Hexagon and 2 % on the soft-float
 M4.
 
+The FFT FIR, `fft_fir` of 255 taps in blocks of 256 in `steady<>` at C channels, from its
+spectrum in ROM (kind `fft_fir`), planar over interleaved from Bench run
+[46028066821](https://github.com/tap/catenae/actions/runs/46028066821) at `7c0c5ec`,
+2026-11-27, every pair bit-identical on every key:
+
+| key | `fft_fir` 2 | `fft_fir` 6 | `fft_fir` 12 |
+|---|---:|---:|---:|
+| `m4-softfp` | 1.002 | 1.003 | 1.004 |
+| `m4f` | 1.037 | 1.076 | 1.078 |
+| `m33` | 1.028 | 1.071 | 1.074 |
+| `m55` | 0.996 | 1.011 | 1.016 |
+| `hexagon` | 1.107 | 1.138 | 1.142 |
+| host (x86-64) | 1.022 | 1.029 | 1.039 |
+
+The transforms are the same work in either layout, so the two are close: interleaved is the
+cheaper by 3 to 8 % on the M4F and M33, 2 to 4 % on the host, 11 to 14 % on Hexagon, and within
+2 % on the soft-float M4 and the M55, where the mono configurations are 0.4 % the cheaper for
+stereo. DspTap's spike measured 1.04 to 1.16 for its FFT FIR (PLAN.md section 5.1).
+
 ```sh
 cmake -S . -B build-17 -DCMAKE_BUILD_TYPE=Release -DCMAKE_TOOLCHAIN_FILE=cmake/arm-cortex-m33-mps2.cmake \
       -DCATENAE_BUILD_TESTS=OFF -DCATENAE_BUILD_EXAMPLES=OFF -DCATENAE_BUILD_BENCH=ON
@@ -532,7 +582,9 @@ family, a 63-tap low-pass from its table with a gain after it (`catenae_probe_fi
 rate, whose half-bands are generated constants and whose soft clip is `tanhf`
 (`catenae_probe_overdrive`, `link_gate.OverdriveImageHasNoSoftwareDouble`), and the dynamics
 family, whose per-frame `log` and `exp` are float's `logf` and `expf`
-(`catenae_probe_dynamics`, `link_gate.DynamicsImageHasNoSoftwareDouble`). The `designers`
+(`catenae_probe_dynamics`, `link_gate.DynamicsImageHasNoSoftwareDouble`), and the FFT FIR, whose
+spectrum is a table in ROM and whose transforms and product are the core's float ones
+(`catenae_probe_fft_fir`, `link_gate.FftFirImageHasNoSoftwareDouble`). The `designers`
 probe links `make()` and so its software double on purpose, and the gate does not read it.
 It also proves itself on two fixtures on every Arm key (`bench/link_gate/`, CTest label
 `link_gate`). On the M55, GCC's default FPU has double precision, so a double product is an
@@ -567,6 +619,7 @@ ctest --test-dir build-size -L link_gate
 | `baselines.json`: `fft_f32_512`, `fft_f32_2048`, `fft_f64_512` and `callmax_fft_f32_512`, every key | Bench run [45834933446](https://github.com/tap/catenae/actions/runs/45834933446) at `a23f18f`, 2026-11-26 (`workflow_dispatch` on the C4 FFT branch, the merge of `main` at `10b6fd9`): its `measured-<key>` artifacts, copied unchanged; each FFT workload's checksum the same on all six keys, C++20 and C++23 equal to C++17, and every other count in that run equal to its baseline (C2's `edges` among them). The counts recorded first, from run [45762911188](https://github.com/tap/catenae/actions/runs/45762911188) at `1525e89`, came before the kernel's recursion became a loop (`e7bf0d2`) and before the run-time plans to 2^20 and the static-extent frames (`4989d0e`); this run counted them from 1.33 % below to 2.88 % above those (the M55's `fft_f64_512`), inside the gate, and replaces them |
 | `baselines.json`: `overdrive`, `up2_f32`, `down2_f32`, `up2_q15`, `down2_q15`, `up2_q31` and `down2_q31`, every key; `ceilings.json`: the probe set `overdrive`, every key but `host`; the overdrive layout table above | Bench run [45922339828](https://github.com/tap/catenae/actions/runs/45922339828) at `3d5df56`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c3-rate`): its `measured-<key>.json`, `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The rate family's first figures, measured with the stack bound's pretend-argument area counted (the overdrive's `process` 352 bytes static and painted on the M33). Every other count and figure in that run equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.OverdriveImageHasNoSoftwareDouble` among its tests |
 | `baselines.json`: `compressor_f32`, `expander_f32`, `limiter_f32` and `dynamics`, every key, and the three `callmax_design_` workloads of the family, every key but `host`; `ceilings.json`: the probe set `dynamics`, and the `designers` probe's figures, every key but `host` | Bench run [46001165800](https://github.com/tap/catenae/actions/runs/46001165800) at `617087a`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c3-dynamics`): its `measured-<key>.json` and `ceilings-measured-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The dynamics family's first figures; the `designers` probe gained its three dynamics calls, so its image, core and unit figures rose (on the M33 `core.text` from 5,500 to 6,876 B) and are recorded as measured. The fixes after it, at `87808ee`, change no code the bench builds. Every other count and figure in that run equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.DynamicsImageHasNoSoftwareDouble` among its tests |
+| `baselines.json`: `fft_fir_f32`, `fir_f32_255`, every key, and `callmax_fft_fir_f32` and `callmax_design_fft_fir_f32_255`, every key but `host`; `ceilings.json`: the probe set `fft_fir`, and the `designers` probe's figures, every key but `host`; the FFT FIR layout table above | Bench run [46028066821](https://github.com/tap/catenae/actions/runs/46028066821) at `7c0c5ec`, 2026-11-27 (`workflow_dispatch` on `claude/catenae-c4-fft-fir`): its `measured-<key>.json`, `ceilings-measured-<key>.json` and `layout-<key>.json` artifacts, the counts copied and the ceilings computed by `scripts/ceilings.py`'s rule. The FFT FIR's first figures; the `designers` probe gained the spectrum's `make()`, so its image, core and unit figures rose (on the M33 `core.text` from 6,876 to 11,996 B, `unit.bss` from 8,188 to 14,356 B, the spectrum's table and workspace) and are recorded as measured. The run before, [46021806011](https://github.com/tap/catenae/actions/runs/46021806011) at `21b68cb`, printed another checksum for `fft_fir_f32` on the M55 alone: GCC vectorized the product into MVE's fused VCMLA, and the loop is kept scalar under GCC since `7c0c5ec`: no longer vectorized, `fft_fir_f32` rose by 7.4 % on the M55 (22,476,964 to 24,136,464) and 4.3 % on the host (26,811,708 to 27,960,708), by under 0.01 % on the other Arm keys, and its code by 4 B. Every other count and figure in both runs equal to its record, C++20 and C++23 counted equal to C++17 on every key, and the link-stage gate passing on each Arm key, `link_gate.FftFirImageHasNoSoftwareDouble` among its tests |
 | `ceilings.json`: the probe set `fft`, every key but `host` | Bench run [45821938097](https://github.com/tap/catenae/actions/runs/45821938097) at `4989d0e`, 2026-11-26: its `ceilings-measured-<key>.json` artifacts, the ceilings computed by `scripts/ceilings.py`'s rule. Plans made at run time to 2^20 (Q1) widened the kernel's 29 pending entries from 16 to 32 bits, so `forward` and `inverse` reach 56 B more stack on each Arm key (480 B static on the M33, M4F and M55, 568 B on the soft-float M4), and the code figures moved by under 70 B, inside their ceilings, recorded too; every other figure in that run equal to its record (C2's `c2` probe among them), and the link-stage gate's tests passing on each Arm key. The run before, [45771572341](https://github.com/tap/catenae/actions/runs/45771572341) at `e7bf0d2`, recorded the 16-bit list. Run [45834933446](https://github.com/tap/catenae/actions/runs/45834933446) at `a23f18f`, after the merge of `main`, measured every figure of every probe set equal to its record, `c2` among them: the two `scripts/ceilings.py` fixes leave C2's bounds where they were recorded |
 
 That run's toolchains, from its "Toolchain versions" steps: `arm-none-eabi-gcc` 13.2.1
@@ -791,6 +844,44 @@ checksums of what `make()` returned are the same on every key. From the same run
 | `compressor_design` | 11,962 | 11,222 | 11,225 | 602 | 2,147 packets | 452 / 432 |
 | `limiter_design` | 6,942 | 6,615 | 6,617 | 278 | 1,447 packets | 300 / 280 |
 | `expander_design` | 11,925 | 11,257 | 11,262 | 613 | 2,118 packets | 476 / 456 |
+
+### The FFT FIR
+
+`fft_fir_f32` runs the long filter of `examples/long_filter.h`, the 255-tap low-pass at 0.1 by
+`fft_fir` in blocks of 256 in `steady<>`, and `fir_f32_255` the same taps frame by frame
+(`example::long_direct`), each stereo over 1000 callbacks of 64 frames of noise, every design a
+table (`bench/icount/fft_fir_main.cpp`). `callmax_fft_fir_f32` is the FFT FIR's worst single
+callback, and `callmax_design_fft_fir_f32_255` the spectrum's `make()` from the ROM taps (QEMU
+keys only). From Bench run [46028066821](https://github.com/tap/catenae/actions/runs/46028066821);
+every key counted C++20 and C++23 equal to C++17.
+
+| Key | `fft_fir_f32` | `fir_f32_255` | `callmax_fft_fir_f32` | `callmax_design_fft_fir_f32_255` |
+|---|--:|--:|--:|--:|
+| `m4-softfp` | 483,147,552 | 2,782,681,026 | 1,870,403 | 625,297 |
+| `m4f` | 24,885,679 | 134,344,042 | 89,760 | 585,944 |
+| `m33` | 24,912,209 | 134,348,070 | 89,817 | 587,013 |
+| `m55` | 24,136,464 | 126,281,077 | 87,603 | 30,402 |
+| `hexagon` | 9,513,044 packets | 34,434,067 packets | 31,956 packets | 21,066 packets |
+| `host` | 27,960,708 | 79,557,686 | (QEMU keys only) | (QEMU keys only) |
+
+`fft_fir_f32` prints one checksum on all six keys, `87742697d2772ab4`: its transforms and its
+product are the core's, at contraction off, and the product is kept scalar under GCC, whose
+vectorizer would otherwise use MVE's fused VCMLA on the M55. The direct form prints
+`3d07ca246d850106` where the compiler fuses no multiply-add (the soft-float M4, x86-64) and
+`3dd3119859716d0e` where it does, the FIR's header kernel compiled under the workload's flags;
+the spectrum's `make()` prints `22b9b754269c82dd` on every QEMU key.
+
+A run writes 128,000 samples, so on the M33 the FFT FIR costs 195 instructions a sample and the
+direct form 1,050, 5.4 times as many; 5.2 times on the M55, 5.8 on the soft-float M4, 3.6 on
+Hexagon and 2.8 on the host. The work is not even: three callbacks in four only copy, and the
+fourth runs the block, the worst at 89,817 instructions on the M33 against a mean of 23,350
+(the plugin's line for `callmax_fft_fir_f32`), still below the direct form's 134,300 on every
+callback. On the M33 a voice is 8,204 bytes and the workspace 4,620 (`sizeof.state`,
+`sizeof.workspace` in the `fft_fir` probe's table), its unit's `.rodata` 2,060 bytes, the spectrum's
+2,056 among them, and
+`process` reaches 560 bytes of stack static, 544 painted. The spectrum's `make()` is one double
+transform of 512, software double on the M4, M4F and M33, and reaches 872 bytes of stack on the
+M33 (the `designers` probe, static and painted alike).
 
 ### The floating FFT
 

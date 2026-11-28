@@ -119,12 +119,14 @@ namespace catenae {
 
         // The constants the core defines (src/window.cpp), declared so that no image instantiates
         // one of its own.
+/// The five shapes' constants of length N in S, declared (undefined after use).
 #define CATENAE_WINDOW_EXTERN_SHAPES(S, N)                                                                             \
     extern template struct window_tables<S, window_shape::hann, N>;                                                    \
     extern template struct window_tables<S, window_shape::sqrt_hann, N>;                                               \
     extern template struct window_tables<S, window_shape::hamming, N>;                                                 \
     extern template struct window_tables<S, window_shape::blackman, N>;                                                \
     extern template struct window_tables<S, window_shape::blackman_harris, N>;
+/// Every length's constants in S, declared (undefined after use).
 #define CATENAE_WINDOW_EXTERN_LENGTHS(S)                                                                               \
     CATENAE_WINDOW_EXTERN_SHAPES(S, 16)                                                                                \
     CATENAE_WINDOW_EXTERN_SHAPES(S, 32)                                                                                \

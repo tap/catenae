@@ -12,7 +12,9 @@
 #include <cstdio>
 
 #include "catenae/compiler.h"
+#include "catenae/config.h"
 #include "catenae/mailbox.h"
+#include "flush_to_zero.h"
 
 namespace {
 
@@ -73,6 +75,9 @@ namespace {
 } // namespace
 
 int main() {
+#if CATENAE_FLUSH_TO_ZERO
+    example::flush_subnormals_on_this_thread(); // once, before the first callback (AOU-008)
+#endif
     example::programme_meters.reset(s_programme.state);
     std::uint32_t seen  = 0;
     std::size_t   frame = 0;

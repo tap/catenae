@@ -25,7 +25,7 @@ namespace catenae {
 
             namespace {
 
-                constexpr double k_pi = 3.141592653589793238462643383279502884;
+                constexpr double k_loudness_pi = 3.141592653589793238462643383279502884;
 
                 /// The rate BS.1770-4's tables are at.
                 constexpr double k_table_rate = 48000.0;
@@ -34,7 +34,7 @@ namespace catenae {
                 constexpr double k_reference_hz = 997.0;
 
                 /// The grid the latency scan uses: 1,024 intervals, the cookbook's.
-                constexpr int k_grid = 1024;
+                constexpr int k_loudness_grid = 1024;
 
                 /// An analog second-order section, (Vh s^2 + Vb s / Q + Vl) / (s^2 + s / Q + 1)
                 /// with s normalised to its f0.
@@ -55,13 +55,13 @@ namespace catenae {
                     const double a2 = r[4];
                     const double k  = std::sqrt((1.0 + a1 + a2) / (1.0 - a1 + a2));
                     const double kq = 2.0 * (1.0 - a2) / (1.0 - a1 + a2); // K / Q
-                    return {rate * std::atan(k) / k_pi, k / kq, (b0 - b1 + b2) / (1.0 - a1 + a2),
+                    return {rate * std::atan(k) / k_loudness_pi, k / kq, (b0 - b1 + b2) / (1.0 - a1 + a2),
                             (b0 - b2) / (1.0 - a2), (b0 + b1 + b2) / (1.0 + a1 + a2)};
                 }
 
                 /// The section's transform at `rate`, pre-warped at its f0, normalised.
                 biquad_row<double> transformed(const analog_section& a, double rate) noexcept {
-                    const double k  = std::tan(k_pi * a.f0 / rate);
+                    const double k  = std::tan(k_loudness_pi * a.f0 / rate);
                     const double kq = k / a.q;
                     const double k2 = k * k;
                     const double a0 = 1.0 + kq + k2;
@@ -99,14 +99,14 @@ namespace catenae {
             stage_latency k_weighting_latency(span<const biquad_row<double>> sections, double sample_rate_hz) noexcept {
                 const double nominal = cascade_group_delay(sections, k_reference_hz / sample_rate_hz);
                 double       peak    = 0.0;
-                for (int i = 0; i <= k_grid; ++i) {
-                    const double m = cascade_magnitude(sections, 0.5 * static_cast<double>(i) / k_grid);
+                for (int i = 0; i <= k_loudness_grid; ++i) {
+                    const double m = cascade_magnitude(sections, 0.5 * static_cast<double>(i) / k_loudness_grid);
                     peak           = m > peak ? m : peak;
                 }
                 const double floor = peak / std::sqrt(2.0);
                 double       dev   = 0.0;
-                for (int i = 0; i <= k_grid; ++i) {
-                    const double f = 0.5 * static_cast<double>(i) / k_grid;
+                for (int i = 0; i <= k_loudness_grid; ++i) {
+                    const double f = 0.5 * static_cast<double>(i) / k_loudness_grid;
                     if (cascade_magnitude(sections, f) >= floor) {
                         const double d = std::fabs(cascade_group_delay(sections, f) - nominal);
                         dev            = d > dev ? d : dev;

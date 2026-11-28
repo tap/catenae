@@ -205,10 +205,13 @@ namespace {
         constexpr std::size_t ch = M::input_port::channels;
         // The tone in the meter's own type, so a float stream takes no double per frame.
         const std::vector<double> period = cycle_of(1000.0, rate);
-        const std::vector<value>  cycle(period.begin(), period.end());
-        std::vector<value>        buf(241 * ch);
-        std::size_t               frame = 0;
-        std::uint32_t             seen  = meter.results_ready(st);
+        std::vector<value>        cycle(period.size());
+        for (std::size_t i = 0; i < period.size(); ++i) {
+            cycle[i] = static_cast<value>(period[i]);
+        }
+        std::vector<value> buf(241 * ch);
+        std::size_t        frame = 0;
+        std::uint32_t      seen  = meter.results_ready(st);
         for (const auto& p : pieces) {
             const auto            n = static_cast<std::size_t>(std::llround(p.seconds * rate));
             std::array<value, ch> gain{};

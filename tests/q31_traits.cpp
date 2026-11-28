@@ -8,6 +8,7 @@
 // instantiated until its profile arrives at C6.
 // Verifies CAT-STAGE-001.
 #include <cstdint>
+#include <type_traits>
 
 #include "catenae/analyzer_traits.h"
 #include "catenae/autocorrelation.h"
@@ -26,6 +27,7 @@
 #include "catenae/interleave.h"
 #include "catenae/junction_traits.h"
 #include "catenae/limiter.h"
+#include "catenae/loudness_meter.h"
 #include "catenae/map.h"
 #include "catenae/mix.h"
 #include "catenae/pack.h"
@@ -38,6 +40,7 @@
 #include "catenae/stage_traits.h"
 #include "catenae/steady.h"
 #include "catenae/tap.h"
+#include "catenae/true_peak_meter.h"
 #include "catenae/unpack.h"
 
 namespace {
@@ -103,5 +106,15 @@ namespace {
     static_assert(contract<catenae::tap<2, catenae::autocorrelation_q31<2, 8, 64>>>(), "q31 autocorrelation");
     static_assert(contract<catenae::tap<2, catenae::cross_correlation_q31<2, 0, 1, 8, 64>>>(), "q31 cross-correlation");
     static_assert(catenae::analyzer_traits<catenae::ppm_meter_q31<1, 32>>::opted_in, "the q31 PPM, an analyzer");
+    // True peak runs in q31 at C5, its sums exact; loudness's K-weighting arrives at C6, its
+    // contract here (a Q2.30 table).
+    static_assert(contract<catenae::tap<2, catenae::true_peak_meter_q31<2, 64>>>(), "a q31 true-peak meter's tap");
+    static_assert(contract<catenae::tap<2, catenae::loudness_meter_q31<2, 960, 5>>>(),
+                  "a q31 loudness meter's tap: its contract");
+    static_assert(catenae::analyzer_traits<catenae::loudness_meter_q31<1, 96, 1>>::opted_in,
+                  "the q31 loudness meter, an analyzer");
+    static_assert(
+        std::is_same<catenae::loudness_meter_q31<1, 96, 1>::design_type::coefficient_type, std::int32_t>::value,
+        "a Q2.30 K-weighting table");
 
 } // namespace

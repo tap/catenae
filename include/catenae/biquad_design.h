@@ -209,6 +209,8 @@ namespace catenae {
 
         template <typename S, std::size_t Order>
         class butterworth_design;
+        template <typename S>
+        class k_weighting_design; // catenae/loudness_design.h
 
         /// @brief `Sections` biquad sections in S's kernel type, with the numbers its stage
         /// reports. A class, not an aggregate: only `make()` and `from_table()` produce one.
@@ -270,6 +272,8 @@ namespace catenae {
           private:
             template <typename, std::size_t>
             friend class butterworth_design;
+            template <typename>
+            friend class k_weighting_design;
 
             constexpr biquad_design(const table_type& rows, const biquad_numbers& numbers) noexcept
                 : m_rows(rows)

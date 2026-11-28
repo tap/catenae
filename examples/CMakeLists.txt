@@ -30,6 +30,8 @@ catenae_add_example(long_filter)
 target_include_directories(catenae_example_long_filter PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 catenae_add_example(meters)
 target_include_directories(catenae_example_meters PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
+catenae_add_example(loudness)
+target_include_directories(catenae_example_loudness PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 target_include_directories(catenae_example_arithmetic_costs PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}")
 
 # Its figure (guide/src/figures/steady.svg) is drawn from its output: on a host with Python, the

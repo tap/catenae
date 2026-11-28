@@ -22,7 +22,8 @@
 /// | Constants   | `window::hann`, `sqrt_hann`, `hamming`, `blackman`, `blackman_harris` name a |
 /// |             | table of the core, `window_tables<S, Shape, N>`, at each power of two N from |
 /// |             | 16 to 8192 (`window_max_table_size`): constant, one section per table, so an |
-/// |             | image keeps only those it names                                             |
+/// |             | image linked with section garbage collection (`--gc-sections`, as every     |
+/// |             | bare-metal leg is) keeps only those it names; without, all 100: 491,640 B    |
 /// | Make        | `make(shape, table)` builds a named window at any FFT length into the       |
 /// |             | caller's N/2 + 1 values, the constants' bits; `make(window::kaiser{beta},     |
 /// |             | table)` a Kaiser                                                            |

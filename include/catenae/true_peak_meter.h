@@ -22,7 +22,7 @@
 /// | Arithmetic | the taps are the Annex's, multiples of 2^-13: exact in float and double,     |
 /// |            | which sum each point in S, its products in tap order; exact in integers for  |
 /// |            | a fixed-point format, whose sums have no rounding point and cannot overflow  |
-/// |            | (the largest, 2.023 x full scale, takes 29 bits from Q15, 47 from Q31)       |
+/// |            | (the largest, 2.023 x full scale, is below 2^30 from Q15, 2^46 from 32 bits) |
 /// | State      | each channel's last 12 frames, twice over; each hop's peaks, the hop so far, |
 /// |            | the latest result; at rest all zero (`rests_at_zero`)                        |
 /// | Formats    | float, double, q15, q31, Q4.27 (D47)                                         |
@@ -31,10 +31,11 @@
 /// |            | after the frame that holds it                                                |
 /// | Limits     | the Annex's filter as published: its points fall an eighth of a frame off    |
 /// |            | the samples, so a peak on a sample reads below it; its phases' DC gains are  |
-/// |            | +0.014 and -0.238 dB; at 48 kHz EBU Tech 3341's signals 15 to 23 read -6.22, |
-/// |            | -5.98, -6.31, -6.03, +3.03 and -0.09 to -0.21 dB TP (each within +0.2/-0.4 of |
-/// |            | the table's -6.0, +3.0 and 0.0); a test pins them. A NaN in the last 12      |
-/// |            | frames is its channel's result until the window has passed it               |
+/// |            | +0.014 and -0.238 dB; at 48 kHz EBU Tech 3341's signals 15 to 19 read -6.22, |
+/// |            | -5.98, -6.31, -6.03 and +3.03 dB TP, and 20 to 23, as the battery makes them |
+/// |            | (401 taps at 4x, Kaiser beta 10), -0.03, +0.03, -0.14 and -0.18: each within |
+/// |            | +0.2/-0.4 of the table's -6.0, +3.0 and 0.0; a test pins them. A NaN in the  |
+/// |            | last 12 frames is its channel's result until the window has passed it       |
 /// | Cost       | per frame and channel 48 multiply-adds, four magnitudes and comparisons; per |
 /// |            | hop the window's `Window / Hop` hops compared per channel                    |
 /// | Contraction| floating sums pinned at contraction off; a header template, it compiles      |

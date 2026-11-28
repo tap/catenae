@@ -33,8 +33,10 @@
 /// |             | largest departure over the 1,025 points from 0 to 1/2 within 3 dB of the    |
 /// |             | largest gain, the cookbook's rule; tails and residue as `biquad_design`     |
 /// |             | computes them                                                               |
-/// | Cost        | `make()` runs outside the audio path, in double: see the card's measured     |
-/// |             | figures in bench/README.md ("The analyzers")                                 |
+/// | Cost        | `make()` runs outside the audio path, in double. Worst of 44.1, 48 and 96 kHz |
+/// |             | (Bench run 46089381559): 44.3 M instructions on the Cortex-M33, whose double |
+/// |             | is software, and 1.3 M on the M55; 2,240 B of stack static on the M33, 2,232 |
+/// |             | painted. A target that cannot afford it takes a table, as examples/loudness.h |
 /// | Formats     | float and double; q31 holds a Q2.30 table (`biquad_design<q31, 2>`), and its |
 /// |             | design arrives with the section scaling at C6 (D47)                          |
 /// | Rationale   | D12, D24, D37, D47                                                          |

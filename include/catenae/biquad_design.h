@@ -32,8 +32,8 @@
 /// | Residue     | 256 times S's smallest normal after the exact tail (DspTap's bound), pinned at |
 /// |             | the battery's designs under either flush-to-zero setting                      |
 /// | Cost        | `make()` runs in the caller's frame, outside the audio path. Cortex-M33, worst |
-/// |             | call (Bench run 45837885047): a cookbook section 28.2 M instructions, 1,380 B of |
-/// |             | stack; order 2, 4, 8, 16: 9.8, 16.8, 33.0, 74.8 M, 1,300, 2,008, 6,120, 22,008 B |
+/// |             | call (Bench run 45837885047; order 4's stack 46089381559): a cookbook section   |
+/// |             | 28.2 M, 1,380 B; order 2, 4, 8, 16: 9.8, 16.8, 33.0, 74.8 M, 1,300, 2,168, 6,120, 22,008 B |
 /// | Table       | `from_table(rows, numbers)` checks, exactly in S, each row's poles inside the |
 /// |             | unit circle and its coefficients finite: a failing table does not initialise a |
 /// |             | constant, and one met at run time reaches `check::table_rejected`              |

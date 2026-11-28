@@ -166,6 +166,15 @@ foreach(_kind IN ITEMS loudness_f32:0 true_peak_q15:1 true_peak_q31:2)
     target_include_directories(catenae_icount_${_kname} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 catenae_add_icount(callmax_design_k_weighting icount/k_weighting_design_main.cpp)
+# The transform domain (C5): PLAN.md 9.5's region of examples/spectral_gate.h in steady, and its
+# worst single callback, one that completes a hop (QEMU keys only).
+foreach(_kind IN ITEMS denoise_f32:0 callmax_denoise_f32:1)
+    string(REPLACE ":" ";" _parts "${_kind}")
+    list(GET _parts 0 _kname)
+    list(GET _parts 1 _bracket)
+    catenae_add_icount(${_kname} icount/denoise_main.cpp DEFINITIONS CATENAE_ICOUNT_BRACKET=${_bracket})
+    target_include_directories(catenae_icount_${_kname} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
+endforeach()
 
 # --- The layout benchmark: interleaved against planar, informational (bench/layout/) --------
 add_subdirectory(layout)
@@ -205,12 +214,13 @@ catenae_add_probe(dynamics probe/dynamics_probe.cpp)
 catenae_add_probe(fft_fir probe/fft_fir_probe.cpp)
 catenae_add_probe(meters probe/meters_probe.cpp)
 catenae_add_probe(loudness probe/loudness_probe.cpp)
+catenae_add_probe(denoise probe/denoise_probe.cpp)
 catenae_add_probe(designers probe/designers_probe.cpp)
 foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip catenae_probe_recursive catenae_stack_recursive
                         catenae_probe_fir catenae_stack_fir catenae_probe_overdrive catenae_stack_overdrive
                         catenae_probe_dynamics catenae_stack_dynamics catenae_probe_fft_fir catenae_stack_fft_fir
                         catenae_probe_designers catenae_stack_designers catenae_probe_meters catenae_stack_meters
-                        catenae_probe_loudness catenae_stack_loudness)
+                        catenae_probe_loudness catenae_stack_loudness catenae_probe_denoise catenae_stack_denoise)
     target_include_directories(${_probe} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 
@@ -266,6 +276,9 @@ int main() { return 0; }" CATENAE_HARDWARE_DOUBLE)
     add_test(NAME link_gate.LoudnessImageHasNoSoftwareDouble
              COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
                      $<TARGET_FILE:catenae_probe_loudness>)
+    add_test(NAME link_gate.DenoiseImageHasNoSoftwareDouble
+             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
+                     $<TARGET_FILE:catenae_probe_denoise>)
     if(CATENAE_HARDWARE_DOUBLE)
         add_test(NAME link_gate.HardwareDoubleIsInvisible
                  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py

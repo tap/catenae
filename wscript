@@ -210,7 +210,7 @@ def build(bld):
         features="cxx cxxprogram test",
         source=bld.path.ant_glob("tests/test_*.cpp")
         + ["tests/support/catenae_test/check_trap.cpp", "tests/support/catenae_test/floating_point.cpp",
-           "examples/difference_battery.cpp"],
+           "examples/difference_battery.cpp", "examples/spectral_gate_battery.cpp"],
         includes=includes + ["tests/support", "tests/fixtures", "examples"],
         use=["catenae", "catenae_gtest_main", "catenae_gtest"],
         defines=["CATENAE_TEST_PROJECT_VERSION_MAJOR=" + major, "CATENAE_TEST_PROJECT_VERSION_MINOR=" + minor,
@@ -224,6 +224,7 @@ def build(bld):
         "arithmetic_costs": ["examples/arithmetic_costs.cpp"],
         "audio_callback": ["examples/audio_callback.cpp"],
         "bursts_and_buffering": ["examples/bursts_and_buffering.cpp"],
+        "denoise": ["examples/denoise.cpp"],
         "edges": ["examples/edges.cpp"],
         "long_filter": ["examples/long_filter.cpp"],
         "loudness": ["examples/loudness.cpp"],

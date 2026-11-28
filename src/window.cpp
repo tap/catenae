@@ -50,17 +50,21 @@ namespace catenae {
                     }
                 };
 
-                /// Every first-octant angle 2 pi k / 2^L, k = 0 to 2^L / 8, computed once.
+                /// The first-octant angles of 2^L: 2 pi k / 2^L, k = 0 to 2^L / 8.
+                template <int L>
+                constexpr std::array<fft_trig::octant_values, (std::size_t{1} << L) / 8u + 1u> make_octants() noexcept {
+                    std::array<fft_trig::octant_values, (std::size_t{1} << L) / 8u + 1u> t{};
+                    for (std::size_t k = 0; k < t.size(); ++k) {
+                        t[k] = fft_trig::first_octant(k, L);
+                    }
+                    return t;
+                }
+
+                /// Every first-octant angle of 2^L, computed once.
                 template <int L>
                 struct octant_table {
                     static constexpr std::array<fft_trig::octant_values, (std::size_t{1} << L) / 8u + 1u> k_values =
-                        [] {
-                            std::array<fft_trig::octant_values, (std::size_t{1} << L) / 8u + 1u> t{};
-                            for (std::size_t k = 0; k < t.size(); ++k) {
-                                t[k] = fft_trig::first_octant(k, L);
-                            }
-                            return t;
-                        }();
+                        make_octants<L>();
                 };
 
                 /// The constants' source for a window of 2^L samples: the same values, each angle

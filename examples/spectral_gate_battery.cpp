@@ -28,10 +28,11 @@ namespace {
     TEST(spectral_gate, PassesTheGenericTests) {
         // The harness's bins are within [-1, 1] each part: some reach 0.25 in power, some not.
         constexpr example::spectral_gate<9, 2> stage{example::gate_design{0.25f, 0.1f, 0.5f, 0.125f}};
-        EXPECT_TRUE(catenae_test::reset_ignores_storage(stage));
-        EXPECT_TRUE(catenae_test::counts_are_exact(stage));
+        // 400 frames of 18 bins each: a spectrum's frames are large, and a bare-metal heap small.
+        EXPECT_TRUE(catenae_test::reset_ignores_storage(stage, 400));
+        EXPECT_TRUE(catenae_test::counts_are_exact(stage, 400));
         EXPECT_TRUE(catenae_test::arrival_numbers_hold(stage, true));
-        EXPECT_TRUE(catenae_test::chunking_is_bit_exact(stage));
+        EXPECT_TRUE(catenae_test::chunking_is_bit_exact(stage, 400));
     }
 
     // The design's numbers: a full-scale sine's bin is n/4, and the dB are tenths of decades.

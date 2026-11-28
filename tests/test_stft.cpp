@@ -155,9 +155,11 @@ namespace {
             ASSERT_EQ(got.size(), expected.size()) << largest;
             EXPECT_EQ(std::memcmp(got.data(), expected.data(), got.size() * sizeof(got[0])), 0) << largest;
         }
-        EXPECT_TRUE(catenae_test::reset_ignores_storage(stage));
-        EXPECT_TRUE(catenae_test::counts_are_exact(stage));
-        EXPECT_TRUE(catenae_test::chunking_is_bit_exact(stage));
+        // 200 frames of spectra, 3200 samples out: the harness's default 2000 frames are 1 MB of
+        // input, past the M55 image's heap beside the output they write.
+        EXPECT_TRUE(catenae_test::reset_ignores_storage(stage, 200));
+        EXPECT_TRUE(catenae_test::counts_are_exact(stage, 200));
+        EXPECT_TRUE(catenae_test::chunking_is_bit_exact(stage, 200));
     }
 
     /// The largest |y[m] - x[m - delay]| of a pair over noise, past its first frame of output.

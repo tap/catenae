@@ -14,5 +14,6 @@
 - [Long filters](long_filters.md)
 - [One channel, many](one_channel_many.md)
 - [Meters](meters.md)
+- [Loudness and true peak](loudness.md)
 - [Measuring](measuring.md)
 - [Writing a stage](writing_a_stage.md)

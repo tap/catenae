@@ -235,6 +235,17 @@ namespace {
                                    reading_of<format>(tone(0.25, 1.41, 45.0))};
             const double card[] = {-6.217, -5.975, -6.314, -6.028, 3.030};
             const double want[] = {-6.0, -6.0, -6.0, -6.0, 3.0};
+            // The samples' own peaks, which a sample-peak meter reads: 15's is its true peak, 16's
+            // is 3 dB below it.
+            const auto sample_peak_db = [](const std::vector<double>& x) {
+                double top = 0.0;
+                for (const double v : x) {
+                    top = std::fabs(v) > top ? std::fabs(v) : top;
+                }
+                return 20.0 * std::log10(top);
+            };
+            EXPECT_NEAR(sample_peak_db(tone(0.25, 0.5, 0.0)), -6.02, 0.01);
+            EXPECT_NEAR(sample_peak_db(tone(0.25, 0.5, 45.0)), -9.03, 0.01);
             for (std::size_t i = 0; i < 5; ++i) {
                 EXPECT_NEAR(read[i], card[i], 0.01) << "signal " << 15 + i;
                 EXPECT_LE(read[i], want[i] + 0.2) << "signal " << 15 + i;

@@ -146,6 +146,17 @@ foreach(_kind IN ITEMS fft_fir_f32:0:0 fir_f32_255:1:0 callmax_fft_fir_f32:0:1 c
     target_include_directories(catenae_icount_${_kname} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 
+# The analyzers (C5): the stereo bus's meters of examples/meters.h in float, and peak, RMS and
+# correlation in Q15 and Q31; and what the peak programme meter's make() costs (QEMU keys only).
+foreach(_kind IN ITEMS meters_f32:0 meters_q15:1 meters_q31:2)
+    string(REPLACE ":" ";" _parts "${_kind}")
+    list(GET _parts 0 _kname)
+    list(GET _parts 1 _kid)
+    catenae_add_icount(${_kname} icount/meters_main.cpp DEFINITIONS CATENAE_METERS_KIND=${_kid})
+    target_include_directories(catenae_icount_${_kname} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
+endforeach()
+catenae_add_icount(callmax_design_ppm icount/ppm_design_main.cpp)
+
 # --- The layout benchmark: interleaved against planar, informational (bench/layout/) --------
 add_subdirectory(layout)
 
@@ -182,11 +193,12 @@ catenae_add_probe(fir probe/fir_probe.cpp)
 catenae_add_probe(overdrive probe/overdrive_probe.cpp)
 catenae_add_probe(dynamics probe/dynamics_probe.cpp)
 catenae_add_probe(fft_fir probe/fft_fir_probe.cpp)
+catenae_add_probe(meters probe/meters_probe.cpp)
 catenae_add_probe(designers probe/designers_probe.cpp)
 foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip catenae_probe_recursive catenae_stack_recursive
                         catenae_probe_fir catenae_stack_fir catenae_probe_overdrive catenae_stack_overdrive
                         catenae_probe_dynamics catenae_stack_dynamics catenae_probe_fft_fir catenae_stack_fft_fir
-                        catenae_probe_designers catenae_stack_designers)
+                        catenae_probe_designers catenae_stack_designers catenae_probe_meters catenae_stack_meters)
     target_include_directories(${_probe} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 
@@ -236,6 +248,9 @@ int main() { return 0; }" CATENAE_HARDWARE_DOUBLE)
     add_test(NAME link_gate.FftFirImageHasNoSoftwareDouble
              COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
                      $<TARGET_FILE:catenae_probe_fft_fir>)
+    add_test(NAME link_gate.MetersImageHasNoSoftwareDouble
+             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
+                     $<TARGET_FILE:catenae_probe_meters>)
     if(CATENAE_HARDWARE_DOUBLE)
         add_test(NAME link_gate.HardwareDoubleIsInvisible
                  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py

@@ -226,6 +226,7 @@ def build(bld):
         "bursts_and_buffering": ["examples/bursts_and_buffering.cpp"],
         "edges": ["examples/edges.cpp"],
         "long_filter": ["examples/long_filter.cpp"],
+        "meters": ["examples/meters.cpp"],
         "overdrive": ["examples/overdrive.cpp"],
         "planar": ["examples/planar.cpp"],
         "dynamics": ["examples/dynamics.cpp"],

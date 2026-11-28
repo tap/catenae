@@ -111,6 +111,7 @@ catenae_add_gtest_executable(catenae_tests
         test_check.cpp
         test_compiler.cpp
         test_convert.cpp
+        test_correlation.cpp
         test_convert_shift.cpp
         test_delay.cpp
         test_dither.cpp
@@ -133,12 +134,14 @@ catenae_add_gtest_executable(catenae_tests
         test_junction_traits.cpp
         test_mailbox.cpp
         test_map.cpp
+        test_meters.cpp
         test_mix.cpp
         test_oversample.cpp
         test_pack.cpp
         test_parallel.cpp
         test_planar_section.cpp
         test_port.cpp
+        test_ppm.cpp
         test_ratio.cpp
         test_resample.cpp
         test_sample_format.cpp
@@ -148,6 +151,7 @@ catenae_add_gtest_executable(catenae_tests
         test_stage_traits.cpp
         test_steady.cpp
         test_table_view.cpp
+        test_tap.cpp
         test_unpack.cpp
         test_version.cpp
         test_wire.cpp

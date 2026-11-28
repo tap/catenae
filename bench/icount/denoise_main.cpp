@@ -16,7 +16,6 @@
 // folds the first and last value each callback writes.
 #include <array>
 #include <cinttypes>
-#include <cmath>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
@@ -48,9 +47,11 @@ namespace {
 
     CATENAE_CONSTINIT catenae::memory_of<example::denoise_t> s_memory{};
 
-    /// One hop of the tone, 0.25 at bin 32's centre: a period of 16 frames, so 128 frames hold
-    /// eight, made once outside the counted loop's arithmetic.
-    CATENAE_CONSTINIT std::array<float, 128> s_tone{};
+    /// The tone, 0.25 sin(2 pi n / 16), at bin 32's centre: one period, each value the float
+    /// nearest, so no target's libm shapes the input.
+    constexpr std::array<float, 16> k_tone = {
+        0.0f, 0.0956708580f,  0.176776695f,  0.230969883f,  0.25f,  0.230969883f,  0.176776695f,  0.0956708580f,
+        0.0f, -0.0956708580f, -0.176776695f, -0.230969883f, -0.25f, -0.230969883f, -0.176776695f, -0.0956708580f};
 
 } // namespace
 
@@ -66,8 +67,8 @@ extern "C" CATENAE_PROBE_NOINLINE std::uint64_t catenae_host_counted() noexcept 
             seed ^= seed << 13u;
             seed ^= seed >> 17u;
             seed ^= seed << 5u;
-            const std::size_t at = (static_cast<std::size_t>(block) * in.size() + f) % s_tone.size();
-            in[f]                = s_tone[at] + 0.04f * (static_cast<float>(seed / 256u) / 16777216.0f - 0.5f);
+            const std::size_t at = (static_cast<std::size_t>(block) * in.size() + f) % k_tone.size();
+            in[f]                = k_tone[at] + 0.04f * (static_cast<float>(seed / 256u) / 16777216.0f - 0.5f);
         }
 #if CATENAE_ICOUNT_BRACKET
         catenae_call_begin();
@@ -82,9 +83,6 @@ extern "C" CATENAE_PROBE_NOINLINE std::uint64_t catenae_host_counted() noexcept 
 }
 
 int main() {
-    for (std::size_t i = 0; i < s_tone.size(); ++i) {
-        s_tone[i] = 0.25f * std::sin(2.0f * 3.14159265358979f * static_cast<float>(i) / 16.0f);
-    }
     const std::uint64_t hash = catenae_host_counted();
     // Two 32-bit halves: newlib's <inttypes.h> has no PRIx64.
     const auto high = static_cast<std::uint32_t>(hash / 4294967296ull);

@@ -108,6 +108,60 @@
         "recorded": 1744
       }
     },
+    "denoise": {
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 3072,
+        "recorded": 2964
+      },
+      "core.text": {
+        "ceiling": 10496,
+        "recorded": 10156
+      },
+      "image.bss": {
+        "ceiling": 12480,
+        "recorded": 12116
+      },
+      "image.data": {
+        "ceiling": 64,
+        "recorded": 4
+      },
+      "image.rodata": {
+        "ceiling": 3136,
+        "recorded": 3000
+      },
+      "image.text": {
+        "ceiling": 21056,
+        "recorded": 20404
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.bss": {
+        "ceiling": 12224,
+        "recorded": 11832
+      },
+      "unit.data": {
+        "ceiling": 64,
+        "recorded": 24
+      },
+      "unit.rodata": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.text": {
+        "ceiling": 2304,
+        "recorded": 2188
+      }
+    },
     "designers": {
       "core.bss": {
         "ceiling": 0,
@@ -938,6 +992,96 @@
         "recorded": 726
       }
     },
+    "denoise": {
+      "code.process": {
+        "ceiling": 9088,
+        "recorded": 8798
+      },
+      "code.reset": {
+        "ceiling": 384,
+        "recorded": 366
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 3072,
+        "recorded": 2964
+      },
+      "core.text": {
+        "ceiling": 7616,
+        "recorded": 7362
+      },
+      "image.bss": {
+        "ceiling": 13248,
+        "recorded": 12848
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 3200,
+        "recorded": 3076
+      },
+      "image.text": {
+        "ceiling": 16704,
+        "recorded": 16176
+      },
+      "sizeof.state": {
+        "ceiling": 6912,
+        "recorded": 6684
+      },
+      "sizeof.workspace": {
+        "ceiling": 5312,
+        "recorded": 5148
+      },
+      "stack.process.measured": {
+        "ceiling": 656,
+        "recorded": 632
+      },
+      "stack.process.static": {
+        "ceiling": 672,
+        "recorded": 648
+      },
+      "stack.reset.measured": {
+        "ceiling": 56,
+        "recorded": 48
+      },
+      "stack.reset.static": {
+        "ceiling": 56,
+        "recorded": 48
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 12224,
+        "recorded": 11832
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 24
+      },
+      "unit.text": {
+        "ceiling": 1344,
+        "recorded": 1288
+      }
+    },
     "designers": {
       "code.butterworth_16": {
         "ceiling": 17856,
@@ -972,16 +1116,16 @@
         "recorded": 7480
       },
       "code.fir_1023": {
-        "ceiling": 14016,
-        "recorded": 13552
+        "ceiling": 13824,
+        "recorded": 13360
       },
       "code.fir_63": {
-        "ceiling": 14464,
-        "recorded": 14022
+        "ceiling": 14272,
+        "recorded": 13830
       },
       "code.fir_q15_255": {
-        "ceiling": 15232,
-        "recorded": 14784
+        "ceiling": 15040,
+        "recorded": 14592
       },
       "code.k_weighting": {
         "ceiling": 20480,
@@ -1008,8 +1152,8 @@
         "recorded": 4064
       },
       "core.text": {
-        "ceiling": 15168,
-        "recorded": 14712
+        "ceiling": 14976,
+        "recorded": 14520
       },
       "image.bss": {
         "ceiling": 15872,
@@ -1024,8 +1168,8 @@
         "recorded": 5992
       },
       "image.text": {
-        "ceiling": 54912,
-        "recorded": 53252
+        "ceiling": 54656,
+        "recorded": 53060
       },
       "stack.butterworth_16.measured": {
         "ceiling": 22664,
@@ -1092,28 +1236,28 @@
         "recorded": 872
       },
       "stack.fir_1023.measured": {
-        "ceiling": 408,
-        "recorded": 392
+        "ceiling": 392,
+        "recorded": 376
       },
       "stack.fir_1023.static": {
-        "ceiling": 1112,
-        "recorded": 1076
+        "ceiling": 1096,
+        "recorded": 1060
       },
       "stack.fir_63.measured": {
-        "ceiling": 1448,
-        "recorded": 1400
+        "ceiling": 1432,
+        "recorded": 1384
       },
       "stack.fir_63.static": {
-        "ceiling": 2152,
-        "recorded": 2084
+        "ceiling": 2136,
+        "recorded": 2068
       },
       "stack.fir_q15_255.measured": {
-        "ceiling": 3120,
-        "recorded": 3024
+        "ceiling": 3104,
+        "recorded": 3008
       },
       "stack.fir_q15_255.static": {
-        "ceiling": 3824,
-        "recorded": 3708
+        "ceiling": 3808,
+        "recorded": 3692
       },
       "stack.k_weighting.measured": {
         "ceiling": 2304,
@@ -2300,6 +2444,96 @@
         "recorded": 734
       }
     },
+    "denoise": {
+      "code.process": {
+        "ceiling": 11840,
+        "recorded": 11450
+      },
+      "code.reset": {
+        "ceiling": 1472,
+        "recorded": 1400
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 3072,
+        "recorded": 2964
+      },
+      "core.text": {
+        "ceiling": 9024,
+        "recorded": 8726
+      },
+      "image.bss": {
+        "ceiling": 13248,
+        "recorded": 12848
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 3200,
+        "recorded": 3076
+      },
+      "image.text": {
+        "ceiling": 19776,
+        "recorded": 19160
+      },
+      "sizeof.state": {
+        "ceiling": 6912,
+        "recorded": 6684
+      },
+      "sizeof.workspace": {
+        "ceiling": 5312,
+        "recorded": 5148
+      },
+      "stack.process.measured": {
+        "ceiling": 784,
+        "recorded": 760
+      },
+      "stack.process.static": {
+        "ceiling": 784,
+        "recorded": 760
+      },
+      "stack.reset.measured": {
+        "ceiling": 72,
+        "recorded": 68
+      },
+      "stack.reset.static": {
+        "ceiling": 72,
+        "recorded": 68
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 12224,
+        "recorded": 11832
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 24
+      },
+      "unit.text": {
+        "ceiling": 1408,
+        "recorded": 1332
+      }
+    },
     "designers": {
       "code.butterworth_16": {
         "ceiling": 18176,
@@ -2334,16 +2568,16 @@
         "recorded": 7806
       },
       "code.fir_1023": {
-        "ceiling": 13504,
-        "recorded": 13064
+        "ceiling": 13248,
+        "recorded": 12856
       },
       "code.fir_63": {
-        "ceiling": 14016,
-        "recorded": 13606
+        "ceiling": 13824,
+        "recorded": 13398
       },
       "code.fir_q15_255": {
-        "ceiling": 14784,
-        "recorded": 14352
+        "ceiling": 14592,
+        "recorded": 14144
       },
       "code.k_weighting": {
         "ceiling": 20800,
@@ -2370,8 +2604,8 @@
         "recorded": 4064
       },
       "core.text": {
-        "ceiling": 14720,
-        "recorded": 14282
+        "ceiling": 14528,
+        "recorded": 14074
       },
       "image.bss": {
         "ceiling": 15872,
@@ -2386,8 +2620,8 @@
         "recorded": 5992
       },
       "image.text": {
-        "ceiling": 54336,
-        "recorded": 52696
+        "ceiling": 54080,
+        "recorded": 52504
       },
       "stack.butterworth_16.measured": {
         "ceiling": 22664,
@@ -2454,28 +2688,28 @@
         "recorded": 832
       },
       "stack.fir_1023.measured": {
-        "ceiling": 408,
-        "recorded": 392
+        "ceiling": 392,
+        "recorded": 376
       },
       "stack.fir_1023.static": {
-        "ceiling": 1120,
-        "recorded": 1084
+        "ceiling": 1104,
+        "recorded": 1068
       },
       "stack.fir_63.measured": {
-        "ceiling": 1448,
-        "recorded": 1400
+        "ceiling": 1432,
+        "recorded": 1384
       },
       "stack.fir_63.static": {
-        "ceiling": 2160,
-        "recorded": 2092
+        "ceiling": 2144,
+        "recorded": 2076
       },
       "stack.fir_q15_255.measured": {
-        "ceiling": 3120,
-        "recorded": 3024
+        "ceiling": 3104,
+        "recorded": 3008
       },
       "stack.fir_q15_255.static": {
-        "ceiling": 3832,
-        "recorded": 3716
+        "ceiling": 3816,
+        "recorded": 3700
       },
       "stack.k_weighting.measured": {
         "ceiling": 2328,
@@ -3662,6 +3896,96 @@
         "recorded": 730
       }
     },
+    "denoise": {
+      "code.process": {
+        "ceiling": 9088,
+        "recorded": 8790
+      },
+      "code.reset": {
+        "ceiling": 384,
+        "recorded": 366
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 3072,
+        "recorded": 2964
+      },
+      "core.text": {
+        "ceiling": 7616,
+        "recorded": 7362
+      },
+      "image.bss": {
+        "ceiling": 13248,
+        "recorded": 12848
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 3200,
+        "recorded": 3076
+      },
+      "image.text": {
+        "ceiling": 16832,
+        "recorded": 16280
+      },
+      "sizeof.state": {
+        "ceiling": 6912,
+        "recorded": 6684
+      },
+      "sizeof.workspace": {
+        "ceiling": 5312,
+        "recorded": 5148
+      },
+      "stack.process.measured": {
+        "ceiling": 656,
+        "recorded": 632
+      },
+      "stack.process.static": {
+        "ceiling": 672,
+        "recorded": 648
+      },
+      "stack.reset.measured": {
+        "ceiling": 48,
+        "recorded": 44
+      },
+      "stack.reset.static": {
+        "ceiling": 48,
+        "recorded": 44
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 12224,
+        "recorded": 11832
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 24
+      },
+      "unit.text": {
+        "ceiling": 1344,
+        "recorded": 1280
+      }
+    },
     "designers": {
       "code.butterworth_16": {
         "ceiling": 17856,
@@ -3696,16 +4020,16 @@
         "recorded": 7480
       },
       "code.fir_1023": {
-        "ceiling": 14016,
-        "recorded": 13588
+        "ceiling": 13824,
+        "recorded": 13388
       },
       "code.fir_63": {
-        "ceiling": 14592,
-        "recorded": 14130
+        "ceiling": 14400,
+        "recorded": 13930
       },
       "code.fir_q15_255": {
-        "ceiling": 15360,
-        "recorded": 14892
+        "ceiling": 15168,
+        "recorded": 14692
       },
       "code.k_weighting": {
         "ceiling": 20544,
@@ -3732,8 +4056,8 @@
         "recorded": 4064
       },
       "core.text": {
-        "ceiling": 15168,
-        "recorded": 14720
+        "ceiling": 14976,
+        "recorded": 14520
       },
       "image.bss": {
         "ceiling": 15872,
@@ -3748,8 +4072,8 @@
         "recorded": 5992
       },
       "image.text": {
-        "ceiling": 55040,
-        "recorded": 53400
+        "ceiling": 54848,
+        "recorded": 53208
       },
       "stack.butterworth_16.measured": {
         "ceiling": 22664,
@@ -3816,28 +4140,28 @@
         "recorded": 872
       },
       "stack.fir_1023.measured": {
-        "ceiling": 408,
-        "recorded": 392
+        "ceiling": 392,
+        "recorded": 376
       },
       "stack.fir_1023.static": {
-        "ceiling": 1112,
-        "recorded": 1076
+        "ceiling": 1096,
+        "recorded": 1060
       },
       "stack.fir_63.measured": {
-        "ceiling": 1448,
-        "recorded": 1400
+        "ceiling": 1432,
+        "recorded": 1384
       },
       "stack.fir_63.static": {
-        "ceiling": 2152,
-        "recorded": 2084
+        "ceiling": 2136,
+        "recorded": 2068
       },
       "stack.fir_q15_255.measured": {
-        "ceiling": 3120,
-        "recorded": 3024
+        "ceiling": 3104,
+        "recorded": 3008
       },
       "stack.fir_q15_255.static": {
-        "ceiling": 3824,
-        "recorded": 3708
+        "ceiling": 3808,
+        "recorded": 3692
       },
       "stack.k_weighting.measured": {
         "ceiling": 2304,
@@ -5024,6 +5348,96 @@
         "recorded": 742
       }
     },
+    "denoise": {
+      "code.process": {
+        "ceiling": 9152,
+        "recorded": 8862
+      },
+      "code.reset": {
+        "ceiling": 448,
+        "recorded": 394
+      },
+      "core.bss": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "core.rodata": {
+        "ceiling": 3072,
+        "recorded": 2964
+      },
+      "core.text": {
+        "ceiling": 7680,
+        "recorded": 7410
+      },
+      "image.bss": {
+        "ceiling": 13248,
+        "recorded": 12848
+      },
+      "image.data": {
+        "ceiling": 1472,
+        "recorded": 1372
+      },
+      "image.rodata": {
+        "ceiling": 3200,
+        "recorded": 3076
+      },
+      "image.text": {
+        "ceiling": 16768,
+        "recorded": 16276
+      },
+      "sizeof.state": {
+        "ceiling": 6912,
+        "recorded": 6684
+      },
+      "sizeof.workspace": {
+        "ceiling": 5312,
+        "recorded": 5148
+      },
+      "stack.process.measured": {
+        "ceiling": 656,
+        "recorded": 632
+      },
+      "stack.process.static": {
+        "ceiling": 672,
+        "recorded": 648
+      },
+      "stack.reset.measured": {
+        "ceiling": 64,
+        "recorded": 56
+      },
+      "stack.reset.static": {
+        "ceiling": 64,
+        "recorded": 56
+      },
+      "startup.functions": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "startup.stack": {
+        "ceiling": 16,
+        "recorded": 12
+      },
+      "unit.bss": {
+        "ceiling": 12224,
+        "recorded": 11832
+      },
+      "unit.data": {
+        "ceiling": 0,
+        "recorded": 0
+      },
+      "unit.rodata": {
+        "ceiling": 64,
+        "recorded": 24
+      },
+      "unit.text": {
+        "ceiling": 1408,
+        "recorded": 1334
+      }
+    },
     "designers": {
       "code.butterworth_16": {
         "ceiling": 9728,
@@ -5058,16 +5472,16 @@
         "recorded": 4302
       },
       "code.fir_1023": {
-        "ceiling": 6400,
-        "recorded": 6186
+        "ceiling": 6336,
+        "recorded": 6106
       },
       "code.fir_63": {
-        "ceiling": 6848,
-        "recorded": 6648
+        "ceiling": 6784,
+        "recorded": 6568
       },
       "code.fir_q15_255": {
-        "ceiling": 7616,
-        "recorded": 7354
+        "ceiling": 7552,
+        "recorded": 7274
       },
       "code.k_weighting": {
         "ceiling": 11136,
@@ -5094,8 +5508,8 @@
         "recorded": 4064
       },
       "core.text": {
-        "ceiling": 10752,
-        "recorded": 10438
+        "ceiling": 10688,
+        "recorded": 10358
       },
       "image.bss": {
         "ceiling": 15872,
@@ -5110,8 +5524,8 @@
         "recorded": 14448
       },
       "image.text": {
-        "ceiling": 37696,
-        "recorded": 36596
+        "ceiling": 37632,
+        "recorded": 36516
       },
       "stack.butterworth_16.measured": {
         "ceiling": 22456,
@@ -5178,28 +5592,28 @@
         "recorded": 712
       },
       "stack.fir_1023.measured": {
-        "ceiling": 304,
-        "recorded": 288
+        "ceiling": 296,
+        "recorded": 280
       },
       "stack.fir_1023.static": {
-        "ceiling": 1016,
-        "recorded": 984
+        "ceiling": 1008,
+        "recorded": 976
       },
       "stack.fir_63.measured": {
-        "ceiling": 1336,
-        "recorded": 1296
+        "ceiling": 1328,
+        "recorded": 1288
       },
       "stack.fir_63.static": {
-        "ceiling": 2056,
-        "recorded": 1992
+        "ceiling": 2048,
+        "recorded": 1984
       },
       "stack.fir_q15_255.measured": {
-        "ceiling": 2992,
-        "recorded": 2904
+        "ceiling": 2984,
+        "recorded": 2896
       },
       "stack.fir_q15_255.static": {
-        "ceiling": 3712,
-        "recorded": 3600
+        "ceiling": 3704,
+        "recorded": 3592
       },
       "stack.k_weighting.measured": {
         "ceiling": 2112,

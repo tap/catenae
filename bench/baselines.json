@@ -1,5 +1,6 @@
 {
   "hexagon": {
+    "callmax_denoise_f32": 39322,
     "callmax_design_butterworth_16": 6743188,
     "callmax_design_butterworth_2": 1456174,
     "callmax_design_butterworth_4": 2080746,
@@ -18,6 +19,7 @@
     "callmax_fft_fir_f32": 31956,
     "callmax_version": 5,
     "compressor_f32": 33974218,
+    "denoise_f32": 20199375,
     "down2_f32": 2596906,
     "down2_q15": 3617257,
     "down2_q31": 5778408,
@@ -51,6 +53,7 @@
   },
   "host": {
     "compressor_f32": 11244041,
+    "denoise_f32": 28879382,
     "down2_f32": 12563680,
     "down2_q15": 15489936,
     "down2_q31": 18001695,
@@ -83,6 +86,7 @@
     "version": 21013
   },
   "m33": {
+    "callmax_denoise_f32": 55814,
     "callmax_design_butterworth_16": 74826914,
     "callmax_design_butterworth_2": 9788708,
     "callmax_design_butterworth_4": 16757532,
@@ -101,6 +105,7 @@
     "callmax_fft_fir_f32": 89817,
     "callmax_version": 9,
     "compressor_f32": 15374501,
+    "denoise_f32": 29497519,
     "down2_f32": 15498006,
     "down2_q15": 15147884,
     "down2_q31": 21863115,
@@ -133,6 +138,7 @@
     "version": 31916
   },
   "m4-softfp": {
+    "callmax_denoise_f32": 1021300,
     "callmax_design_butterworth_16": 74346227,
     "callmax_design_butterworth_2": 9721879,
     "callmax_design_butterworth_4": 16627420,
@@ -151,6 +157,7 @@
     "callmax_fft_fir_f32": 1870403,
     "callmax_version": 9,
     "compressor_f32": 228107705,
+    "denoise_f32": 523587844,
     "down2_f32": 148045279,
     "down2_q15": 14827871,
     "down2_q31": 21861098,
@@ -183,6 +190,7 @@
     "version": 31871
   },
   "m4f": {
+    "callmax_denoise_f32": 55913,
     "callmax_design_butterworth_16": 74436657,
     "callmax_design_butterworth_2": 9740915,
     "callmax_design_butterworth_4": 16661667,
@@ -201,6 +209,7 @@
     "callmax_fft_fir_f32": 89760,
     "callmax_version": 9,
     "compressor_f32": 15314779,
+    "denoise_f32": 29542119,
     "down2_f32": 15210034,
     "down2_q15": 14827881,
     "down2_q31": 21861110,
@@ -233,6 +242,7 @@
     "version": 31887
   },
   "m55": {
+    "callmax_denoise_f32": 53118,
     "callmax_design_butterworth_16": 2249441,
     "callmax_design_butterworth_2": 311692,
     "callmax_design_butterworth_4": 481214,
@@ -251,6 +261,7 @@
     "callmax_fft_fir_f32": 87603,
     "callmax_version": 9,
     "compressor_f32": 9426046,
+    "denoise_f32": 27951904,
     "down2_f32": 17744116,
     "down2_q15": 13263853,
     "down2_q31": 20077113,

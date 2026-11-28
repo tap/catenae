@@ -23,6 +23,7 @@
 
 #include "bessel_i0.h"
 #include "catenae/compiler.h"
+#include "catenae/detail/convert.h"
 #include "catenae/span.h"
 #include "fft_trig.h"
 
@@ -52,13 +53,14 @@ namespace catenae {
                 /// Every first-octant angle 2 pi k / 2^L, k = 0 to 2^L / 8, computed once.
                 template <int L>
                 struct octant_table {
-                    static constexpr std::array<fft_trig::octant_values, (std::size_t{1} << L) / 8u + 1u> values = [] {
-                        std::array<fft_trig::octant_values, (std::size_t{1} << L) / 8u + 1u> t{};
-                        for (std::size_t k = 0; k < t.size(); ++k) {
-                            t[k] = fft_trig::first_octant(k, L);
-                        }
-                        return t;
-                    }();
+                    static constexpr std::array<fft_trig::octant_values, (std::size_t{1} << L) / 8u + 1u> k_values =
+                        [] {
+                            std::array<fft_trig::octant_values, (std::size_t{1} << L) / 8u + 1u> t{};
+                            for (std::size_t k = 0; k < t.size(); ++k) {
+                                t[k] = fft_trig::first_octant(k, L);
+                            }
+                            return t;
+                        }();
                 };
 
                 /// The constants' source for a window of 2^L samples: the same values, each angle
@@ -66,7 +68,9 @@ namespace catenae {
                 template <int L>
                 struct tabled_octants {
                     static constexpr fft_trig::octant_values at(std::uint64_t k, int l) noexcept {
-                        return l == L ? octant_table<L>::values[k] : octant_table<L + 1>::values[k];
+                        const std::size_t at =
+                            detail::narrow<std::size_t>(k); // within the table, on a 32-bit target too
+                        return l == L ? octant_table<L>::k_values[at] : octant_table<L + 1>::k_values[at];
                     }
                 };
 

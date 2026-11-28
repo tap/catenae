@@ -33,9 +33,9 @@ namespace {
     std::vector<typename catenae_test::driver<Stage>::out_value>
     run_chunked(const Stage& stage, const std::vector<typename catenae_test::driver<Stage>::value_type>& in,
                 std::size_t largest, std::uint32_t seed) {
-        using driver_t                                   = catenae_test::driver<Stage>;
-        auto                                      d      = std::make_unique<driver_t>(stage, 0x5A);
-        const std::size_t                         frames = in.size() / driver_t::in_channels;
+        using driver_t           = catenae_test::driver<Stage>;
+        auto              d      = std::make_unique<driver_t>(stage, static_cast<unsigned char>(0x5A));
+        const std::size_t frames = in.size() / driver_t::in_channels;
         std::vector<typename driver_t::out_value> out;
         const std::vector<std::size_t>            sizes =
             largest == 0 ? std::vector<std::size_t>{frames} : catenae_test::chunks(frames, largest, seed);

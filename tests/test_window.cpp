@@ -15,7 +15,18 @@
 #include "catenae/window.h"
 #include "catenae_test/check_trap.h"
 
+#ifndef CATENAE_TEST_MAX_FFT_N
+#define CATENAE_TEST_MAX_FFT_N 1048576
+#endif
+
 namespace {
+
+    /// The longest constants checked: 8192, the longest there is, or a bare-metal leg's 4096
+    /// (CATENAE_TEST_MAX_FFT_N): every shape at 8192 in both formats is 245,820 bytes of flash, which
+    /// the M55's image does not have room for beside the rest of the battery.
+    constexpr std::size_t k_longest = CATENAE_TEST_MAX_FFT_N < 8192 ? CATENAE_TEST_MAX_FFT_N : 8192;
+    /// make()'s length past the constants checked.
+    constexpr std::size_t k_made = 2 * k_longest;
 
     template <typename T>
     class window : public ::testing::Test {};
@@ -102,7 +113,7 @@ namespace {
         using sample = TypeParam;
         expect_tables<sample, 16>();
         expect_tables<sample, 512>();
-        expect_tables<sample, 8192>();
+        expect_tables<sample, k_longest>();
         // Hann's quarter and half points exactly; sqrt-Hann squared is Hann.
         const catenae::window_design<sample, 512> h(catenae::window::hann);
         EXPECT_EQ(h[0], sample(0));
@@ -114,10 +125,10 @@ namespace {
         for (std::size_t n = 0; n < 512; ++n) {
             EXPECT_NEAR(double(r[n]) * double(r[n]), double(h[n]), square);
         }
-        // Past the constants, make() at 16384 is the formula too.
-        std::vector<sample> big(16384 / 2 + 1);
-        const auto          b = catenae::window_design<sample, 16384>::make(
-            catenae::window_shape::blackman_harris, catenae::span<sample, 16384 / 2 + 1>(big.data(), big.size()));
+        // Past the constants checked, make() is the formula too (at 16384 hosted, past them all).
+        std::vector<sample> big(k_made / 2 + 1);
+        const auto          b = catenae::window_design<sample, k_made>::make(
+            catenae::window_shape::blackman_harris, catenae::span<sample, k_made / 2 + 1>(big.data(), big.size()));
         expect_formula(b, catenae::window_shape::blackman_harris);
     }
 

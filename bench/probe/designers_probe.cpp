@@ -1,7 +1,7 @@
 /// @file designers_probe.cpp
 /// @brief What the designers' make() costs in stack (PLAN.md 3.3: on each design's card): one
 /// cookbook section, the Butterworth at each section count, three FIR designs, the three dynamics
-/// designs, an FFT FIR's spectrum and the EBU's peak programme meter.
+/// designs, an FFT FIR's spectrum, the EBU's peak programme meter and the K-weighting.
 // Copyright 2026 Timothy Place and the catenae contributors
 //
 // Each call is one make() through the compiled designers (src/biquad_design.cpp) and the
@@ -11,7 +11,8 @@
 // An FIR's make() designs half its taps in double, on the stack by value (63 float taps, 255
 // Q15 taps) or in the caller's workspace (1,023 float taps into a table). An FFT FIR's spectrum
 // runs the double transform of 512 over the 255 ROM taps of examples/fft_fir_tables.h, in the
-// caller's workspace. The peak programme meter's simulates its integration's burst in double.
+// caller's workspace. The peak programme meter's simulates its integration's burst in double;
+// the K-weighting's makes its two sections again and searches their tails, as a cascade's does.
 // This image links the designers' software double and libm; the recursive and FIR probes are
 // the ones the link-stage gate reads.
 #include <array>
@@ -22,6 +23,7 @@
 #include "catenae/dynamics_design.h"
 #include "catenae/fft_fir_design.h"
 #include "catenae/fir_design.h"
+#include "catenae/loudness_design.h"
 #include "catenae/ppm_design.h"
 #include "fft_fir_tables.h"
 
@@ -47,6 +49,7 @@ namespace catenae_probe {
     CATENAE_PROBE_NOINLINE bool probe_expander() noexcept;
     CATENAE_PROBE_NOINLINE bool probe_fft_fir_255() noexcept;
     CATENAE_PROBE_NOINLINE bool probe_ppm() noexcept;
+    CATENAE_PROBE_NOINLINE bool probe_k_weighting() noexcept;
 
     namespace {
         using long_fir = catenae::fir_design<float, 1023>;
@@ -100,6 +103,9 @@ namespace catenae_probe {
     CATENAE_PROBE_NOINLINE bool probe_ppm() noexcept {
         return catenae::ppm_design<float>::make(catenae::ebu_ppm(48000.0)).has_value();
     }
+    CATENAE_PROBE_NOINLINE bool probe_k_weighting() noexcept {
+        return catenae::k_weighting_design<float>::make(48000.0).has_value();
+    }
 
 } // namespace catenae_probe
 
@@ -133,6 +139,8 @@ int main() {
     std::printf("CATENAE_STACK fft_fir_255 %lu\n", static_cast<unsigned long>(ffir));
     const std::size_t ppm = catenae_probe::high_water([&made] { made = catenae_probe::probe_ppm() && made; });
     std::printf("CATENAE_STACK ppm %lu\n", static_cast<unsigned long>(ppm));
+    const std::size_t kw = catenae_probe::high_water([&made] { made = catenae_probe::probe_k_weighting() && made; });
+    std::printf("CATENAE_STACK k_weighting %lu\n", static_cast<unsigned long>(kw));
     const bool ok = made && b16 < catenae_probe::paint_bytes && f255 < catenae_probe::paint_bytes;
     std::printf("CATENAE_PROBE_DONE ok=%d\n", ok ? 1 : 0);
     return ok ? 0 : 1;
@@ -142,7 +150,7 @@ int main() {
         && catenae_probe::probe_butterworth_8() && catenae_probe::probe_butterworth_16()
         && catenae_probe::probe_fir_63() && catenae_probe::probe_fir_q15_255() && catenae_probe::probe_fir_1023()
         && catenae_probe::probe_compressor() && catenae_probe::probe_limiter() && catenae_probe::probe_expander()
-        && catenae_probe::probe_fft_fir_255() && catenae_probe::probe_ppm();
+        && catenae_probe::probe_fft_fir_255() && catenae_probe::probe_ppm() && catenae_probe::probe_k_weighting();
     return made ? 0 : 1;
 #endif
 }

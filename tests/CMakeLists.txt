@@ -131,6 +131,7 @@ catenae_add_gtest_executable(catenae_tests
         test_handoff.cpp
         test_harness.cpp
         test_interleave.cpp
+        test_loudness.cpp
         test_junction_traits.cpp
         test_mailbox.cpp
         test_map.cpp
@@ -152,6 +153,7 @@ catenae_add_gtest_executable(catenae_tests
         test_steady.cpp
         test_table_view.cpp
         test_tap.cpp
+        test_true_peak.cpp
         test_unpack.cpp
         test_version.cpp
         test_wire.cpp

@@ -42,8 +42,10 @@ over each channel of a port, and the split-complex measurement, on which the mai
 D25 as it stands. **C5** is under way, in three pull requests:
 the analyzers (`tap`, `peak_meter` and `rms_meter` in every format, the peak programme meter with
 the EBU's ballistics, `autocorrelation` and `cross_correlation`, the bus-meters example); then
-true peak and loudness (ITU-R BS.1770-4); then `stft` and `istft` with their windows and the
-smoothed spectral gate.
+true peak and loudness (ITU-R BS.1770-4: Annex 2's interpolator in every format, the
+K-weighting carried to any rate, the gated integrated value from a histogram, the
+programme-meters example); then `stft` and `istft` with their windows and the smoothed
+spectral gate.
 
 ## How to work here
 

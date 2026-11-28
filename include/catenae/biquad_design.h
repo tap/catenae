@@ -32,8 +32,8 @@
 /// | Residue     | 256 times S's smallest normal after the exact tail (DspTap's bound), pinned at |
 /// |             | the battery's designs under either flush-to-zero setting                      |
 /// | Cost        | `make()` runs in the caller's frame, outside the audio path. Cortex-M33, worst |
-/// |             | call (Bench run 45837885047): a cookbook section 28.2 M instructions, 1,380 B of |
-/// |             | stack; order 2, 4, 8, 16: 9.8, 16.8, 33.0, 74.8 M, 1,300, 2,008, 6,120, 22,008 B |
+/// |             | call (Bench run 45837885047; order 4's stack 46089381559): a cookbook section   |
+/// |             | 28.2 M, 1,380 B; order 2, 4, 8, 16: 9.8, 16.8, 33.0, 74.8 M, 1,300, 2,168, 6,120, 22,008 B |
 /// | Table       | `from_table(rows, numbers)` checks, exactly in S, each row's poles inside the |
 /// |             | unit circle and its coefficients finite: a failing table does not initialise a |
 /// |             | constant, and one met at run time reaches `check::table_rejected`              |
@@ -209,6 +209,8 @@ namespace catenae {
 
         template <typename S, std::size_t Order>
         class butterworth_design;
+        template <typename S>
+        class k_weighting_design; // catenae/loudness_design.h
 
         /// @brief `Sections` biquad sections in S's kernel type, with the numbers its stage
         /// reports. A class, not an aggregate: only `make()` and `from_table()` produce one.
@@ -270,6 +272,8 @@ namespace catenae {
           private:
             template <typename, std::size_t>
             friend class butterworth_design;
+            template <typename>
+            friend class k_weighting_design;
 
             constexpr biquad_design(const table_type& rows, const biquad_numbers& numbers) noexcept
                 : m_rows(rows)

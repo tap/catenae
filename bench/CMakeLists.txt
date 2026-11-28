@@ -156,6 +156,16 @@ foreach(_kind IN ITEMS meters_f32:0 meters_q15:1 meters_q31:2)
     target_include_directories(catenae_icount_${_kname} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 catenae_add_icount(callmax_design_ppm icount/ppm_design_main.cpp)
+# Loudness and true peak (C5): the programme meters of examples/loudness.h in float, and true peak
+# in Q15 and Q31; and what the K-weighting's make() costs (QEMU keys only).
+foreach(_kind IN ITEMS loudness_f32:0 true_peak_q15:1 true_peak_q31:2)
+    string(REPLACE ":" ";" _parts "${_kind}")
+    list(GET _parts 0 _kname)
+    list(GET _parts 1 _kid)
+    catenae_add_icount(${_kname} icount/loudness_main.cpp DEFINITIONS CATENAE_LOUDNESS_KIND=${_kid})
+    target_include_directories(catenae_icount_${_kname} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
+endforeach()
+catenae_add_icount(callmax_design_k_weighting icount/k_weighting_design_main.cpp)
 
 # --- The layout benchmark: interleaved against planar, informational (bench/layout/) --------
 add_subdirectory(layout)
@@ -194,11 +204,13 @@ catenae_add_probe(overdrive probe/overdrive_probe.cpp)
 catenae_add_probe(dynamics probe/dynamics_probe.cpp)
 catenae_add_probe(fft_fir probe/fft_fir_probe.cpp)
 catenae_add_probe(meters probe/meters_probe.cpp)
+catenae_add_probe(loudness probe/loudness_probe.cpp)
 catenae_add_probe(designers probe/designers_probe.cpp)
 foreach(_probe IN ITEMS catenae_probe_strip catenae_stack_strip catenae_probe_recursive catenae_stack_recursive
                         catenae_probe_fir catenae_stack_fir catenae_probe_overdrive catenae_stack_overdrive
                         catenae_probe_dynamics catenae_stack_dynamics catenae_probe_fft_fir catenae_stack_fft_fir
-                        catenae_probe_designers catenae_stack_designers catenae_probe_meters catenae_stack_meters)
+                        catenae_probe_designers catenae_stack_designers catenae_probe_meters catenae_stack_meters
+                        catenae_probe_loudness catenae_stack_loudness)
     target_include_directories(${_probe} PRIVATE "${PROJECT_SOURCE_DIR}/examples")
 endforeach()
 
@@ -251,6 +263,9 @@ int main() { return 0; }" CATENAE_HARDWARE_DOUBLE)
     add_test(NAME link_gate.MetersImageHasNoSoftwareDouble
              COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
                      $<TARGET_FILE:catenae_probe_meters>)
+    add_test(NAME link_gate.LoudnessImageHasNoSoftwareDouble
+             COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py
+                     $<TARGET_FILE:catenae_probe_loudness>)
     if(CATENAE_HARDWARE_DOUBLE)
         add_test(NAME link_gate.HardwareDoubleIsInvisible
                  COMMAND ${Python3_EXECUTABLE} ${PROJECT_SOURCE_DIR}/scripts/link_gate.py

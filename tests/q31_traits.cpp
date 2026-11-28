@@ -39,6 +39,7 @@
 #include "catenae/rms_meter.h"
 #include "catenae/stage_traits.h"
 #include "catenae/steady.h"
+#include "catenae/stft.h"
 #include "catenae/tap.h"
 #include "catenae/true_peak_meter.h"
 #include "catenae/unpack.h"
@@ -116,5 +117,12 @@ namespace {
     static_assert(
         std::is_same<catenae::loudness_meter_q31<1, 96, 1>::design_type::coefficient_type, std::int32_t>::value,
         "a Q2.30 K-weighting table");
+    // The STFT's contract in q31; its windows and spectra arrive at C6 (D38, D47).
+    static_assert(contract<catenae::stft_q31<512, 128, 2>>(), "the STFT in q31: its contract");
+    static_assert(contract<catenae::istft_q31<512, 128, 2>>(), "the inverse STFT in q31: its contract");
+    static_assert(contract<catenae::chain<catenae::stft_q31<64, 16, 1>, catenae::istft_q31<64, 16, 1>>>(),
+                  "the STFT pair in a q31 chain");
+    static_assert(std::is_same<catenae::window_design<catenae::q31, 512>::value_type, std::int32_t>::value,
+                  "a q31 window of raw integers");
 
 } // namespace

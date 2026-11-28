@@ -6,7 +6,8 @@
 // The window and its parameter are Kaiser's ("Nonrecursive digital filter design using the
 // I0-sinh window function", 1974), the ideal responses the window method's (Oppenheim and
 // Schafer, "Discrete-Time Signal Processing", 3rd ed., 7.5-7.6). bessel_i0, kaiser_beta and
-// sinc are carried from DspTap's kaiser.h at b26a7db (NOTICE.md), with design_prototype's
+// sinc are carried from DspTap's kaiser.h at b26a7db (NOTICE.md; bessel_i0 now in src/bessel_i0.h,
+// which the STFT's Kaiser window shares), with design_prototype's
 // window argument; the four responses and their normalisation are new here.
 #include "catenae/fir_design.h"
 
@@ -14,6 +15,7 @@
 #include <cstddef>
 #include <limits>
 
+#include "bessel_i0.h"
 #include "catenae/expected.h"
 #include "catenae/span.h"
 
@@ -30,23 +32,6 @@ namespace catenae {
 
                 bool fir_finite_double(double x) noexcept {
                     return x <= std::numeric_limits<double>::max() && x >= -std::numeric_limits<double>::max();
-                }
-
-                /// The modified Bessel function of the first kind, order zero, by its power series,
-                /// summed until a term no longer counts in double (DspTap's bessel_i0).
-                double fir_bessel_i0(double x) noexcept {
-                    const double half_x = 0.5 * x;
-                    double       term   = 1.0;
-                    double       sum    = 1.0;
-                    for (int k = 1; k < 1000; ++k) {
-                        const double r = half_x / static_cast<double>(k);
-                        term *= r * r;
-                        sum += term;
-                        if (term < 1e-21 * sum) {
-                            break;
-                        }
-                    }
-                    return sum;
                 }
 
                 /// The window's beta for a stopband of `atten_db` (Kaiser's empirical fit; DspTap's
@@ -106,7 +91,7 @@ namespace catenae {
                 const bool        odd     = taps % 2 == 1;
                 const double      centre  = 0.5 * static_cast<double>(taps - 1);
                 const double      beta    = fir_kaiser_beta(request.attenuation_db);
-                const double      i0_beta = fir_bessel_i0(beta);
+                const double      i0_beta = bessel_i0(beta);
                 const bool        two     = fir_two_edges(request.response);
                 // The window into `half`, and each low-pass's gain at DC: a pair of taps counts
                 // twice, an odd count's centre once.
@@ -118,7 +103,7 @@ namespace catenae {
                     if (taps > 1) {
                         const double u   = t / centre; // the window's argument, -1 to 0
                         const double arg = 1.0 - u * u;
-                        w                = fir_bessel_i0(beta * std::sqrt(arg > 0.0 ? arg : 0.0)) / i0_beta;
+                        w                = bessel_i0(beta * std::sqrt(arg > 0.0 ? arg : 0.0)) / i0_beta;
                     }
                     half[i]             = w;
                     const double weight = odd && i + 1 == count ? 1.0 : 2.0;

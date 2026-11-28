@@ -5,7 +5,8 @@
 // Each takes a stage's configuration and returns a GoogleTest AssertionResult that names what
 // broke. They drive the stage through its own run, with its own state and workspace, as a chain
 // will; the input is a deterministic pseudo-random signal. For an interleaved port of any
-// sample format; planar and spectrum ports join when their stages do.
+// sample format, and a spectrum, whose coefficients are pairs of the format's values; planar
+// ports join when their stages do.
 //
 //   reset_ignores_storage    storage filled with garbage then reset, and zeroed then reset,
 //                            give bit-equal output (D49)
@@ -32,10 +33,19 @@
 
 #include "catenae/chain.h"
 #include "catenae/ratio.h"
+#include "catenae/sample_format.h"
 #include "catenae/span.h"
 #include "catenae/stage_traits.h"
 
 namespace catenae_test {
+
+    /// Whether a value is a spectrum's coefficient, and the part it pairs.
+    template <typename V>
+    struct complex_parts : std::false_type {};
+    template <typename T>
+    struct complex_parts<catenae::complex<T>> : std::true_type {
+        using part = T;
+    };
 
     /// A deterministic signal: xorshift32 mapped into the format.
     class signal {
@@ -44,14 +54,21 @@ namespace catenae_test {
             : m_state(seed == 0 ? 0x9E3779B9u : seed) {}
         template <typename V>
         V next() noexcept {
-            m_state ^= m_state << 13;
-            m_state ^= m_state >> 17;
-            m_state ^= m_state << 5;
-            if constexpr (std::is_floating_point<V>::value) {
-                return static_cast<V>(static_cast<double>(m_state) / 2147483648.0 - 1.0);
+            if constexpr (complex_parts<V>::value) { // a coefficient: two values, re then im
+                using part   = typename complex_parts<V>::part;
+                const part r = next<part>();
+                return V{r, next<part>()};
             }
             else {
-                return static_cast<V>(m_state);
+                m_state ^= m_state << 13;
+                m_state ^= m_state >> 17;
+                m_state ^= m_state << 5;
+                if constexpr (std::is_floating_point<V>::value) {
+                    return static_cast<V>(static_cast<double>(m_state) / 2147483648.0 - 1.0);
+                }
+                else {
+                    return static_cast<V>(m_state);
+                }
             }
         }
 

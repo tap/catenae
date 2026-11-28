@@ -39,13 +39,15 @@ a stage that works in blocks, its transforms and product in the compiled core so
 the same on every target, its spectrum a design made in double or a table in ROM that
 `tools/tablegen` writes, the long-filter example); then `planar_section`, a chain of mono stages
 over each channel of a port, and the split-complex measurement, on which the maintainer froze
-D25 as it stands. **C5** is under way, in three pull requests:
+D25 as it stands. **C5** is done too, in three pull requests:
 the analyzers (`tap`, `peak_meter` and `rms_meter` in every format, the peak programme meter with
 the EBU's ballistics, `autocorrelation` and `cross_correlation`, the bus-meters example); then
 true peak and loudness (ITU-R BS.1770-4: Annex 2's interpolator in every format, the
 K-weighting carried to any rate, the gated integrated value from a histogram, the
-programme-meters example); then `stft` and `istft` with their windows and the smoothed
-spectral gate.
+programme-meters example); then `stft` and `istft` (Griffin and Lim's least-squares synthesis,
+a hop that divides the frame and is at most half of it) with their windows (five named ones
+constant in the core up to 8192 samples, `make()` beyond and for Kaiser's), and the spectral
+gate of PLAN.md 9.5, an example, bare at its hop and inside `steady`.
 
 ## How to work here
 

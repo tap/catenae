@@ -151,14 +151,18 @@ catenae_add_gtest_executable(catenae_tests
         test_span.cpp
         test_stage_traits.cpp
         test_steady.cpp
+        test_stft.cpp
         test_table_view.cpp
         test_tap.cpp
         test_true_peak.cpp
         test_unpack.cpp
         test_version.cpp
+        test_window.cpp
         test_wire.cpp
-        # The guide's stage of its own (examples/difference.h): its battery runs with this one.
-        ../examples/difference_battery.cpp)
+        # The guide's stage of its own (examples/difference.h) and the spectral gate of PLAN.md
+        # 9.5 (examples/spectral_gate.h): their batteries run with this one.
+        ../examples/difference_battery.cpp
+        ../examples/spectral_gate_battery.cpp)
 # On a bare-metal leg a timer interrupt is one side of a mailbox and a junction (PLAN.md 7.3).
 if(CATENAE_BARE_METAL)
     target_sources(catenae_tests PRIVATE bare_metal/interrupt.cpp)

@@ -67,7 +67,7 @@ PROBES = {"version": ["version"], "strip": ["reset", "process"], "strip_object":
                         "fir_q15_255", "fir_1023", "compressor", "limiter", "expander", "fft_fir_255", "ppm",
                         "k_weighting"],
           "dynamics": ["reset", "process"], "fft_fir": ["reset", "process"], "meters": ["reset", "process"],
-          "loudness": ["reset", "process"]}
+          "loudness": ["reset", "process"], "denoise": ["reset", "process"]}
 # A call's root, catenae_probe::probe_<call>, as a mangled name or a call graph's title: anchored,
 # so a static constructor whose name embeds the root's (_GLOBAL__sub_I_...) is not taken for it.
 ROOT = r"(?:^|:)_ZN13catenae_probe\d+probe_{call}E"
@@ -76,7 +76,7 @@ ROOT = r"(?:^|:)_ZN13catenae_probe\d+probe_{call}E"
 # probe whose start-up cannot be bounded fails.
 UNBOUNDED_STARTUP = {"strip_object": "operator new calls the new-handler through a pointer"}
 # The probe sets that call the compiled core (the rest are header templates alone).
-CALLS_CORE = {"version", "c2", "fft", "designers"}
+CALLS_CORE = {"version", "c2", "fft", "designers", "denoise"}
 # The keys, as the ratchet names them, and their QEMU machines (Arm) or none (Hexagon).
 KEYS = {"m4-softfp": "mps2-an386", "m4f": "mps2-an386", "m33": "mps2-an505", "m55": "mps3-an547",
         "hexagon": None}

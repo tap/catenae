@@ -35,7 +35,12 @@ window of whole hops in every format, `ppm_meter` follows the EBU's peak program
 `true_peak_meter` reads the waveform between samples by ITU-R BS.1770-4's 4x interpolator,
 `loudness_meter` reports momentary, short-term and gated integrated loudness through the
 standard's K-weighting carried to any rate, and `autocorrelation` and `cross_correlation` sum
-lagged products, their readings in decibels, LUFS or normalized off the audio path. `steady` makes a stage that works in blocks frame-synchronous,
+lagged products, their readings in decibels, LUFS or normalized off the audio path. `stft`
+turns a port into frames of spectra, windowed and overlapped, and `istft` turns them back by
+Griffin and Lim's least-squares overlap-add, so the pair reproduces its input a stated number
+of frames later; five named windows are constants of the core up to 8192 samples, and `make()`
+builds them at any length, and Kaiser's. A spectral gate written as an example runs between
+them, bare at its hop and inside `steady`. `steady` makes a stage that works in blocks frame-synchronous,
 `parallel` runs two chains on two groups of a port's channels, and `planar_section` runs a
 chain of mono stages over each channel of a port. `handoff` joins two threads of one clock with
 a fill policy stated as
